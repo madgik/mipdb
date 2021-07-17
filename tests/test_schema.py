@@ -19,11 +19,6 @@ def mockdb():
     return Mock(spec_set=DataBase)
 
 
-@pytest.fixture
-def cdes():
-    return [CommonDataElement("code", "label", "int", "description", "methodology")]
-
-
 def test_create_schema(mockdb):
     schema = Schema("schema_v1_0")
     schema.create(mockdb)
