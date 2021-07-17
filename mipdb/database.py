@@ -1,22 +1,22 @@
 from abc import abstractmethod, ABC
 from contextlib import contextmanager
 from pathlib import Path
-from functools import lru_cache
 from typing import Optional, Union
 
 import sqlalchemy as sql
 
-from mipdb.reader import TomlFileReader
 from mipdb.exceptions import DataBaseError
 
-MIPDB_CONFIG = Path().home() / ".mipdb.toml"
 
-
-@lru_cache
 def get_db_config():
-    with open(MIPDB_CONFIG) as fp:
-        reader = TomlFileReader(fp)
-        return reader.read()
+    config = {
+        "ip": "172.17.0.1",
+        "port": 50123,
+        "dbfarm": "db",
+        "username": "monetdb",
+        "password": "monetdb",
+    }
+    return config
 
 
 class Connection(ABC):

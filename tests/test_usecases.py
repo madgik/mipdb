@@ -11,22 +11,6 @@ from mipdb.usecases import (
 )
 from tests.mocks import MonetDBMock
 
-from mipdb.database import MonetDB, get_db_config
-
-
-@pytest.fixture()
-def db():
-    dbconfig = get_db_config()
-    return MonetDB.from_config(dbconfig)
-
-
-@pytest.fixture(scope="function")
-def cleanup_db(db):
-    yield
-    schemas = db.get_schemas()
-    for schema in schemas:
-        db.drop_schema(schema)
-
 
 # NOTE Some use cases have a main responsibility (e.g. add a new schema) which
 # is followed by some additional actions (e.g. updating the schemas and actions

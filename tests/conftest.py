@@ -1,6 +1,8 @@
 import pytest
 import docker
 
+from mipdb.database import MonetDB, get_db_config
+
 
 @pytest.fixture
 def schema_data():
@@ -77,3 +79,17 @@ def monetdb_container():
     yield
     container = client.containers.get("mipdb-testing")
     container.remove(v=True, force=True)
+
+
+@pytest.fixture(scope='function')
+def db():
+    dbconfig = get_db_config()
+    return MonetDB.from_config(dbconfig)
+
+
+@pytest.fixture(scope="function")
+def cleanup_db(db):
+    yield
+    schemas = db.get_schemas()
+    for schema in schemas:
+        db.drop_schema(schema)

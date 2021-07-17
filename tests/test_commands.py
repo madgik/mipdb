@@ -3,26 +3,11 @@ from click.testing import CliRunner
 
 from mipdb import init, add_schema, delete_schema
 from mipdb.commands import ExitCode
-from mipdb.database import MonetDB, get_db_config
 from mipdb.exceptions import UserInputError
 
 
-@pytest.fixture()
-def db():
-    dbconfig = get_db_config()
-    return MonetDB.from_config(dbconfig)
-
-
-@pytest.fixture(autouse=True)
-def cleanup_db(db):
-    yield
-    schemas = db.get_schemas()
-    for schema in schemas:
-        db.drop_schema(schema)
-
-
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_init(db):
     runner = CliRunner()
     assert "mipdb_metadata" not in db.get_schemas()
@@ -36,7 +21,7 @@ def test_init(db):
 
 # TODO remove explicit fetchall calls here, move to MonetDB._execute
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_add_schema(db):
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
@@ -70,7 +55,7 @@ def test_add_schema(db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_delete_schema(db):
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
