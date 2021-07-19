@@ -34,11 +34,11 @@ markers = [
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
-source_pkgs = ['mipdb']
+source = ['mipdb']
 dynamic_context = 'test_function'
 
 [tool.coverage.report]
-exclude_lines = ['def __repr__', 'raise NotImplementedError', 'pragma: no cover']
+exclude_lines = ['def __repr__', 'raise NotImplementedError', 'pragma: no cover', 'pass']
 show_missing = true
 
 [tool.coverage.html]
