@@ -35,7 +35,7 @@ def init():
 
 
 @entry.command()
-@cl.argument("file", type=cl.File("r"), required=True)
+@cl.argument("file", required=True)
 @cl.option("-v", "--version", required=True, help="The schema version")
 # @cl.option("--dry-run", is_flag=True)
 @handle_errors
