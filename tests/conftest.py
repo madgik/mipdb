@@ -1,3 +1,5 @@
+import time
+
 import pytest
 import docker
 
@@ -76,6 +78,7 @@ def monetdb_container():
             name="mipdb-testing",
             publish_all_ports=True,
         )
+    time.sleep(0.5)  # Container needs to sleep to get its shit together
     yield
     container = client.containers.get("mipdb-testing")
     container.remove(v=True, force=True)
