@@ -7,14 +7,18 @@ from mipdb.tables import (
     SchemasTable,
     DatasetsTable,
     VariablesTable,
+    NumericVariablesTable,
+    EnumerationsTable,
+    VariablesTable,
+)
+from mipdb.dataelements import (
+    CommonDataElement,
+    CategoricalCDE,
+    NumericalCDE,
+    make_cdes,
 )
 from mipdb.database import MonetDB, get_db_config
 from tests.mocks import MonetDBMock
-
-# NOTE Some of the tables under test below require other tables to have been
-# created before so that SQLAlchemy can create the appropriate foreign key
-# constraints. Whenever this is the case a comment is added next to the
-# required table creation.
 
 
 @pytest.fixture
@@ -70,8 +74,6 @@ def test_datasets_table(metadata):
 
 def test_actions_table(metadata):
     db = MonetDBMock()
-    SchemasTable(schema=metadata)  # Required by SQLAlchemy for FK constraints
-    DatasetsTable(schema=metadata)  # Required by SQLAlchemy for FK constraints
     ActionsTable(schema=metadata).create(db)
     assert "CREATE SEQUENCE mipdb_metadata.action_id_seq" in db.captured_queries[0]
     assert "CREATE TABLE mipdb_metadata.actions" in db.captured_queries[1]
@@ -94,9 +96,46 @@ def test_mark_schema_as_deleted(metadata):
     assert expected in db.captured_queries[0]
 
 
-# def test_json_field():
-#     db = MonetDBMock()
-#     schema = Schema("schema:1.0")
-#     vars_table = VariablesTable(schema)
-#     vars_table.create(db)
-#     assert "lalala" in db.captured_queries[0]
+class TestVariavlesTable:
+    def test_get_values_from_cdes(self):
+        variables_table = VariablesTable(Schema("schema_v1_0"))
+        cdes = [CommonDataElement("a_code", "a_label", "", "", "")]
+        expected = [{"code": "a_code", "label": "a_label"}]
+        result = variables_table.get_values_from_cdes(cdes)
+        assert result == expected
+
+
+class TestEnumerationsTable:
+    def test_get_values_from_cdes(self):
+        enumerations_table = EnumerationsTable(Schema("schema_v1_0"))
+        enumerations = [{"code": "a", "label": "Alpha"}, {"code": "b", "label": "Beta"}]
+        cdes = [
+            CategoricalCDE("a_code", "a_label", "", "", "", enumerations=enumerations)
+        ]
+        expected = [
+            {"variable_code": "a_code", "code": "a", "label": "Alpha"},
+            {"variable_code": "a_code", "code": "b", "label": "Beta"},
+        ]
+        result = enumerations_table.get_values_from_cdes(cdes)
+        assert result == expected
+
+
+class TestNumericTable:
+    def test_get_values_from_cdes(self):
+        numeric_table = NumericVariablesTable(Schema("schema_v1_0"))
+        cdes = [NumericalCDE("a_code", "a_label", "", "", "", -100, 100, "sec")]
+        expected = [
+            {"variable_code": "a_code", "min": -100, "max": 100, "units": "sec"}
+        ]
+        result = numeric_table.get_values_from_cdes(cdes)
+        assert result == expected
+
+    def test_get_values_from_cdes_full_schema_data(self, schema_data):
+        numeric_table = NumericVariablesTable(Schema("schema_v1_0"))
+        cdes = make_cdes(schema_data)
+        result = numeric_table.get_values_from_cdes(cdes)
+        expected = [
+            {"variable_code": "var3", "min": 0.0, "max": 100.0, "units": None},
+            {"variable_code": "var4", "min": None, "max": None, "units": "years"},
+        ]
+        assert result == expected

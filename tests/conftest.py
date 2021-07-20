@@ -4,65 +4,69 @@ import pytest
 import docker
 
 from mipdb.database import MonetDB, get_db_config
+from mipdb.reader import JsonFileReader
 
 
 @pytest.fixture
 def schema_data():
-    return {
-        "code": "schema",
-        "label": "The Schema",
-        "version": "1.0",
-        "variables": [
-            {
-                "isCategorical": False,
-                "code": "var1",
-                "sql_type": "text",
-                "description": "",
-                "label": "",
-                "methodology": "",
-            },
-            {
-                "isCategorical": False,
-                "code": "var2",
-                "sql_type": "text",
-                "description": "",
-                "label": "",
-                "methodology": "",
-            },
-        ],
-        "groups": [
-            {
-                "name": "group",
-                "label": "The Group",
-                "variables": [
-                    {
-                        "isCategorical": False,
-                        "code": "var3",
-                        "sql_type": "text",
-                        "description": "",
-                        "label": "",
-                        "methodology": "",
-                    },
-                ],
-                "groups": [
-                    {
-                        "name": "inner_group",
-                        "label": "The Inner Group",
-                        "variables": [
-                            {
-                                "isCategorical": False,
-                                "code": "var4",
-                                "sql_type": "text",
-                                "description": "",
-                                "label": "",
-                                "methodology": "",
-                            },
-                        ],
-                    }
-                ],
-            }
-        ],
-    }
+    schema_file = "tests/data/schema.json"
+    reader = JsonFileReader(schema_file)
+    return reader.read()
+    # return {
+    #     "code": "schema",
+    #     "label": "The Schema",
+    #     "version": "1.0",
+    #     "variables": [
+    #         {
+    #             "isCategorical": False,
+    #             "code": "var1",
+    #             "sql_type": "text",
+    #             "description": "",
+    #             "label": "",
+    #             "methodology": "",
+    #         },
+    #         {
+    #             "isCategorical": False,
+    #             "code": "var2",
+    #             "sql_type": "text",
+    #             "description": "",
+    #             "label": "",
+    #             "methodology": "",
+    #         },
+    #     ],
+    #     "groups": [
+    #         {
+    #             "name": "group",
+    #             "label": "The Group",
+    #             "variables": [
+    #                 {
+    #                     "isCategorical": False,
+    #                     "code": "var3",
+    #                     "sql_type": "text",
+    #                     "description": "",
+    #                     "label": "",
+    #                     "methodology": "",
+    #                 },
+    #             ],
+    #             "groups": [
+    #                 {
+    #                     "name": "inner_group",
+    #                     "label": "The Inner Group",
+    #                     "variables": [
+    #                         {
+    #                             "isCategorical": False,
+    #                             "code": "var4",
+    #                             "sql_type": "text",
+    #                             "description": "",
+    #                             "label": "",
+    #                             "methodology": "",
+    #                         },
+    #                     ],
+    #                 }
+    #             ],
+    #         }
+    #     ],
+    # }
 
 
 @pytest.fixture(scope="session")

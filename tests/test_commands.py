@@ -18,7 +18,6 @@ def test_init(db):
     assert db._execute("select * from mipdb_metadata.actions").fetchall() == []
 
 
-# TODO remove explicit fetchall calls here, move to MonetDB._execute
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_add_schema(db):
@@ -52,10 +51,11 @@ def test_add_schema(db):
     ]
     enums = db._execute('select * from "schema:1.0".enumerations').fetchall()
     assert enums == [("l1", "var2", "Level1"), ("l2", "var2", "Level2")]
-    domains = db._execute('select * from "schema:1.0".domains').fetchall()
-    assert domains == [("var3", 0.0, 100.0)]
-    units = db._execute('select * from "schema:1.0".units').fetchall()
-    assert units == [("var4", "years")]
+    num_vars = db._execute('select * from "schema:1.0".numeric_variables').fetchall()
+    assert num_vars == [
+        ("var3", 0.0, 100.0, None),
+        ("var4", None, None, "years"),
+    ]
 
 
 @pytest.mark.database

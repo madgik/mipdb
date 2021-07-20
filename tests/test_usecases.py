@@ -45,12 +45,10 @@ def test_add_schema_mock(schema_data):
     assert 'INSERT INTO "schema:1.0".variables' in db.captured_queries[3]
     assert 'CREATE TABLE "schema:1.0".enumerations' in db.captured_queries[4]
     assert 'INSERT INTO "schema:1.0".enumerations' in db.captured_queries[5]
-    assert 'CREATE TABLE "schema:1.0".domains' in db.captured_queries[6]
-    assert 'INSERT INTO "schema:1.0".domains' in db.captured_queries[7]
-    assert 'CREATE TABLE "schema:1.0".units' in db.captured_queries[8]
-    assert 'INSERT INTO "schema:1.0".units' in db.captured_queries[9]
-    assert 'CREATE TABLE "schema:1.0".primary_data' in db.captured_queries[10]
-    assert len(db.captured_queries) > 10  # verify that handlers issued more queries
+    assert 'CREATE TABLE "schema:1.0".numeric_variables' in db.captured_queries[6]
+    assert 'INSERT INTO "schema:1.0".numeric_variables' in db.captured_queries[7]
+    assert 'CREATE TABLE "schema:1.0".primary_data' in db.captured_queries[8]
+    assert len(db.captured_queries) > 8  # verify that handlers issued more queries
 
 
 @pytest.mark.database

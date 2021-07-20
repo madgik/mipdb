@@ -19,6 +19,13 @@ def test_flatten_cdes(schema_data):
     assert len(cdes) == 4
 
 
+def test_make_cdes_full_schema(schema_data):
+    cdes = make_cdes(schema_data)
+    assert all(isinstance(cde, CommonDataElement) for cde in cdes)
+    assert any(isinstance(cde, CategoricalCDE) for cde in cdes)
+    assert any(isinstance(cde, NumericalCDE) for cde in cdes)
+
+
 def test_make_cde():
     cde_data = {
         "isCategorical": False,

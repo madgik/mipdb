@@ -17,8 +17,7 @@ from mipdb.tables import (
     ActionsTable,
     VariablesTable,
     EnumerationsTable,
-    DomainsTable,
-    UnitsTable,
+    NumericVariablesTable,
     PrimaryDataTable,
 )
 from mipdb.event import EventEmitter
@@ -66,8 +65,7 @@ class AddSchema(UseCase):
         schema = Schema(name)
         vars_table = VariablesTable(schema)
         enums_table = EnumerationsTable(schema)
-        domains_table = DomainsTable(schema)
-        units_table = UnitsTable(schema)
+        domains_table = NumericVariablesTable(schema)
         cdes = make_cdes(schema_data)
         primary_data_table = PrimaryDataTable(schema, cdes)
         with self.db.begin() as conn:
@@ -78,8 +76,6 @@ class AddSchema(UseCase):
             enums_table.insert_values(enums_table.get_values_from_cdes(cdes), conn)
             domains_table.create(conn)
             domains_table.insert_values(domains_table.get_values_from_cdes(cdes), conn)
-            units_table.create(conn)
-            units_table.insert_values(units_table.get_values_from_cdes(cdes), conn)
             primary_data_table.create(conn)
 
             record = dict(

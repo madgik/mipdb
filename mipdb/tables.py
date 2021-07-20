@@ -181,49 +181,28 @@ class EnumerationsTable(Table):
         ]
 
 
-class DomainsTable(Table):
+class NumericVariablesTable(Table):
     def __init__(self, schema: Schema):
         self._table = sql.Table(
-            "domains",
+            "numeric_variables",
             schema._schema,
             sql.Column("variable_code", sql.String(128)),
             sql.Column("min", sql.Float),
             sql.Column("max", sql.Float),
-        )
-
-    @staticmethod
-    def get_values_from_cdes(cdes):
-        numerical_cdes = [cde for cde in cdes if isinstance(cde, NumericalCDE)]
-        return [
-            {
-                "variable_code": cde.code,
-                "min": cde.minValue,
-                "max": cde.maxValue,
-            }
-            for cde in numerical_cdes
-            if cde.minValue or cde.maxValue
-        ]
-
-
-class UnitsTable(Table):
-    def __init__(self, schema: Schema) -> None:
-        self._table = sql.Table(
-            "units",
-            schema._schema,
-            sql.Column("variable_code", sql.String(128)),
             sql.Column("units", sql.String(128)),
         )
 
     @staticmethod
     def get_values_from_cdes(cdes):
-        numerical_cdes = [cde for cde in cdes if isinstance(cde, NumericalCDE)]
+        numeric_cdes = [cde for cde in cdes if isinstance(cde, NumericalCDE)]
         return [
             {
                 "variable_code": cde.code,
+                "min": cde.minValue,
+                "max": cde.maxValue,
                 "units": cde.units,
             }
-            for cde in numerical_cdes
-            if cde.units
+            for cde in numeric_cdes
         ]
 
 
