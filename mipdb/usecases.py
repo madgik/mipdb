@@ -14,7 +14,6 @@ from mipdb.dataelements import (
 from mipdb.tables import (
     SchemasTable,
     DatasetsTable,
-    PropertiesTable,
     ActionsTable,
     VariablesTable,
     EnumerationsTable,
@@ -48,7 +47,6 @@ class InitDB(UseCase):
             metadata.create(conn)
             SchemasTable(schema=metadata).create(conn)
             DatasetsTable(schema=metadata).create(conn)
-            PropertiesTable(schema=metadata).create(conn)
             ActionsTable(schema=metadata).create(conn)
 
 
@@ -109,7 +107,11 @@ def update_actions_on_schema_addition(record: dict, conn: Connection):
     metadata = Schema("mipdb_metadata")
     actions_table = ActionsTable(schema=metadata)
     record = record.copy()
-    record["type"] = "ADD SCHEMA"
+    schema_id = record["schema_id"]
+    code = record["code"]
+    version = record["version"]
+    description = f"ADD SCHEMA WITH id={schema_id}, code={code}, version={version}"
+    record["description"] = description
     record["user"] = "TO BE DETERMINED"
     record["date"] = "TO BE DETERMINED"
     actions_table.insert_values(record, conn)
@@ -155,7 +157,11 @@ def update_actions_on_schema_deletion(record, conn):
     metadata = Schema("mipdb_metadata")
     actions_table = ActionsTable(schema=metadata)
     record = record.copy()
-    record["type"] = "DELETE SCHEMA"
+    schema_id = record["schema_id"]
+    code = record["code"]
+    version = record["version"]
+    description = f"DELETE SCHEMA WITH id={schema_id}, code={code}, version={version}"
+    record["description"] = description
     record["user"] = "TO BE DETERMINED"
     record["date"] = "TO BE DETERMINED"
     actions_table.insert_values(record, conn)

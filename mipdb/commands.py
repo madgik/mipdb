@@ -1,5 +1,3 @@
-import sys
-
 import click as cl
 
 from mipdb.database import MonetDB, get_db_config

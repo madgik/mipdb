@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import NamedTuple, Union, List
 
 import sqlalchemy as sql
+from sqlalchemy.ext.compiler import compiles
 
 from mipdb.database import DataBase, Connection
 from mipdb.dataelements import CommonDataElement, CategoricalCDE, NumericalCDE
@@ -13,9 +14,17 @@ class SQLTYPES:
     INTEGER = sql.Integer
     STRING = sql.String(255)
     FLOAT = sql.Float
+    JSON = sql.types.JSON
 
 
 STR2SQLTYPE = {"int": SQLTYPES.INTEGER, "text": SQLTYPES.STRING, "real": SQLTYPES.FLOAT}
+
+
+@compiles(sql.types.JSON, "monetdb")
+def compile_binary_sqlite(type_, compiler, **kw):
+    # The monetdb plugin for sqlalchemy doesn't seem to implement the JSON
+    # datatype hence we need to teach sqlalchemy how to compile it
+    return "JSON"
 
 
 class Table(ABC):
@@ -52,6 +61,7 @@ class SchemasTable(Table):
             sql.Column("version", SQLTYPES.STRING, nullable=False),
             sql.Column("label", SQLTYPES.STRING),
             sql.Column("status", SQLTYPES.STRING, nullable=False),
+            sql.Column("properties", SQLTYPES.JSON),
         )
 
     def get_schema_id(self, code, version, db):
@@ -106,37 +116,13 @@ class DatasetsTable(Table):
             sql.Column(
                 "schema_id",
                 SQLTYPES.INTEGER,
-                sql.ForeignKey("schemas.schema_id"),
+                # sql.ForeignKey("schemas.schema_id"),
                 nullable=False,
             ),
             sql.Column("version", SQLTYPES.STRING, nullable=False),
             sql.Column("label", SQLTYPES.STRING),
             sql.Column("status", SQLTYPES.STRING, nullable=False),
-        )
-
-
-class PropertiesTable(Table):
-    def __init__(self, schema):
-        self._table = sql.Table(
-            "properties",
-            schema._schema,
-            sql.Column(
-                "property_id",
-                SQLTYPES.INTEGER,
-                sql.Sequence("property_id_seq", metadata=schema._schema),
-                primary_key=True,
-            ),
-            sql.Column("type", SQLTYPES.STRING, nullable=False),
-            sql.Column(
-                "schema_id",
-                SQLTYPES.INTEGER,
-            ),
-            sql.Column(
-                "dataset_id",
-                SQLTYPES.INTEGER,
-            ),
-            sql.Column("name", SQLTYPES.STRING),
-            sql.Column("value", SQLTYPES.STRING, nullable=False),
+            sql.Column("properties", SQLTYPES.JSON),
         )
 
 
@@ -151,15 +137,7 @@ class ActionsTable(Table):
                 sql.Sequence("action_id_seq", metadata=schema._schema),
                 primary_key=True,
             ),
-            sql.Column("type", SQLTYPES.STRING, nullable=False),
-            sql.Column(
-                "schema_id",
-                SQLTYPES.INTEGER,
-            ),
-            sql.Column(
-                "dataset_id",
-                SQLTYPES.INTEGER,
-            ),
+            sql.Column("description", SQLTYPES.STRING, nullable=False),
             sql.Column("user", SQLTYPES.STRING, nullable=False),
             sql.Column("date", SQLTYPES.STRING, nullable=False),
         )

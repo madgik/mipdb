@@ -84,7 +84,7 @@ def monetdb_container():
     container.remove(v=True, force=True)
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def db():
     dbconfig = get_db_config()
     return MonetDB.from_config(dbconfig)

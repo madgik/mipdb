@@ -15,7 +15,6 @@ def test_init(db):
     assert result.exit_code == ExitCode.OK
     assert "mipdb_metadata" in db.get_schemas()
     assert db._execute("select * from mipdb_metadata.schemas").fetchall() == []
-    assert db._execute("select * from mipdb_metadata.properties").fetchall() == []
     assert db._execute("select * from mipdb_metadata.actions").fetchall() == []
 
 
@@ -34,10 +33,15 @@ def test_add_schema(db):
     assert result.exit_code == ExitCode.OK
     assert "schema:1.0" in db.get_schemas()
     schemas = db._execute("select * from mipdb_metadata.schemas").fetchall()
-    assert schemas == [(1, "schema", "1.0", "The Schema", "DISABLED")]
+    assert schemas == [(1, "schema", "1.0", "The Schema", "DISABLED", None)]
     actions = db._execute("select * from mipdb_metadata.actions").fetchall()
     assert actions == [
-        (1, "ADD SCHEMA", 1, None, "TO BE DETERMINED", "TO BE DETERMINED")
+        (
+            1,
+            "ADD SCHEMA WITH id=1, code=schema, version=1.0",
+            "TO BE DETERMINED",
+            "TO BE DETERMINED",
+        )
     ]
     variables = db._execute('select * from "schema:1.0".variables').fetchall()
     assert variables == [
@@ -70,6 +74,16 @@ def test_delete_schema(db):
     assert "schema:1.0" not in db.get_schemas()
     actions = db._execute("select * from mipdb_metadata.actions").fetchall()
     assert actions == [
-        (1, "ADD SCHEMA", 1, None, "TO BE DETERMINED", "TO BE DETERMINED"),
-        (2, "DELETE SCHEMA", 1, None, "TO BE DETERMINED", "TO BE DETERMINED"),
+        (
+            1,
+            "ADD SCHEMA WITH id=1, code=schema, version=1.0",
+            "TO BE DETERMINED",
+            "TO BE DETERMINED",
+        ),
+        (
+            2,
+            "DELETE SCHEMA WITH id=1, code=schema, version=1.0",
+            "TO BE DETERMINED",
+            "TO BE DETERMINED",
+        ),
     ]

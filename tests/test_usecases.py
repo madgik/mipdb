@@ -26,8 +26,7 @@ def test_init_mock():
     assert "CREATE SCHEMA mipdb_metadata" in db.captured_queries[0]
     assert "CREATE TABLE mipdb_metadata.schemas" in db.captured_queries[2]
     assert "CREATE TABLE mipdb_metadata.datasets" in db.captured_queries[4]
-    assert "CREATE TABLE mipdb_metadata.properties" in db.captured_queries[6]
-    assert "CREATE TABLE mipdb_metadata.actions" in db.captured_queries[8]
+    assert "CREATE TABLE mipdb_metadata.actions" in db.captured_queries[6]
 
 
 @pytest.mark.database
@@ -75,7 +74,7 @@ def test_update_schemas_on_schema_addition():
 
 def test_update_actions_on_schema_addition():
     db = MonetDBMock()
-    record = {"code": "code", "version": "1.0", "label": "Label"}
+    record = {"code": "code", "version": "1.0", "schema_id": 1}
     update_actions_on_schema_addition(record, db)
     assert "INSERT INTO mipdb_metadata.actions" in db.captured_queries[0]
     actions_record = db.captured_multiparams[0][0]
