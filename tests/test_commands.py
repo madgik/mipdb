@@ -4,18 +4,19 @@ from click.testing import CliRunner
 from mipdb import init, add_schema, delete_schema
 from mipdb.commands import ExitCode
 from mipdb.exceptions import UserInputError
+from mipdb.constants import METADATA_TABLE, METADATA_SCHEMA
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_init(db):
     runner = CliRunner()
-    assert "mipdb_metadata" not in db.get_schemas()
+    assert METADATA_SCHEMA not in db.get_schemas()
     result = runner.invoke(init, [])
     assert result.exit_code == ExitCode.OK
-    assert "mipdb_metadata" in db.get_schemas()
-    assert db._execute("select * from mipdb_metadata.schemas").fetchall() == []
-    assert db._execute("select * from mipdb_metadata.actions").fetchall() == []
+    assert METADATA_SCHEMA in db.get_schemas()
+    assert db._execute(f"select * from {METADATA_SCHEMA}.schemas").fetchall() == []
+    assert db._execute(f"select * from {METADATA_SCHEMA}.actions").fetchall() == []
 
 
 @pytest.mark.database
@@ -25,15 +26,15 @@ def test_add_schema(db):
     schema_file = "tests/data/schema.json"
     # Check schema not present
     assert "schema:1.0" not in db.get_schemas()
-    # Need to call init first to create mipdb_metadata
+    # Need to call init first to create METADATA_SCHEMA
     result = runner.invoke(init, [])
     # Test add schema
     result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     assert "schema:1.0" in db.get_schemas()
-    schemas = db._execute("select * from mipdb_metadata.schemas").fetchall()
+    schemas = db._execute(f"select * from {METADATA_SCHEMA}.schemas").fetchall()
     assert schemas == [(1, "schema", "1.0", "The Schema", "DISABLED", None)]
-    actions = db._execute("select * from mipdb_metadata.actions").fetchall()
+    actions = db._execute(f"select * from {METADATA_SCHEMA}.actions").fetchall()
     assert actions == [
         (
             1,
@@ -42,20 +43,9 @@ def test_add_schema(db):
             "TO BE DETERMINED",
         )
     ]
-    variables = db._execute('select * from "schema:1.0".variables').fetchall()
-    assert variables == [
-        ("var1", "Variable 1"),
-        ("var2", "Variable 2"),
-        ("var3", "Variable 3"),
-        ("var4", "Variable 4"),
-    ]
-    enums = db._execute('select * from "schema:1.0".enumerations').fetchall()
-    assert enums == [("l1", "var2", "Level1"), ("l2", "var2", "Level2")]
-    num_vars = db._execute('select * from "schema:1.0".numeric_variables').fetchall()
-    assert num_vars == [
-        ("var3", 0.0, 100.0, None),
-        ("var4", None, None, "years"),
-    ]
+    metadata = db._execute(f'select * from "schema:1.0".{METADATA_TABLE}').fetchall()
+    # TODO better test
+    assert len(metadata) == 4
 
 
 @pytest.mark.database
@@ -72,7 +62,7 @@ def test_delete_schema(db):
     result = runner.invoke(delete_schema, ["schema", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     assert "schema:1.0" not in db.get_schemas()
-    actions = db._execute("select * from mipdb_metadata.actions").fetchall()
+    actions = db._execute(f"select * from {METADATA_SCHEMA}.actions").fetchall()
     assert actions == [
         (
             1,

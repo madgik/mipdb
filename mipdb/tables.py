@@ -1,13 +1,22 @@
 from abc import ABC, abstractmethod
+import json
 from typing import NamedTuple, Union, List
 
 import sqlalchemy as sql
 from sqlalchemy.ext.compiler import compiles
 
+from mipdb.constants import METADATA_SCHEMA, METADATA_TABLE
 from mipdb.database import DataBase, Connection
-from mipdb.dataelements import CommonDataElement, CategoricalCDE, NumericalCDE
+from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import DataBaseError
 from mipdb.schema import Schema
+
+
+@compiles(sql.types.JSON, "monetdb")
+def compile_binary_monetdb(type_, compiler, **kw):
+    # The monetdb plugin for sqlalchemy doesn't seem to implement the JSON
+    # datatype hence we need to teach sqlalchemy how to compile it
+    return "JSON"
 
 
 class SQLTYPES:
@@ -18,13 +27,6 @@ class SQLTYPES:
 
 
 STR2SQLTYPE = {"int": SQLTYPES.INTEGER, "text": SQLTYPES.STRING, "real": SQLTYPES.FLOAT}
-
-
-@compiles(sql.types.JSON, "monetdb")
-def compile_binary_sqlite(type_, compiler, **kw):
-    # The monetdb plugin for sqlalchemy doesn't seem to implement the JSON
-    # datatype hence we need to teach sqlalchemy how to compile it
-    return "JSON"
 
 
 class Table(ABC):
@@ -72,7 +74,7 @@ class SchemasTable(Table):
         # implemented.
         select = sql.text(
             "SELECT schemas.schema_id "
-            "FROM mipdb_metadata.schemas "
+            f"FROM {METADATA_SCHEMA}.schemas "
             "WHERE schemas.code = :code "
             "AND schemas.version = :version "
             "AND schemas.status <> 'DELETED'"
@@ -88,9 +90,10 @@ class SchemasTable(Table):
             )
         return res[0][0]
 
+    # TODO delete instead of marking as deleted
     def mark_schema_as_deleted(self, code, version, db):
         update = sql.text(
-            "UPDATE mipdb_metadata.schemas "
+            f"UPDATE {METADATA_SCHEMA}.schemas "
             "SET status = 'DELETED' "
             "WHERE code = :code "
             "AND version = :version "
@@ -116,7 +119,6 @@ class DatasetsTable(Table):
             sql.Column(
                 "schema_id",
                 SQLTYPES.INTEGER,
-                # sql.ForeignKey("schemas.schema_id"),
                 nullable=False,
             ),
             sql.Column("version", SQLTYPES.STRING, nullable=False),
@@ -143,69 +145,6 @@ class ActionsTable(Table):
         )
 
 
-class VariablesTable(Table):
-    def __init__(self, schema: Schema) -> None:
-        self._table = sql.Table(
-            "variables",
-            schema._schema,
-            sql.Column("code", sql.String(128), primary_key=True),
-            sql.Column("label", sql.String(128)),
-        )
-
-    @staticmethod
-    def get_values_from_cdes(cdes):
-        return [{"code": cde.code, "label": cde.label} for cde in cdes]
-
-
-class EnumerationsTable(Table):
-    def __init__(self, schema: Schema):
-        self._table = sql.Table(
-            "enumerations",
-            schema._schema,
-            sql.Column("code", sql.String(128)),
-            sql.Column("variable_code", sql.String(128)),
-            sql.Column("label", sql.String(128)),
-        )
-
-    @staticmethod
-    def get_values_from_cdes(cdes):
-        nominal_cdes = [cde for cde in cdes if isinstance(cde, CategoricalCDE)]
-        return [
-            {
-                "variable_code": cde.code,
-                "code": enum["code"],
-                "label": enum["label"],
-            }
-            for cde in nominal_cdes
-            for enum in cde.enumerations
-        ]
-
-
-class NumericVariablesTable(Table):
-    def __init__(self, schema: Schema):
-        self._table = sql.Table(
-            "numeric_variables",
-            schema._schema,
-            sql.Column("variable_code", sql.String(128)),
-            sql.Column("min", sql.Float),
-            sql.Column("max", sql.Float),
-            sql.Column("units", sql.String(128)),
-        )
-
-    @staticmethod
-    def get_values_from_cdes(cdes):
-        numeric_cdes = [cde for cde in cdes if isinstance(cde, NumericalCDE)]
-        return [
-            {
-                "variable_code": cde.code,
-                "min": cde.minValue,
-                "max": cde.maxValue,
-                "units": cde.units,
-            }
-            for cde in numeric_cdes
-        ]
-
-
 class PrimaryDataTable(Table):
     def __init__(self, schema: Schema, cdes: List[CommonDataElement]) -> None:
         columns = [sql.Column(cde.code, STR2SQLTYPE[cde.sql_type]) for cde in cdes]
@@ -214,3 +153,26 @@ class PrimaryDataTable(Table):
             schema._schema,
             *columns,
         )
+
+
+class MetadataTable(Table):
+    def __init__(self, schema: Schema) -> None:
+        self._schema = schema.name
+        self._table = sql.Table(
+            METADATA_TABLE,
+            schema._schema,
+            sql.Column("code", SQLTYPES.STRING, primary_key=True),
+            sql.Column("metadata", SQLTYPES.JSON),
+        )
+
+    @staticmethod
+    def get_values_from_cdes(cdes):
+        return [{"code": cde.code, "metadata": cde.metadata} for cde in cdes]
+
+    def insert_values(self, values, db: Union[DataBase, Connection]):
+        # Needs to be overridden because sqlalchemy and monetdb are not cooperating
+        # well when inserting values to JSON columns
+        query = sql.text(
+            f'INSERT INTO "{self._schema}".{METADATA_TABLE} VALUES(:code, :metadata)'
+        )
+        db._execute(query, values)

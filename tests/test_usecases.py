@@ -9,6 +9,7 @@ from mipdb.usecases import (
     update_schemas_on_schema_addition,
     update_schemas_on_schema_deletion,
 )
+from mipdb.constants import METADATA_TABLE, METADATA_SCHEMA
 from tests.mocks import MonetDBMock
 
 
@@ -23,10 +24,10 @@ from tests.mocks import MonetDBMock
 def test_init_mock():
     db = MonetDBMock()
     InitDB(db).execute()
-    assert "CREATE SCHEMA mipdb_metadata" in db.captured_queries[0]
-    assert "CREATE TABLE mipdb_metadata.schemas" in db.captured_queries[2]
-    assert "CREATE TABLE mipdb_metadata.datasets" in db.captured_queries[4]
-    assert "CREATE TABLE mipdb_metadata.actions" in db.captured_queries[6]
+    assert f"CREATE SCHEMA {METADATA_SCHEMA}" in db.captured_queries[0]
+    assert f"CREATE TABLE {METADATA_SCHEMA}.schemas" in db.captured_queries[2]
+    assert f"CREATE TABLE {METADATA_SCHEMA}.datasets" in db.captured_queries[4]
+    assert f"CREATE TABLE {METADATA_SCHEMA}.actions" in db.captured_queries[6]
 
 
 @pytest.mark.database
@@ -34,21 +35,17 @@ def test_init_mock():
 def test_init_with_db(db):
     InitDB(db).execute()
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+    assert METADATA_SCHEMA in schemas
 
 
 def test_add_schema_mock(schema_data):
     db = MonetDBMock()
     AddSchema(db).execute(schema_data)
     assert 'CREATE SCHEMA "schema:1.0"' in db.captured_queries[1]
-    assert 'CREATE TABLE "schema:1.0".variables' in db.captured_queries[2]
-    assert 'INSERT INTO "schema:1.0".variables' in db.captured_queries[3]
-    assert 'CREATE TABLE "schema:1.0".enumerations' in db.captured_queries[4]
-    assert 'INSERT INTO "schema:1.0".enumerations' in db.captured_queries[5]
-    assert 'CREATE TABLE "schema:1.0".numeric_variables' in db.captured_queries[6]
-    assert 'INSERT INTO "schema:1.0".numeric_variables' in db.captured_queries[7]
-    assert 'CREATE TABLE "schema:1.0".primary_data' in db.captured_queries[8]
-    assert len(db.captured_queries) > 8  # verify that handlers issued more queries
+    assert 'CREATE TABLE "schema:1.0".primary_data' in db.captured_queries[2]
+    assert f'CREATE TABLE "schema:1.0".{METADATA_TABLE}' in db.captured_queries[3]
+    assert f'INSERT INTO "schema:1.0".{METADATA_TABLE}' in db.captured_queries[4]
+    assert len(db.captured_queries) > 5  # verify that handlers issued more queries
 
 
 @pytest.mark.database
@@ -57,7 +54,7 @@ def test_add_schema_with_db(db, schema_data):
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+    assert METADATA_SCHEMA in schemas
     assert "schema:1.0" in schemas
 
 
@@ -65,7 +62,7 @@ def test_update_schemas_on_schema_addition():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0", "label": "Label"}
     update_schemas_on_schema_addition(record, db)
-    assert "INSERT INTO mipdb_metadata.schemas" in db.captured_queries[0]
+    assert f"INSERT INTO {METADATA_SCHEMA}.schemas" in db.captured_queries[0]
     schemas_record = db.captured_multiparams[0][0]
     assert schemas_record["status"] == "DISABLED"
 
@@ -74,7 +71,7 @@ def test_update_actions_on_schema_addition():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0", "schema_id": 1}
     update_actions_on_schema_addition(record, db)
-    assert "INSERT INTO mipdb_metadata.actions" in db.captured_queries[0]
+    assert f"INSERT INTO {METADATA_SCHEMA}.actions" in db.captured_queries[0]
     actions_record = db.captured_multiparams[0][0]
     assert set(record.values()) <= set(actions_record.values())
 
@@ -86,7 +83,7 @@ def test_delete_schema():
     with pytest.raises(DataBaseError):
         DeleteSchema(db).execute(code, version)
     assert 'DROP SCHEMA "schema:1.0" CASCADE' in db.captured_queries[0]
-    expected_select_id = "SELECT schemas.schema_id FROM mipdb_metadata.schemas"
+    expected_select_id = f"SELECT schemas.schema_id FROM {METADATA_SCHEMA}.schemas"
     assert expected_select_id in db.captured_queries[1]
 
 
@@ -96,11 +93,11 @@ def test_delete_schema_with_db(db, schema_data):
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+    assert METADATA_SCHEMA in schemas
     assert "schema:1.0" in schemas
     DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"])
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+    assert METADATA_SCHEMA in schemas
     assert "schema:1.0" not in schemas
 
 
@@ -108,7 +105,7 @@ def test_update_schemas_on_schema_deletion():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0"}
     update_schemas_on_schema_deletion(record, db)
-    expected = "UPDATE mipdb_metadata.schemas SET status = 'DELETED'"
+    expected = f"UPDATE {METADATA_SCHEMA}.schemas SET status = 'DELETED'"
     assert expected in db.captured_queries[0]
     assert db.captured_params[0] == record
 
@@ -117,6 +114,6 @@ def test_update_actions_on_schema_deletion():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0", "schema_id": 1}
     update_actions_on_schema_deletion(record, db)
-    assert "INSERT INTO mipdb_metadata.actions" in db.captured_queries[0]
+    assert f"INSERT INTO {METADATA_SCHEMA}.actions" in db.captured_queries[0]
     actions_record = db.captured_multiparams[0][0]
     assert set(record.values()) <= set(actions_record.values())

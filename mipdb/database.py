@@ -150,7 +150,7 @@ class MonetDB(DBExecutorMixin, DataBase):
     """Concrete DataBase object connecting to a MonetDB instance. Gets all its
     query executing methods from DBExecutorMixin."""
 
-    def __init__(self, url: str, echo=True) -> None:
+    def __init__(self, url: str, echo=False) -> None:
         self._executor = sql.create_engine(url, echo=echo)
 
     @classmethod

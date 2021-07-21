@@ -4,6 +4,7 @@ from mipdb.database import MonetDB, get_db_config
 from mipdb.tables import SchemasTable
 from mipdb.reader import JsonFileReader
 from mipdb.schema import Schema
+from mipdb.constants import METADATA_SCHEMA
 from mipdb.usecases import (
     DeleteSchema,
     make_cdes,
@@ -64,7 +65,7 @@ def validate_dataset():
 @handle_errors
 def delete_schema(name, version):
     db = MonetDB.from_config(get_db_config())
-    metadata = Schema("mipdb_metadata")
+    metadata = Schema(METADATA_SCHEMA)
     schemas_table = SchemasTable(schema=metadata)
     DeleteSchema(db).execute(name, version)
 

@@ -2,26 +2,17 @@ from abc import ABC, abstractmethod
 from mipdb.exceptions import DataBaseError
 
 from mipdb.database import DataBase, MonetDB, Connection
-from mipdb.schema import (
-    Schema,
-)
-from mipdb.dataelements import (
-    CommonDataElement,
-    CategoricalCDE,
-    NumericalCDE,
-    make_cdes,
-)
+from mipdb.schema import Schema
+from mipdb.dataelements import CommonDataElement, make_cdes
 from mipdb.tables import (
     SchemasTable,
     DatasetsTable,
     ActionsTable,
-    VariablesTable,
-    EnumerationsTable,
-    NumericVariablesTable,
+    MetadataTable,
     PrimaryDataTable,
 )
 from mipdb.event import EventEmitter
-from mipdb.constants import Status
+from mipdb.constants import Status, METADATA_SCHEMA
 
 
 class UseCase(ABC):
@@ -41,7 +32,7 @@ class InitDB(UseCase):
         self.db = db
 
     def execute(self) -> None:
-        metadata = Schema("mipdb_metadata")
+        metadata = Schema(METADATA_SCHEMA)
         with self.db.begin() as conn:
             metadata.create(conn)
             SchemasTable(schema=metadata).create(conn)
@@ -54,29 +45,16 @@ class AddSchema(UseCase):
         self.db = db
 
     def execute(self, schema_data) -> None:
-        metadata = Schema("mipdb_metadata")
-        schemas_table = SchemasTable(schema=metadata)
-        schema_id = schemas_table.get_next_schema_id(self.db)
-
+        schema_id = self._get_next_schema_id()
         code = schema_data["code"]
         version = schema_data["version"]
         name = get_schema_fullname(code, version)
-
-        schema = Schema(name)
-        vars_table = VariablesTable(schema)
-        enums_table = EnumerationsTable(schema)
-        domains_table = NumericVariablesTable(schema)
         cdes = make_cdes(schema_data)
-        primary_data_table = PrimaryDataTable(schema, cdes)
+
         with self.db.begin() as conn:
-            schema.create(conn)
-            vars_table.create(conn)
-            vars_table.insert_values(vars_table.get_values_from_cdes(cdes), conn)
-            enums_table.create(conn)
-            enums_table.insert_values(enums_table.get_values_from_cdes(cdes), conn)
-            domains_table.create(conn)
-            domains_table.insert_values(domains_table.get_values_from_cdes(cdes), conn)
-            primary_data_table.create(conn)
+            schema = self._create_schema(name, conn)
+            self._create_primary_data_table(schema, cdes, conn)
+            self._create_metadata_table(schema, conn, cdes)
 
             record = dict(
                 code=code,
@@ -86,10 +64,31 @@ class AddSchema(UseCase):
             )
             emitter.emit("add_schema", record, conn)
 
+    def _get_next_schema_id(self):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_next_schema_id(self.db)
+        return schema_id
+
+    def _create_schema(self, name, conn):
+        schema = Schema(name)
+        schema.create(conn)
+        return schema
+
+    def _create_primary_data_table(self, schema, cdes, conn):
+        primary_data_table = PrimaryDataTable(schema, cdes)
+        primary_data_table.create(conn)
+
+    def _create_metadata_table(self, schema, conn, cdes):
+        metadata_table = MetadataTable(schema)
+        metadata_table.create(conn)
+        values = metadata_table.get_values_from_cdes(cdes)
+        metadata_table.insert_values(values, conn)
+
 
 @emitter.handle("add_schema")
 def update_schemas_on_schema_addition(record: dict, conn: Connection):
-    metadata = Schema("mipdb_metadata")
+    metadata = Schema(METADATA_SCHEMA)
     schemas_table = SchemasTable(schema=metadata)
     record = record.copy()
     record["type"] = "SCHEMA"
@@ -100,7 +99,7 @@ def update_schemas_on_schema_addition(record: dict, conn: Connection):
 # TODO this is incomplete
 @emitter.handle("add_schema")
 def update_actions_on_schema_addition(record: dict, conn: Connection):
-    metadata = Schema("mipdb_metadata")
+    metadata = Schema(METADATA_SCHEMA)
     actions_table = ActionsTable(schema=metadata)
     record = record.copy()
     schema_id = record["schema_id"]
@@ -122,14 +121,12 @@ class DeleteSchema(UseCase):
         self.db = db
 
     def execute(self, code, version) -> None:
-        metadata = Schema("mipdb_metadata")
-        schemas_table = SchemasTable(schema=metadata)
-
         name = get_schema_fullname(code, version)
-        schema = Schema(name)
+
         with self.db.begin() as conn:
+            schema = Schema(name)
             schema.drop(conn)
-            schema_id = schemas_table.get_schema_id(code, version, conn)
+            schema_id = self._get_schema_id(code, version, conn)
 
             record = dict(
                 code=code,
@@ -138,19 +135,25 @@ class DeleteSchema(UseCase):
             )
             emitter.emit("delete_schema", record, conn)
 
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
 
 @emitter.handle("delete_schema")
 def update_schemas_on_schema_deletion(record, conn):
     code = record["code"]
     version = record["version"]
-    metadata = Schema("mipdb_metadata")
+    metadata = Schema(METADATA_SCHEMA)
     schemas_table = SchemasTable(schema=metadata)
     schema_id = schemas_table.mark_schema_as_deleted(code, version, conn)
 
 
 @emitter.handle("delete_schema")
 def update_actions_on_schema_deletion(record, conn):
-    metadata = Schema("mipdb_metadata")
+    metadata = Schema(METADATA_SCHEMA)
     actions_table = ActionsTable(schema=metadata)
     record = record.copy()
     schema_id = record["schema_id"]
