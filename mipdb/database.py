@@ -46,6 +46,7 @@ class Connection(ABC):
     def execute(self, *args, **kwargs):
         pass
 
+
 class DataBase(ABC):
     """Abstract class representing a database interface."""
 
@@ -112,7 +113,7 @@ class DBExecutorMixin(ABC):
     because tables need to be already bound to a connectable, which in our case
     they aren't. Hence a small hack is needed to implement create_table."""
 
-    _executor = Union[sql.engine.Engine, sql.engine.Connection]
+    _executor: Union[sql.engine.Engine, sql.engine.Connection]
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> list:
