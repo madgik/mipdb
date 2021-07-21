@@ -15,8 +15,8 @@ def test_init(db):
     result = runner.invoke(init, [])
     assert result.exit_code == ExitCode.OK
     assert METADATA_SCHEMA in db.get_schemas()
-    assert db._execute(f"select * from {METADATA_SCHEMA}.schemas").fetchall() == []
-    assert db._execute(f"select * from {METADATA_SCHEMA}.actions").fetchall() == []
+    assert db.execute(f"select * from {METADATA_SCHEMA}.schemas").fetchall() == []
+    assert db.execute(f"select * from {METADATA_SCHEMA}.actions").fetchall() == []
 
 
 @pytest.mark.database
@@ -32,9 +32,9 @@ def test_add_schema(db):
     result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     assert "schema:1.0" in db.get_schemas()
-    schemas = db._execute(f"select * from {METADATA_SCHEMA}.schemas").fetchall()
+    schemas = db.execute(f"select * from {METADATA_SCHEMA}.schemas").fetchall()
     assert schemas == [(1, "schema", "1.0", "The Schema", "DISABLED", None)]
-    actions = db._execute(f"select * from {METADATA_SCHEMA}.actions").fetchall()
+    actions = db.execute(f"select * from {METADATA_SCHEMA}.actions").fetchall()
     assert actions == [
         (
             1,
@@ -43,7 +43,7 @@ def test_add_schema(db):
             "TO BE DETERMINED",
         )
     ]
-    metadata = db._execute(f'select * from "schema:1.0".{METADATA_TABLE}').fetchall()
+    metadata = db.execute(f'select * from "schema:1.0".{METADATA_TABLE}').fetchall()
     # TODO better test
     assert len(metadata) == 4
 
@@ -62,7 +62,7 @@ def test_delete_schema(db):
     result = runner.invoke(delete_schema, ["schema", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     assert "schema:1.0" not in db.get_schemas()
-    actions = db._execute(f"select * from {METADATA_SCHEMA}.actions").fetchall()
+    actions = db.execute(f"select * from {METADATA_SCHEMA}.actions").fetchall()
     assert actions == [
         (
             1,

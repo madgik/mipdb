@@ -42,6 +42,9 @@ class Connection(ABC):
     def insert_values_to_table(self, values, table):
         pass
 
+    @abstractmethod
+    def execute(self, *args, **kwargs):
+        pass
 
 class DataBase(ABC):
     """Abstract class representing a database interface."""
@@ -70,6 +73,10 @@ class DataBase(ABC):
     def begin(self):
         pass
 
+    @abstractmethod
+    def execute(self, *args, **kwargs):
+        pass
+
 
 def handle_errors(func):
     """Decorator for any function susceptible to raise a DB related exception.
@@ -94,7 +101,7 @@ def handle_errors(func):
 class DBExecutorMixin(ABC):
     """Since SQLAlchemy's Engine and Connection object interfaces have a
     significant overlap, we can avoid code duplication by defining the current
-    mixin abstract class. Subclasses are required to implement the _execute
+    mixin abstract class. Subclasses are required to implement the execute
     method. In practice this is done by delegating to the execute method of
     either an Engine or a Connection.
 
@@ -108,17 +115,17 @@ class DBExecutorMixin(ABC):
     _executor = Union[sql.engine.Engine, sql.engine.Connection]
 
     @abstractmethod
-    def _execute(self, *args, **kwargs) -> list:
+    def execute(self, *args, **kwargs) -> list:
         pass
 
     def create_schema(self, schema_name):
-        self._execute(sql.schema.CreateSchema(schema_name))
+        self.execute(sql.schema.CreateSchema(schema_name))
 
     def drop_schema(self, schema_name):
-        self._execute(f'DROP SCHEMA "{schema_name}" CASCADE')
+        self.execute(f'DROP SCHEMA "{schema_name}" CASCADE')
 
     def get_schemas(self):
-        res = self._execute("SELECT name FROM sys.schemas WHERE system=FALSE")
+        res = self.execute("SELECT name FROM sys.schemas WHERE system=FALSE")
         return [schema for schema, *_ in res]
 
     @handle_errors
@@ -126,7 +133,7 @@ class DBExecutorMixin(ABC):
         table.create(bind=self._executor)
 
     def insert_values_to_table(self, table, values):
-        self._execute(table.insert(), values)
+        self.execute(table.insert(), values)
 
 
 class MonetDBConnection(DBExecutorMixin, Connection):
@@ -139,7 +146,7 @@ class MonetDBConnection(DBExecutorMixin, Connection):
         self._executor = conn
 
     @handle_errors
-    def _execute(self, query, *args, **kwargs) -> list:
+    def execute(self, query, *args, **kwargs) -> list:
         """Wrapper around SQLAlchemy's execute. Required because pymonetdb
         returns None when the result is empty, instead of [] which make more
         sense and agrees with sqlite behaviour."""
@@ -164,7 +171,7 @@ class MonetDB(DBExecutorMixin, DataBase):
         return MonetDB(url)
 
     @handle_errors
-    def _execute(self, query, *args, **kwargs) -> list:
+    def execute(self, query, *args, **kwargs) -> list:
         """Wrapper around SQLAlchemy's execute. Required because pymonetdb
         returns None when the result is empty, instead of [] which make more
         sense and agrees with sqlite behaviour."""

@@ -79,7 +79,7 @@ class SchemasTable(Table):
             "AND schemas.version = :version "
             "AND schemas.status <> 'DELETED'"
         )
-        res = list(db._execute(select, code=code, version=version))
+        res = list(db.execute(select, code=code, version=version))
         if len(res) > 1:
             raise DataBaseError(
                 f"Got more than one schema ids for {code=} and {version=}."
@@ -99,10 +99,10 @@ class SchemasTable(Table):
             "AND version = :version "
             "AND status <> 'DELETED'"
         )
-        db._execute(update, code=code, version=version)
+        db.execute(update, code=code, version=version)
 
     def get_next_schema_id(self, db):
-        return db._execute(self.schema_id_seq)
+        return db.execute(self.schema_id_seq)
 
 
 class DatasetsTable(Table):
@@ -175,4 +175,4 @@ class MetadataTable(Table):
         query = sql.text(
             f'INSERT INTO "{self._schema}".{METADATA_TABLE} VALUES(:code, :metadata)'
         )
-        db._execute(query, values)
+        db.execute(query, values)

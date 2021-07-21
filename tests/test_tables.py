@@ -46,7 +46,7 @@ def test_schemas_table_realdb(db):
     schema = Schema("schema")
     schema.create(db)
     SchemasTable(schema=schema).create(db)
-    res = db._execute(
+    res = db.execute(
         "SELECT name, type FROM sys.columns WHERE "
         "table_id=(SELECT id FROM sys.tables "
         "WHERE name='schemas' AND system=FALSE)"
@@ -110,7 +110,7 @@ class TestVariablesMetadataTable:
         schema.create(db)
         metadata_table = MetadataTable(schema)
         metadata_table.create(db)
-        res = db._execute(f'SELECT * FROM "schema:1.0".{METADATA_TABLE}').fetchall()
+        res = db.execute(f'SELECT * FROM "schema:1.0".{METADATA_TABLE}').fetchall()
         assert res == []
 
     @pytest.mark.database
@@ -122,7 +122,7 @@ class TestVariablesMetadataTable:
         metadata_table.create(db)
         values = metadata_table.get_values_from_cdes(make_cdes(schema_data))
         metadata_table.insert_values(values, db)
-        res = db._execute(
+        res = db.execute(
             "SELECT code, json.filter(metadata, '$.isCategorical') "
             f'FROM "schema:1.0".{METADATA_TABLE}'
         )
