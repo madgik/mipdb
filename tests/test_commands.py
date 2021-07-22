@@ -2,7 +2,7 @@ import pytest
 from click.testing import CliRunner
 
 from mipdb import init, add_schema, delete_schema
-from mipdb.commands import ExitCode
+from mipdb.commands import ExitCode, add_dataset
 from mipdb.exceptions import UserInputError
 from mipdb.constants import METADATA_TABLE, METADATA_SCHEMA
 
@@ -45,7 +45,7 @@ def test_add_schema(db):
     ]
     metadata = db.execute(f'select * from "schema:1.0".{METADATA_TABLE}').fetchall()
     # TODO better test
-    assert len(metadata) == 4
+    assert len(metadata) == 5
 
 
 @pytest.mark.database
@@ -77,3 +77,24 @@ def test_delete_schema(db):
             "TO BE DETERMINED",
         ),
     ]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_add_dataset(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    dataset_file = "tests/data/dataset.csv"
+    # TODO Check dataset not present
+    result = runner.invoke(init, [])
+    result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    # Test
+    result = runner.invoke(
+        add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
+    )
+    assert result.exit_code == ExitCode.OK
+    res = db.execute(
+        f"SELECT * FROM \"schema:1.0\".primary_data WHERE dataset='a_dataset'"
+    ).fetchall()
+    assert res != []

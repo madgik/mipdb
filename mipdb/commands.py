@@ -1,14 +1,16 @@
+from mipdb.dataset import Dataset
 import click as cl
 
 from mipdb.database import MonetDB, get_db_config
 from mipdb.tables import SchemasTable
-from mipdb.reader import JsonFileReader
+from mipdb.reader import CSVFileReader, JsonFileReader
 from mipdb.schema import Schema
 from mipdb.constants import METADATA_SCHEMA
 from mipdb.usecases import (
     DeleteSchema,
     make_cdes,
     AddSchema,
+    AddDataset,
     InitDB,
 )
 from mipdb.exceptions import (
@@ -48,9 +50,22 @@ def add_schema(file, version):
 
 
 @entry.command()
+@cl.argument("file", required=True)
+@cl.option(
+    "-s",
+    "--schema",
+    required=True,
+    help="The schema to which the dataset is added",
+)
+@cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors
-def add_dataset():
-    pass
+def add_dataset(file, schema, version):
+    reader = CSVFileReader(file)
+    dbconfig = get_db_config()
+    db = MonetDB.from_config(dbconfig)
+    data = reader.read()
+    dataset = Dataset(data)
+    AddDataset(db).execute(dataset, schema, version)
 
 
 @entry.command()

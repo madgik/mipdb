@@ -11,6 +11,7 @@ from mipdb.tables import (
     MetadataTable,
     PrimaryDataTable,
 )
+from mipdb.dataset import Dataset
 from mipdb.event import EventEmitter
 from mipdb.constants import Status, METADATA_SCHEMA
 
@@ -164,3 +165,13 @@ def update_actions_on_schema_deletion(record, conn):
     record["user"] = "TO BE DETERMINED"
     record["date"] = "TO BE DETERMINED"
     actions_table.insert_values(record, conn)
+
+
+class AddDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, dataset, schema, version) -> None:
+        schema_name = get_schema_fullname(code=schema, version=version)
+        schema = Schema(schema_name)
+        PrimaryDataTable.insert_dataset(dataset, schema, self.db)

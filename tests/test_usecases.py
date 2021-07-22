@@ -1,7 +1,11 @@
-from mipdb.exceptions import DataBaseError
+from mipdb.dataset import Dataset
+import pandas as pd
 import pytest
+
+from mipdb.exceptions import DataBaseError
 from mipdb.usecases import (
     AddSchema,
+    AddDataset,
     DeleteSchema,
     InitDB,
     update_actions_on_schema_addition,
@@ -117,3 +121,23 @@ def test_update_actions_on_schema_deletion():
     assert f"INSERT INTO {METADATA_SCHEMA}.actions" in db.captured_queries[0]
     actions_record = db.captured_multiparams[0][0]
     assert set(record.values()) <= set(actions_record.values())
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_add_dataset(db, schema_data):
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    data = pd.DataFrame(
+        {
+            "var1": [1, 2, 3, 4, 5],
+            "var2": ["l1", "l2", "l1", "l1", "l2"],
+            "var3": [11, 12, 13, 14, 15],
+            "var4": [21, 22, 23, 24, 25],
+            "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
+        }
+    )
+    dataset = Dataset(data)
+    AddDataset(db).execute(dataset, "schema", "1.0")
+    res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
+    assert res != []

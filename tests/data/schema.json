@@ -22,6 +22,18 @@
                 ],
                 "label": "Variable 2",
                 "methodology": ""
+            },
+            {
+                "isCategorical": true,
+                "code": "dataset",
+                "sql_type": "text",
+                "description": "",
+                "enumerations": [
+                    {"code": "dataset1", "label": "Dataset 1"},
+                    {"code": "dataset2", "label": "Dataset 2"}
+                ],
+                "label": "Dataset",
+                "methodology": ""
             }
         ],
         "groups": [

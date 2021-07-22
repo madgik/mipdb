@@ -154,6 +154,21 @@ class PrimaryDataTable(Table):
             *columns,
         )
 
+    @staticmethod
+    def insert_dataset(dataset, schema, db):
+        # TODO specify dtype based on schema
+        # NOTE The 'monetdb' dialect with current database version settings
+        # does not support in-place multirow inserts
+        dataset.data.to_sql(
+            name="primary_data",
+            con=db._executor,
+            schema=schema.name,
+            if_exists="append",
+            index=False,
+            # method="multi",
+            chunksize=1000,
+        )
+
 
 class MetadataTable(Table):
     def __init__(self, schema: Schema) -> None:
@@ -176,3 +191,13 @@ class MetadataTable(Table):
             f'INSERT INTO "{self._schema}".{METADATA_TABLE} VALUES(:code, :metadata)'
         )
         db.execute(query, values)
+
+    def load_from_db(self, db):
+        res = db.execute(
+            "SELECT code, json.filter(metadata, '$') "
+            f'FROM "schema:1.0".{METADATA_TABLE}'
+        )
+        self.cdes = {
+            name: CommonDataElement.from_cde_data(json.loads(val)[0])
+            for name, val in res.fetchall()
+        }

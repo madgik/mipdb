@@ -18,9 +18,18 @@ class MonetDBSetupError(Exception):
     """Raised when the MonetDB container is unable to start."""
 
 
+class DockerNotFoundError(Exception):
+    """Raised when attempting to run tests while docker daemon is not running."""
+
+
 @pytest.fixture(scope="session")
 def monetdb_container():
-    client = docker.from_env()
+    try:
+        client = docker.from_env()
+    except docker.errors.DockerException:
+        raise DockerNotFoundError(
+            "The docker daemon cannot be found. Make sure it is running." ""
+        )
     try:
         container = client.containers.get("mipdb-testing")
     except docker.errors.NotFound:

@@ -10,7 +10,7 @@ def test_make_cdes_empty():
 def test_make_cdes(schema_data):
     cdes = make_cdes(schema_data)
     assert all(isinstance(cde, CommonDataElement) for cde in cdes)
-    assert len(cdes) == 4
+    assert len(cdes) == 5
 
 
 def test_make_cdes_full_schema(schema_data):
