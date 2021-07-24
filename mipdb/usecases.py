@@ -7,7 +7,7 @@ from mipdb.dataelements import CommonDataElement, make_cdes
 from mipdb.tables import (
     SchemasTable,
     DatasetsTable,
-    ActionsTable,
+    LogsTable,
     MetadataTable,
     PrimaryDataTable,
 )
@@ -39,7 +39,7 @@ class InitDB(UseCase):
             metadata.create(conn)
             SchemasTable(schema=metadata).create(conn)
             DatasetsTable(schema=metadata).create(conn)
-            ActionsTable(schema=metadata).create(conn)
+            LogsTable(schema=metadata).create(conn)
 
 
 class AddSchema(UseCase):
@@ -99,9 +99,9 @@ def update_schemas_on_schema_addition(record: dict, conn: Connection):
 
 
 @emitter.handle("add_schema")
-def update_actions_on_schema_addition(record: dict, conn: Connection):
+def update_logs_on_schema_addition(record: dict, conn: Connection):
     metadata = Schema(METADATA_SCHEMA)
-    actions_table = ActionsTable(schema=metadata)
+    logs_table = LogsTable(schema=metadata)
     record = record.copy()
     schema_id = record["schema_id"]
     code = record["code"]
@@ -110,7 +110,7 @@ def update_actions_on_schema_addition(record: dict, conn: Connection):
     record["description"] = description
     record["user"] = conn.get_current_user()
     record["date"] = datetime.datetime.now().isoformat()
-    actions_table.insert_values(record, conn)
+    logs_table.insert_values(record, conn)
 
 
 def get_schema_fullname(code, version):
@@ -153,9 +153,9 @@ def update_schemas_on_schema_deletion(record, conn):
 
 
 @emitter.handle("delete_schema")
-def update_actions_on_schema_deletion(record, conn):
+def update_logs_on_schema_deletion(record, conn):
     metadata = Schema(METADATA_SCHEMA)
-    actions_table = ActionsTable(schema=metadata)
+    logs_table = LogsTable(schema=metadata)
     record = record.copy()
     schema_id = record["schema_id"]
     code = record["code"]
@@ -164,11 +164,11 @@ def update_actions_on_schema_deletion(record, conn):
     record["description"] = description
     record["user"] = conn.get_current_user()
     record["date"] = datetime.datetime.now().isoformat()
-    actions_table.insert_values(record, conn)
+    logs_table.insert_values(record, conn)
 
 
 # TODO update datasets
-# TODO update actions
+# TODO update logs
 # TODO verify dataset not already in db
 class AddDataset(UseCase):
     def __init__(self, db: DataBase) -> None:

@@ -8,8 +8,8 @@ from mipdb.usecases import (
     AddDataset,
     DeleteSchema,
     InitDB,
-    update_actions_on_schema_addition,
-    update_actions_on_schema_deletion,
+    update_logs_on_schema_addition,
+    update_logs_on_schema_deletion,
     update_schemas_on_schema_addition,
     update_schemas_on_schema_deletion,
 )
@@ -31,7 +31,7 @@ def test_init_mock():
     assert f"CREATE SCHEMA {METADATA_SCHEMA}" in db.captured_queries[0]
     assert f"CREATE TABLE {METADATA_SCHEMA}.schemas" in db.captured_queries[2]
     assert f"CREATE TABLE {METADATA_SCHEMA}.datasets" in db.captured_queries[4]
-    assert f"CREATE TABLE {METADATA_SCHEMA}.actions" in db.captured_queries[6]
+    assert f"CREATE TABLE {METADATA_SCHEMA}.logs" in db.captured_queries[6]
 
 
 @pytest.mark.database
@@ -71,13 +71,13 @@ def test_update_schemas_on_schema_addition():
     assert schemas_record["status"] == "DISABLED"
 
 
-def test_update_actions_on_schema_addition():
+def test_update_logs_on_schema_deletion():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0", "schema_id": 1}
-    update_actions_on_schema_addition(record, db)
-    assert f"INSERT INTO {METADATA_SCHEMA}.actions" in db.captured_queries[0]
-    actions_record = db.captured_multiparams[0][0]
-    assert set(record.values()) <= set(actions_record.values())
+    update_logs_on_schema_addition(record, db)
+    assert f"INSERT INTO {METADATA_SCHEMA}.logs" in db.captured_queries[0]
+    logs_record = db.captured_multiparams[0][0]
+    assert set(record.values()) <= set(logs_record.values())
 
 
 def test_delete_schema():
@@ -114,13 +114,13 @@ def test_update_schemas_on_schema_deletion():
     assert db.captured_params[0] == record
 
 
-def test_update_actions_on_schema_deletion():
+def test_update_logs_on_schema_deletion():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0", "schema_id": 1}
-    update_actions_on_schema_deletion(record, db)
-    assert f"INSERT INTO {METADATA_SCHEMA}.actions" in db.captured_queries[0]
-    actions_record = db.captured_multiparams[0][0]
-    assert set(record.values()) <= set(actions_record.values())
+    update_logs_on_schema_deletion(record, db)
+    assert f"INSERT INTO {METADATA_SCHEMA}.logs" in db.captured_queries[0]
+    logs_record = db.captured_multiparams[0][0]
+    assert set(record.values()) <= set(logs_record.values())
 
 
 # NOTE I can't make mock tests for add dataset because the PrimaryDataTable is

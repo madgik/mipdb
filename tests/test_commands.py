@@ -19,7 +19,7 @@ def test_init(db):
     assert result.exit_code == ExitCode.OK
     assert METADATA_SCHEMA in db.get_schemas()
     assert db.execute(f"select * from {METADATA_SCHEMA}.schemas").fetchall() == []
-    assert db.execute(f"select * from {METADATA_SCHEMA}.actions").fetchall() == []
+    assert db.execute(f"select * from {METADATA_SCHEMA}.logs").fetchall() == []
 
 
 @pytest.mark.database
@@ -37,9 +37,9 @@ def test_add_schema(db):
     assert "schema:1.0" in db.get_schemas()
     schemas = db.execute(f"select * from {METADATA_SCHEMA}.schemas").fetchall()
     assert schemas == [(1, "schema", "1.0", "The Schema", "DISABLED", None)]
-    actions = db.execute(f"select * from {METADATA_SCHEMA}.actions").fetchall()
-    action_id, descr, user, date = actions[0]
-    assert action_id == 1
+    log_record = db.execute(f"select * from {METADATA_SCHEMA}.logs").fetchall()
+    log_id, descr, user, date = log_record[0]
+    assert log_id == 1
     assert descr == "ADD SCHEMA WITH id=1, code=schema, version=1.0"
     assert user == "monetdb"
     assert date != ""
@@ -62,9 +62,9 @@ def test_delete_schema(db):
     result = runner.invoke(delete_schema, ["schema", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     assert "schema:1.0" not in db.get_schemas()
-    actions = db.execute(f"select * from {METADATA_SCHEMA}.actions").fetchall()
-    action_id, descr, user, date = actions[1]
-    assert action_id == 2
+    log_record = db.execute(f"select * from {METADATA_SCHEMA}.logs").fetchall()
+    log_id, descr, user, date = log_record[1]
+    assert log_id == 2
     assert descr == "DELETE SCHEMA WITH id=1, code=schema, version=1.0"
     assert user == "monetdb"
     assert date != ""

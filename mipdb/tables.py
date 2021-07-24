@@ -128,15 +128,16 @@ class DatasetsTable(Table):
         )
 
 
-class ActionsTable(Table):
+# TODO replace all fields with JSON column
+class LogsTable(Table):
     def __init__(self, schema):
         self._table = sql.Table(
-            "actions",
+            "logs",
             schema.schema,
             sql.Column(
-                "action_id",
+                "log_id",
                 SQLTYPES.INTEGER,
-                sql.Sequence("action_id_seq", metadata=schema.schema),
+                sql.Sequence("log_id_seq", metadata=schema.schema),
                 primary_key=True,
             ),
             sql.Column("description", SQLTYPES.STRING, nullable=False),

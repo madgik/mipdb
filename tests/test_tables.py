@@ -7,7 +7,7 @@ import sqlalchemy as sql
 from mipdb.exceptions import DataBaseError
 from mipdb.schema import Schema
 from mipdb.tables import (
-    ActionsTable,
+    LogsTable,
     SchemasTable,
     DatasetsTable,
     MetadataTable,
@@ -86,13 +86,13 @@ def test_datasets_table(metadata):
     assert expected_create == db.captured_queries[1]
 
 
-def test_actions_table(metadata):
+def test_logs_table(metadata):
     # Setup
     db = MonetDBMock()
     # Test
-    ActionsTable(schema=metadata).create(db)
-    assert f"CREATE SEQUENCE {METADATA_SCHEMA}.action_id_seq" in db.captured_queries[0]
-    assert f"CREATE TABLE {METADATA_SCHEMA}.actions" in db.captured_queries[1]
+    LogsTable(schema=metadata).create(db)
+    assert f"CREATE SEQUENCE {METADATA_SCHEMA}.log_id_seq" in db.captured_queries[0]
+    assert f"CREATE TABLE {METADATA_SCHEMA}.logs" in db.captured_queries[1]
 
 
 def test_get_schema_id(metadata):
