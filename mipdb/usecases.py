@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from mipdb.exceptions import DataBaseError
+import datetime
 
 from mipdb.database import DataBase, Connection
 from mipdb.schema import Schema
@@ -13,6 +13,7 @@ from mipdb.tables import (
 )
 from mipdb.dataset import Dataset
 from mipdb.event import EventEmitter
+from mipdb.exceptions import DataBaseError
 from mipdb.constants import Status, METADATA_SCHEMA
 
 
@@ -97,7 +98,6 @@ def update_schemas_on_schema_addition(record: dict, conn: Connection):
     schemas_table.insert_values(record, conn)
 
 
-# TODO this is incomplete
 @emitter.handle("add_schema")
 def update_actions_on_schema_addition(record: dict, conn: Connection):
     metadata = Schema(METADATA_SCHEMA)
@@ -108,8 +108,8 @@ def update_actions_on_schema_addition(record: dict, conn: Connection):
     version = record["version"]
     description = f"ADD SCHEMA WITH id={schema_id}, code={code}, version={version}"
     record["description"] = description
-    record["user"] = "TO BE DETERMINED"
-    record["date"] = "TO BE DETERMINED"
+    record["user"] = conn.get_current_user()
+    record["date"] = datetime.datetime.now().isoformat()
     actions_table.insert_values(record, conn)
 
 
@@ -162,8 +162,8 @@ def update_actions_on_schema_deletion(record, conn):
     version = record["version"]
     description = f"DELETE SCHEMA WITH id={schema_id}, code={code}, version={version}"
     record["description"] = description
-    record["user"] = "TO BE DETERMINED"
-    record["date"] = "TO BE DETERMINED"
+    record["user"] = conn.get_current_user()
+    record["date"] = datetime.datetime.now().isoformat()
     actions_table.insert_values(record, conn)
 
 

@@ -46,6 +46,10 @@ class Connection(ABC):
     def execute(self, *args, **kwargs):
         pass
 
+    @abstractmethod
+    def get_current_user(self):
+        pass
+
 
 class DataBase(ABC):
     """Abstract class representing a database interface."""
@@ -76,6 +80,10 @@ class DataBase(ABC):
 
     @abstractmethod
     def execute(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def get_current_user(self):
         pass
 
 
@@ -138,6 +146,10 @@ class DBExecutorMixin(ABC):
 
     def insert_values_to_table(self, table, values):
         self.execute(table.insert(), values)
+
+    def get_current_user(self):
+        user, *_ = self.execute("SELECT CURRENT_USER").fetchone()
+        return user
 
 
 class MonetDBConnection(DBExecutorMixin, Connection):

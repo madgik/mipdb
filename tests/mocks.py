@@ -32,3 +32,6 @@ class MonetDBMock(MonetDB):
         # However, in order to have unit tests without having to use an
         # external database, I do the following trick and it works!
         yield self
+
+    def get_current_user(self):
+        return "test_user"
