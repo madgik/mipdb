@@ -188,6 +188,19 @@ class MetadataTable(Table):
             sql.Column("metadata", SQLTYPES.JSON),
         )
 
+    @classmethod
+    def from_db(cls, schema, db):
+        new = cls(schema)
+        res = db.execute(
+            "SELECT code, json.filter(metadata, '$') "
+            f'FROM "{schema.name}".{METADATA_TABLE}'
+        )
+        new.cdes = {
+            name: CommonDataElement.from_cde_data(json.loads(val)[0])
+            for name, val in res.fetchall()
+        }
+        return new
+
     @staticmethod
     def get_values_from_cdes(cdes):
         return [{"code": cde.code, "metadata": cde.metadata} for cde in cdes]
@@ -199,13 +212,3 @@ class MetadataTable(Table):
             f'INSERT INTO "{self.schema}".{METADATA_TABLE} VALUES(:code, :metadata)'
         )
         db.execute(query, values)
-
-    def load_from_db(self, db):
-        res = db.execute(
-            "SELECT code, json.filter(metadata, '$') "
-            f'FROM "schema:1.0".{METADATA_TABLE}'
-        )
-        self.cdes = {
-            name: CommonDataElement.from_cde_data(json.loads(val)[0])
-            for name, val in res.fetchall()
-        }

@@ -180,7 +180,8 @@ class TestVariablesMetadataTable:
         values = metadata_table.get_values_from_cdes(make_cdes(schema_data))
         metadata_table.insert_values(values, db)
         # Test
-        metadata_table.load_from_db(db)
+        schema = Schema("schema:1.0")
+        metadata_table = MetadataTable.from_db(schema, db)
         assert all(isinstance(cde, str) for cde in metadata_table.cdes.keys())
         assert all(
             isinstance(cde, CommonDataElement) for cde in metadata_table.cdes.values()
