@@ -21,6 +21,3 @@ class Schema:
 
     def drop(self, db: DataBase):
         db.drop_schema(self.name)
-
-    def get_id(self, db: DataBase):
-        db.get_schema_id(self.code, self.version)
