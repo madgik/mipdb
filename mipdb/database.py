@@ -91,6 +91,9 @@ def handle_errors(func):
         except sql.exc.OperationalError as exc:
             _, msg = exc.orig.args[0].split("!")
             raise DataBaseError(msg)
+        except sql.exc.IntegrityError as exc:
+            _, msg = exc.orig.args[0].split("!")
+            raise DataBaseError(msg)
 
     def wrapper(*args, **kwargs):
         with _handle_errors():
