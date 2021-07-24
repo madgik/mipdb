@@ -38,11 +38,9 @@ def test_add_schema(db):
     schemas = db.execute(f"select * from {METADATA_SCHEMA}.schemas").fetchall()
     assert schemas == [(1, "schema", "1.0", "The Schema", "DISABLED", None)]
     log_record = db.execute(f"select * from {METADATA_SCHEMA}.logs").fetchall()
-    log_id, descr, user, date = log_record[0]
+    log_id, log = log_record[0]
     assert log_id == 1
-    assert descr == "ADD SCHEMA WITH id=1, code=schema, version=1.0"
-    assert user == "monetdb"
-    assert date != ""
+    assert log != ""
     metadata = db.execute(f'select * from "schema:1.0".{METADATA_TABLE}').fetchall()
     # TODO better test
     assert len(metadata) == 5
@@ -63,11 +61,9 @@ def test_delete_schema(db):
     assert result.exit_code == ExitCode.OK
     assert "schema:1.0" not in db.get_schemas()
     log_record = db.execute(f"select * from {METADATA_SCHEMA}.logs").fetchall()
-    log_id, descr, user, date = log_record[1]
+    log_id, log = log_record[1]
     assert log_id == 2
-    assert descr == "DELETE SCHEMA WITH id=1, code=schema, version=1.0"
-    assert user == "monetdb"
-    assert date != ""
+    assert log != ""
 
 
 @pytest.mark.database

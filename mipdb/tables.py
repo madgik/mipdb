@@ -128,22 +128,29 @@ class DatasetsTable(Table):
         )
 
 
-# TODO replace all fields with JSON column
 class LogsTable(Table):
     def __init__(self, schema):
+        self.log_id_seq = sql.Sequence("log_id_seq", metadata=schema.schema)
         self._table = sql.Table(
             "logs",
             schema.schema,
             sql.Column(
                 "log_id",
                 SQLTYPES.INTEGER,
-                sql.Sequence("log_id_seq", metadata=schema.schema),
+                self.log_id_seq,
                 primary_key=True,
             ),
-            sql.Column("description", SQLTYPES.STRING, nullable=False),
-            sql.Column("user", SQLTYPES.STRING, nullable=False),
-            sql.Column("date", SQLTYPES.STRING, nullable=False),
+            sql.Column("log", SQLTYPES.JSON),
         )
+
+    def insert_values(self, values, db: Union[DataBase, Connection]):
+        # Needs to be overridden because sqlalchemy and monetdb are not cooperating
+        # well when inserting values to JSON columns
+        query = sql.text(f'INSERT INTO "{METADATA_SCHEMA}".logs VALUES(:log_id, :log)')
+        db.execute(query, values)
+
+    def get_next_id(self, db):
+        return db.execute(self.log_id_seq)
 
 
 class PrimaryDataTable(Table):

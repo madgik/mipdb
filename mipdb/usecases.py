@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import datetime
+import json
 
 from mipdb.database import DataBase, Connection
 from mipdb.schema import Schema
@@ -102,15 +103,20 @@ def update_schemas_on_schema_addition(record: dict, conn: Connection):
 def update_logs_on_schema_addition(record: dict, conn: Connection):
     metadata = Schema(METADATA_SCHEMA)
     logs_table = LogsTable(schema=metadata)
+
     record = record.copy()
     schema_id = record["schema_id"]
     code = record["code"]
     version = record["version"]
-    description = f"ADD SCHEMA WITH id={schema_id}, code={code}, version={version}"
-    record["description"] = description
+    action = f"ADD SCHEMA"
+    record["action"] = action
     record["user"] = conn.get_current_user()
     record["date"] = datetime.datetime.now().isoformat()
-    logs_table.insert_values(record, conn)
+
+    log_record = dict()
+    log_record["log_id"] = logs_table.get_next_id(conn)
+    log_record["log"] = json.dumps(record)
+    logs_table.insert_values(log_record, conn)
 
 
 def get_schema_fullname(code, version):
@@ -156,15 +162,20 @@ def update_schemas_on_schema_deletion(record, conn):
 def update_logs_on_schema_deletion(record, conn):
     metadata = Schema(METADATA_SCHEMA)
     logs_table = LogsTable(schema=metadata)
+
     record = record.copy()
     schema_id = record["schema_id"]
     code = record["code"]
     version = record["version"]
-    description = f"DELETE SCHEMA WITH id={schema_id}, code={code}, version={version}"
-    record["description"] = description
+    action = f"DELETE SCHEMA"
+    record["action"] = action
     record["user"] = conn.get_current_user()
     record["date"] = datetime.datetime.now().isoformat()
-    logs_table.insert_values(record, conn)
+
+    log_record = dict()
+    log_record["log_id"] = logs_table.get_next_id(conn)
+    log_record["log"] = json.dumps(record)
+    logs_table.insert_values(log_record, conn)
 
 
 # TODO update datasets

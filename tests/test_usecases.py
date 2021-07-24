@@ -118,9 +118,7 @@ def test_update_logs_on_schema_deletion():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0", "schema_id": 1}
     update_logs_on_schema_deletion(record, db)
-    assert f"INSERT INTO {METADATA_SCHEMA}.logs" in db.captured_queries[0]
-    logs_record = db.captured_multiparams[0][0]
-    assert set(record.values()) <= set(logs_record.values())
+    assert f'INSERT INTO "{METADATA_SCHEMA}".logs' in db.captured_queries[1]
 
 
 # NOTE I can't make mock tests for add dataset because the PrimaryDataTable is
