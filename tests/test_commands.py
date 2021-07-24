@@ -2,8 +2,8 @@ import pytest
 from click.testing import CliRunner
 
 from mipdb import init, add_schema, delete_schema
-from mipdb.commands import ExitCode, add_dataset
-from mipdb.exceptions import UserInputError
+from mipdb.commands import add_dataset
+from mipdb.exceptions import UserInputError, ExitCode
 from mipdb.constants import METADATA_TABLE, METADATA_SCHEMA
 
 

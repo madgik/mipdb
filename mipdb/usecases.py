@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from mipdb.exceptions import DataBaseError
 
-from mipdb.database import DataBase, MonetDB, Connection
+from mipdb.database import DataBase, Connection
 from mipdb.schema import Schema
 from mipdb.dataelements import CommonDataElement, make_cdes
 from mipdb.tables import (

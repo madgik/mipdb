@@ -1,25 +1,14 @@
-from mipdb.dataset import Dataset
 import click as cl
 
 from mipdb.database import MonetDB, get_db_config
-from mipdb.tables import SchemasTable
 from mipdb.reader import CSVFileReader, JsonFileReader
-from mipdb.schema import Schema
-from mipdb.constants import METADATA_SCHEMA
 from mipdb.usecases import (
     DeleteSchema,
-    make_cdes,
     AddSchema,
     AddDataset,
     InitDB,
 )
-from mipdb.exceptions import (
-    DataBaseError,
-    UserInputError,
-    FileContentError,
-    handle_errors,
-    ExitCode,
-)
+from mipdb.exceptions import handle_errors
 
 
 @cl.group()
@@ -45,7 +34,7 @@ def add_schema(file, version):
     dbconfig = get_db_config()
     db = MonetDB.from_config(dbconfig)
     schema_data = reader.read()
-    schema_data["version"] = version
+    schema_data["version"] = version  # schema_data should contain version
     AddSchema(db).execute(schema_data)
 
 
@@ -63,9 +52,8 @@ def add_dataset(file, schema, version):
     reader = CSVFileReader(file)
     dbconfig = get_db_config()
     db = MonetDB.from_config(dbconfig)
-    data = reader.read()
-    dataset = Dataset(data)
-    AddDataset(db).execute(dataset, schema, version)
+    dataset_data = reader.read()
+    AddDataset(db).execute(dataset_data, schema, version)
 
 
 @entry.command()
@@ -80,8 +68,6 @@ def validate_dataset():
 @handle_errors
 def delete_schema(name, version):
     db = MonetDB.from_config(get_db_config())
-    metadata = Schema(METADATA_SCHEMA)
-    schemas_table = SchemasTable(schema=metadata)
     DeleteSchema(db).execute(name, version)
 
 
