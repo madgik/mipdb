@@ -49,10 +49,10 @@ class Table(ABC):
 
 class SchemasTable(Table):
     def __init__(self, schema):
-        self.schema_id_seq = sql.Sequence("schema_id_seq", metadata=schema._schema)
+        self.schema_id_seq = sql.Sequence("schema_id_seq", metadata=schema.schema)
         self._table = sql.Table(
             "schemas",
-            schema._schema,
+            schema.schema,
             sql.Column(
                 "schema_id",
                 SQLTYPES.INTEGER,
@@ -109,11 +109,11 @@ class DatasetsTable(Table):
     def __init__(self, schema):
         self._table = sql.Table(
             "datasets",
-            schema._schema,
+            schema.schema,
             sql.Column(
                 "dataset_id",
                 SQLTYPES.INTEGER,
-                sql.Sequence("dataset_id_seq", metadata=schema._schema),
+                sql.Sequence("dataset_id_seq", metadata=schema.schema),
                 primary_key=True,
             ),
             sql.Column(
@@ -132,11 +132,11 @@ class ActionsTable(Table):
     def __init__(self, schema):
         self._table = sql.Table(
             "actions",
-            schema._schema,
+            schema.schema,
             sql.Column(
                 "action_id",
                 SQLTYPES.INTEGER,
-                sql.Sequence("action_id_seq", metadata=schema._schema),
+                sql.Sequence("action_id_seq", metadata=schema.schema),
                 primary_key=True,
             ),
             sql.Column("description", SQLTYPES.STRING, nullable=False),
@@ -159,7 +159,7 @@ class PrimaryDataTable(Table):
         columns = [sql.Column(cde.code, STR2SQLTYPE[cde.sql_type]) for cde in cdes]
         table = sql.Table(
             "primary_data",
-            schema._schema,
+            schema.schema,
             *columns,
         )
         new_table = cls()
@@ -168,7 +168,7 @@ class PrimaryDataTable(Table):
 
     @classmethod
     def from_db(cls, schema: Schema, db: DataBase) -> "PrimaryDataTable":
-        table = sql.Table("primary_data", schema._schema, autoload_with=db._executor)
+        table = sql.Table("primary_data", schema.schema, autoload_with=db._executor)
         new_table = cls()
         new_table.set_table(table)
         return new_table
@@ -180,10 +180,10 @@ class PrimaryDataTable(Table):
 
 class MetadataTable(Table):
     def __init__(self, schema: Schema) -> None:
-        self._schema = schema.name
+        self.schema = schema.name
         self._table = sql.Table(
             METADATA_TABLE,
-            schema._schema,
+            schema.schema,
             sql.Column("code", SQLTYPES.STRING, primary_key=True),
             sql.Column("metadata", SQLTYPES.JSON),
         )
@@ -196,7 +196,7 @@ class MetadataTable(Table):
         # Needs to be overridden because sqlalchemy and monetdb are not cooperating
         # well when inserting values to JSON columns
         query = sql.text(
-            f'INSERT INTO "{self._schema}".{METADATA_TABLE} VALUES(:code, :metadata)'
+            f'INSERT INTO "{self.schema}".{METADATA_TABLE} VALUES(:code, :metadata)'
         )
         db.execute(query, values)
 
