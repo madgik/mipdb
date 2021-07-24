@@ -77,7 +77,7 @@ class AddSchema(UseCase):
         return schema
 
     def _create_primary_data_table(self, schema, cdes, conn):
-        primary_data_table = PrimaryDataTable(schema, cdes)
+        primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
         primary_data_table.create(conn)
 
     def _create_metadata_table(self, schema, conn, cdes):
@@ -167,11 +167,16 @@ def update_actions_on_schema_deletion(record, conn):
     actions_table.insert_values(record, conn)
 
 
+# TODO update datasets
+# TODO update actions
+# TODO verify dataset not already in db
 class AddDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, dataset, schema, version) -> None:
+    def execute(self, dataset_data, schema, version) -> None:
+        dataset = Dataset(dataset_data)
         schema_name = get_schema_fullname(code=schema, version=version)
         schema = Schema(schema_name)
-        PrimaryDataTable.insert_dataset(dataset, schema, self.db)
+        primary_data_table = PrimaryDataTable.from_db(schema, self.db)
+        primary_data_table.insert_dataset(dataset, self.db)

@@ -123,6 +123,8 @@ def test_update_actions_on_schema_deletion():
     assert set(record.values()) <= set(actions_record.values())
 
 
+# NOTE I can't make mock tests for add dataset because the PrimaryDataTable is
+# reflected from an actual db
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_add_dataset(db, schema_data):
@@ -137,7 +139,6 @@ def test_add_dataset(db, schema_data):
             "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
         }
     )
-    dataset = Dataset(data)
-    AddDataset(db).execute(dataset, "schema", "1.0")
+    AddDataset(db).execute(data, "schema", "1.0")
     res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
     assert res != []

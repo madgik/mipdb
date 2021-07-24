@@ -146,28 +146,36 @@ class ActionsTable(Table):
 
 
 class PrimaryDataTable(Table):
-    def __init__(self, schema: Schema, cdes: List[CommonDataElement]) -> None:
+    def __init__(self):
+        self._table = None
+
+    def set_table(self, table):
+        self._table = table
+
+    @classmethod
+    def from_cdes(
+        cls, schema: Schema, cdes: List[CommonDataElement]
+    ) -> "PrimaryDataTable":
         columns = [sql.Column(cde.code, STR2SQLTYPE[cde.sql_type]) for cde in cdes]
-        self._table = sql.Table(
+        table = sql.Table(
             "primary_data",
             schema._schema,
             *columns,
         )
+        new_table = cls()
+        new_table.set_table(table)
+        return new_table
 
-    @staticmethod
-    def insert_dataset(dataset, schema, db):
-        # TODO specify dtype based on schema
-        # NOTE The 'monetdb' dialect with current database version settings
-        # does not support in-place multirow inserts
-        dataset.data.to_sql(
-            name="primary_data",
-            con=db._executor,
-            schema=schema.name,
-            if_exists="append",
-            index=False,
-            # method="multi",
-            chunksize=1000,
-        )
+    @classmethod
+    def from_db(cls, schema: Schema, db: DataBase) -> "PrimaryDataTable":
+        table = sql.Table("primary_data", schema._schema, autoload_with=db._executor)
+        new_table = cls()
+        new_table.set_table(table)
+        return new_table
+
+    def insert_dataset(self, dataset, db):
+        values = dataset.to_dict()
+        self.insert_values(values, db)
 
 
 class MetadataTable(Table):

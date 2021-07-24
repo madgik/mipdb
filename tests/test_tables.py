@@ -25,6 +25,11 @@ def metadata():
     return Schema(METADATA_SCHEMA)
 
 
+@pytest.fixture
+def cdes(schema_data):
+    return make_cdes(schema_data)
+
+
 def test_schemas_table_mockdb(metadata):
     # Setup
     db = MonetDBMock()
@@ -183,16 +188,72 @@ class TestVariablesMetadataTable:
 
 
 class TestPrimaryDataTable:
+    def test_create_table_mockdb(self, cdes):
+        # Setup
+        db = MonetDBMock()
+        schema = Schema("schema:1.0")
+        # Test
+        primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
+        primary_data_table.create(db)
+        expected = (
+            '\nCREATE TABLE "schema:1.0".primary_data ('
+            "\n\tvar1 VARCHAR(255), "
+            "\n\tvar2 VARCHAR(255), "
+            "\n\tdataset VARCHAR(255), "
+            "\n\tvar3 FLOAT, "
+            "\n\tvar4 FLOAT\n)\n\n"
+        )
+        assert db.captured_queries[0] == expected
+
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-    def test_insert_dataset(self, db):
+    def test_create_table_with_db(self, cdes, db):
+        # Setup
+        schema = Schema("schema:1.0")
+        schema.create(db)
+        # Test
+        primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
+        primary_data_table.create(db)
+        res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
+        assert res == []
+
+    @pytest.mark.database
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    def test_reflect_table_from_db(self, cdes, db):
+        # Setup
+        schema = Schema("schema:1.0")
+        schema.create(db)
+        PrimaryDataTable.from_cdes(schema, cdes).create(db)
+        # Test
+        primary_data_table = PrimaryDataTable.from_db(schema, db)
+        column_names = [c.name for c in list(primary_data_table.table.columns)]
+        assert column_names != []
+
+    def test_insert_dataset_mockdb(self, cdes):
+        # Setup
+        db = MonetDBMock()
+        dataset_file = "tests/data/dataset.csv"
+        reader = CSVFileReader(dataset_file)
+        dataset = Dataset(reader.read())
+        schema = Schema("schema:1.0")
+        # Test
+        primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
+        primary_data_table.insert_dataset(dataset, db=db)
+        assert 'INSERT INTO "schema:1.0".primary_data' in db.captured_queries[0]
+        assert len(db.captured_multiparams[0][0]) > 0
+
+    @pytest.mark.database
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    def test_insert_dataset_with_db(self, db, cdes):
         # Setup
         dataset_file = "tests/data/dataset.csv"
         reader = CSVFileReader(dataset_file)
         dataset = Dataset(reader.read())
         schema = Schema("schema:1.0")
         schema.create(db)
+        primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
+        primary_data_table.create(db)
         # Test
-        PrimaryDataTable.insert_dataset(dataset, schema=schema, db=db)
+        primary_data_table.insert_dataset(dataset, db=db)
         res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
         assert res != []

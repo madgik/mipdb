@@ -20,3 +20,6 @@ class Dataset:
             raise InvalidDatasetError("There is no dataset field in the Dataset")
         if len(set(self.data["dataset"])) > 1:
             raise InvalidDatasetError("The dataset field contains multiple values.")
+
+    def to_dict(self):
+        return self._data.to_dict("records")
