@@ -13,7 +13,7 @@ from mipdb.schema import Schema
 
 
 @compiles(sql.types.JSON, "monetdb")
-def compile_binary_monetdb(type_, compiler, **kw):
+def compile_json_monetdb(type_, compiler, **kw):
     # The monetdb plugin for sqlalchemy doesn't seem to implement the JSON
     # datatype hence we need to teach sqlalchemy how to compile it
     return "JSON"
