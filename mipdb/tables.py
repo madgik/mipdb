@@ -3,9 +3,11 @@ import json
 from typing import NamedTuple, Union, List
 
 import sqlalchemy as sql
+from sqlalchemy import text
 from sqlalchemy.ext.compiler import compiles
 
 from mipdb.constants import METADATA_SCHEMA, METADATA_TABLE
+from mipdb.constants import Status
 from mipdb.database import DataBase, Connection
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import DataBaseError
@@ -13,7 +15,7 @@ from mipdb.schema import Schema
 
 
 @compiles(sql.types.JSON, "monetdb")
-def compile_json_monetdb(type_, compiler, **kw):
+def compile_binary_monetdb(type_, compiler, **kw):
     # The monetdb plugin for sqlalchemy doesn't seem to implement the JSON
     # datatype hence we need to teach sqlalchemy how to compile it
     return "JSON"
@@ -43,6 +45,12 @@ class Table(ABC):
     def create(self, db: Union[DataBase, Connection]):
         db.create_table(self._table)
 
+    def select(self, db: Union[DataBase, Connection]):
+        return db.select_table(self._table)
+
+    def get_columns(self, db: Union[DataBase, Connection]):
+        return db.get_columns(self._table)
+
     def insert_values(self, values, db: Union[DataBase, Connection]):
         db.insert_values_to_table(self._table, values)
 
@@ -67,39 +75,26 @@ class SchemasTable(Table):
         )
 
     def get_schema_id(self, code, version, db):
-        # I am forced to use textual SQL instead of SQLAlchemy objects because
-        # of two bugs. The first one is in sqlalchemy_monetdb which translates
-        # the 'not equal' operator as != instead of the correct <>. The second
-        # bug is in Monet DB where column names of level >= 3 are not yet
-        # implemented.
-        select = sql.text(
-            "SELECT schemas.schema_id "
-            f"FROM {METADATA_SCHEMA}.schemas "
-            "WHERE schemas.code = :code "
-            "AND schemas.version = :version "
-            "AND schemas.status <> 'DELETED'"
-        )
-        res = list(db.execute(select, code=code, version=version))
-        if len(res) > 1:
-            raise DataBaseError(
-                f"Got more than one schema ids for {code=} and {version=}."
-            )
-        if len(res) == 0:
-            raise DataBaseError(
-                f"Schemas table doesn't have a record with {code=}, {version=}"
-            )
-        return res[0][0]
+        return db.get_schema_id(code, version)
 
-    # TODO delete instead of marking as deleted
-    def mark_schema_as_deleted(self, code, version, db):
+    def set_status_schema(self, status, code, version, db):
+        sql_status = "ENABLED" if status == Status.ENABLED else "DISABLED"
         update = sql.text(
             f"UPDATE {METADATA_SCHEMA}.schemas "
-            "SET status = 'DELETED' "
+            "SET status = :status "
             "WHERE code = :code "
             "AND version = :version "
-            "AND status <> 'DELETED'"
+            "AND status <> :status"
         )
-        db.execute(update, code=code, version=version)
+        db.execute(update, status=sql_status, code=code, version=version)
+
+    def delete_schema(self, code, version, db):
+        delete = sql.text(
+            f"DELETE FROM {METADATA_SCHEMA}.schemas "
+            "WHERE code = :code "
+            "AND version = :version "
+        )
+        db.execute(delete, code=code, version=version)
 
     def get_next_schema_id(self, db):
         return db.execute(self.schema_id_seq)
@@ -107,13 +102,14 @@ class SchemasTable(Table):
 
 class DatasetsTable(Table):
     def __init__(self, schema):
+        self.dataset_id_seq = sql.Sequence("dataset_id_seq", metadata=schema.schema)
         self._table = sql.Table(
             "datasets",
             schema.schema,
             sql.Column(
                 "dataset_id",
                 SQLTYPES.INTEGER,
-                sql.Sequence("dataset_id_seq", metadata=schema.schema),
+                self.dataset_id_seq,
                 primary_key=True,
             ),
             sql.Column(
@@ -121,36 +117,64 @@ class DatasetsTable(Table):
                 SQLTYPES.INTEGER,
                 nullable=False,
             ),
-            sql.Column("version", SQLTYPES.STRING, nullable=False),
+            sql.Column("code", SQLTYPES.STRING, nullable=False),
             sql.Column("label", SQLTYPES.STRING),
             sql.Column("status", SQLTYPES.STRING, nullable=False),
             sql.Column("properties", SQLTYPES.JSON),
         )
 
+    def get_datasets(self, db):
+        db.get_datasets()
 
-class LogsTable(Table):
+    def delete_dataset(self, dataset_id, schema_id, db):
+        delete = sql.text(
+            f"DELETE FROM {METADATA_SCHEMA}.datasets "
+            "WHERE dataset_id = :dataset_id "
+            "AND schema_id = :schema_id "
+        )
+        db.execute(delete, dataset_id=dataset_id, schema_id=schema_id)
+
+    def get_next_dataset_id(self, db):
+        return db.execute(self.dataset_id_seq)
+
+    def set_status_dataset(self, status, dataset_id, schema_id, db):
+        sql_status = "ENABLED" if status == Status.ENABLED else "DISABLED"
+        update = sql.text(
+            f"UPDATE {METADATA_SCHEMA}.datasets "
+            "SET status = :status "
+            "WHERE dataset_id = :dataset_id "
+            "AND schema_id = :schema_id "
+            "AND status <> :status"
+        )
+        db.execute(update, status=sql_status, dataset_id=dataset_id, schema_id=schema_id)
+
+    def get_dataset_id(self, code, schema_id, db):
+        return db.get_dataset_id(code, schema_id)
+
+
+class ActionsTable(Table):
     def __init__(self, schema):
-        self.log_id_seq = sql.Sequence("log_id_seq", metadata=schema.schema)
+        self.action_id_seq = sql.Sequence("action_id_seq", metadata=schema.schema)
         self._table = sql.Table(
-            "logs",
+            "actions",
             schema.schema,
             sql.Column(
-                "log_id",
+                "action_id",
                 SQLTYPES.INTEGER,
-                self.log_id_seq,
+                self.action_id_seq,
                 primary_key=True,
             ),
-            sql.Column("log", SQLTYPES.JSON),
+            sql.Column("action", SQLTYPES.JSON),
         )
 
     def insert_values(self, values, db: Union[DataBase, Connection]):
         # Needs to be overridden because sqlalchemy and monetdb are not cooperating
         # well when inserting values to JSON columns
-        query = sql.text(f'INSERT INTO "{METADATA_SCHEMA}".logs VALUES(:log_id, :log)')
+        query = sql.text(f'INSERT INTO "{METADATA_SCHEMA}".actions VALUES(:action_id, :action)')
         db.execute(query, values)
 
     def get_next_id(self, db):
-        return db.execute(self.log_id_seq)
+        return db.execute(self.action_id_seq)
 
 
 class PrimaryDataTable(Table):
@@ -176,7 +200,7 @@ class PrimaryDataTable(Table):
 
     @classmethod
     def from_db(cls, schema: Schema, db: DataBase) -> "PrimaryDataTable":
-        table = sql.Table("primary_data", schema.schema, autoload_with=db._executor)
+        table = sql.Table("primary_data", schema.schema, autoload_with=db.get_executor())
         new_table = cls()
         new_table.set_table(table)
         return new_table
@@ -184,6 +208,13 @@ class PrimaryDataTable(Table):
     def insert_dataset(self, dataset, db):
         values = dataset.to_dict()
         self.insert_values(values, db)
+
+    def remove_dataset(self, dataset_name, schema_full_name, db):
+        delete = sql.text(
+            f'DELETE FROM "{schema_full_name}"."primary_data" '
+            'WHERE dataset = :dataset_name '
+        )
+        db.execute(delete, dataset_name=dataset_name)
 
 
 class MetadataTable(Table):

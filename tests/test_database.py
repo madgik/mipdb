@@ -1,6 +1,8 @@
-from mipdb.schema import Schema
-from mipdb.tables import SchemasTable
-from unittest.mock import Mock
+from click.testing import CliRunner
+
+from mipdb import add_dataset
+from mipdb import add_schema
+from mipdb import init
 import pytest
 
 import sqlalchemy as sql
@@ -14,11 +16,54 @@ def test_create_schema():
     assert "CREATE SCHEMA a_schema" in db.captured_queries[0]
 
 
-# TODO needs integration test
 def test_get_schemas():
     db = MonetDBMock()
     schemas = db.get_schemas()
     assert schemas == []
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_schemas(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    # Check schema not present already
+    assert db.get_schemas() == []
+
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+
+    # Check schema present
+    schemas = db.get_schemas()
+    assert len(schemas) == 2
+
+
+def test_get_datasets():
+    db = MonetDBMock()
+    datasets = db.get_datasets()
+    assert datasets == []
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_datasets(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    dataset_file = "tests/data/dataset.csv"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(
+        add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
+    )
+
+    # Check dataset present
+    datasets = db.get_datasets()
+    assert 'a_dataset' in datasets
+    assert len(datasets) == 1
 
 
 def test_drop_schema():

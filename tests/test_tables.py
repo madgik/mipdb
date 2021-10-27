@@ -7,7 +7,7 @@ import sqlalchemy as sql
 from mipdb.exceptions import DataBaseError
 from mipdb.schema import Schema
 from mipdb.tables import (
-    LogsTable,
+    ActionsTable,
     SchemasTable,
     DatasetsTable,
     MetadataTable,
@@ -35,9 +35,9 @@ def test_schemas_table_mockdb(metadata):
     db = MonetDBMock()
     # Test
     SchemasTable(schema=metadata).create(db)
-    assert f"CREATE SEQUENCE {METADATA_SCHEMA}.schema_id_seq" == db.captured_queries[0]
+    assert f"CREATE SEQUENCE mipdb_metadata.schema_id_seq" == db.captured_queries[0]
     expected_create = (
-        f"\nCREATE TABLE {METADATA_SCHEMA}.schemas ("
+        f"\nCREATE TABLE mipdb_metadata.schemas ("
         "\n\tschema_id INTEGER NOT NULL, "
         "\n\tcode VARCHAR(255) NOT NULL, "
         "\n\tversion VARCHAR(255) NOT NULL, "
@@ -71,12 +71,12 @@ def test_datasets_table(metadata):
     db = MonetDBMock()
     # Test
     DatasetsTable(schema=metadata).create(db)
-    assert f"CREATE SEQUENCE {METADATA_SCHEMA}.dataset_id_seq" in db.captured_queries[0]
+    assert f"CREATE SEQUENCE mipdb_metadata.dataset_id_seq" in db.captured_queries[0]
     expected_create = (
-        f"\nCREATE TABLE {METADATA_SCHEMA}.datasets ("
+        f"\nCREATE TABLE mipdb_metadata.datasets ("
         "\n\tdataset_id INTEGER NOT NULL, "
         "\n\tschema_id INTEGER NOT NULL, "
-        "\n\tversion VARCHAR(255) NOT NULL, "
+        "\n\tcode VARCHAR(255) NOT NULL, "
         "\n\tlabel VARCHAR(255), "
         "\n\tstatus VARCHAR(255) NOT NULL, "
         "\n\tproperties JSON, "
@@ -86,33 +86,32 @@ def test_datasets_table(metadata):
     assert expected_create == db.captured_queries[1]
 
 
-def test_logs_table(metadata):
+def test_actions_table(metadata):
     # Setup
     db = MonetDBMock()
     # Test
-    LogsTable(schema=metadata).create(db)
-    assert f"CREATE SEQUENCE {METADATA_SCHEMA}.log_id_seq" in db.captured_queries[0]
-    assert f"CREATE TABLE {METADATA_SCHEMA}.logs" in db.captured_queries[1]
+    ActionsTable(schema=metadata).create(db)
+    assert f"CREATE SEQUENCE mipdb_metadata.action_id_seq" in db.captured_queries[0]
+    assert f"CREATE TABLE mipdb_metadata.actions" in db.captured_queries[1]
+
+# TODO The function get_schema_id is overwritten on the MonetDBMock
+# def test_get_schema_id(metadata):
+#     # Setup
+#     db = MonetDBMock()
+#     schemas_table = SchemasTable(schema=metadata)
+#     # Test
+#     schemas_table.get_schema_id(code="schema", version="1.0", db=db)
+#     expected = f"SELECT schemas.schema_id FROM mipdb_metadata.schemas"
+#     assert expected in db.captured_queries[0]
 
 
-def test_get_schema_id(metadata):
+def test_delete_schema(metadata):
     # Setup
     db = MonetDBMock()
     schemas_table = SchemasTable(schema=metadata)
     # Test
-    with pytest.raises(DataBaseError):
-        schemas_table.get_schema_id(code="schema", version="1.0", db=db)
-    expected = f"SELECT schemas.schema_id FROM {METADATA_SCHEMA}.schemas"
-    assert expected in db.captured_queries[0]
-
-
-def test_mark_schema_as_deleted(metadata):
-    # Setup
-    db = MonetDBMock()
-    schemas_table = SchemasTable(schema=metadata)
-    # Test
-    schemas_table.mark_schema_as_deleted(code="schema", version="1.0", db=db)
-    expected = f"UPDATE {METADATA_SCHEMA}.schemas SET status = 'DELETED'"
+    schemas_table.delete_schema(code="schema", version="1.0", db=db)
+    expected = f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
     assert expected in db.captured_queries[0]
 
 
