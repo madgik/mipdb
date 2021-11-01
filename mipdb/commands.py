@@ -8,12 +8,6 @@ from mipdb.usecases import AddSchema
 from mipdb.usecases import AddDataset
 from mipdb.usecases import InitDB
 from mipdb.exceptions import handle_errors
-from mipdb.usecases import DisableDataset
-from mipdb.usecases import DisableSchema
-from mipdb.usecases import EnableDataset
-from mipdb.usecases import EnableSchema
-from mipdb.usecases import ListDatasets
-from mipdb.usecases import ListSchemas
 
 
 @cl.group()

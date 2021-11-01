@@ -45,12 +45,6 @@ class Table(ABC):
     def create(self, db: Union[DataBase, Connection]):
         db.create_table(self._table)
 
-    def select(self, db: Union[DataBase, Connection]):
-        return db.select_table(self._table)
-
-    def get_columns(self, db: Union[DataBase, Connection]):
-        return db.get_columns(self._table)
-
     def insert_values(self, values, db: Union[DataBase, Connection]):
         db.insert_values_to_table(self._table, values)
 
@@ -76,17 +70,6 @@ class SchemasTable(Table):
 
     def get_schema_id(self, code, version, db):
         return db.get_schema_id(code, version)
-
-    def set_status_schema(self, status, code, version, db):
-        sql_status = "ENABLED" if status == Status.ENABLED else "DISABLED"
-        update = sql.text(
-            f"UPDATE {METADATA_SCHEMA}.schemas "
-            "SET status = :status "
-            "WHERE code = :code "
-            "AND version = :version "
-            "AND status <> :status"
-        )
-        db.execute(update, status=sql_status, code=code, version=version)
 
     def delete_schema(self, code, version, db):
         delete = sql.text(
@@ -136,17 +119,6 @@ class DatasetsTable(Table):
 
     def get_next_dataset_id(self, db):
         return db.execute(self.dataset_id_seq)
-
-    def set_status_dataset(self, status, dataset_id, schema_id, db):
-        sql_status = "ENABLED" if status == Status.ENABLED else "DISABLED"
-        update = sql.text(
-            f"UPDATE {METADATA_SCHEMA}.datasets "
-            "SET status = :status "
-            "WHERE dataset_id = :dataset_id "
-            "AND schema_id = :schema_id "
-            "AND status <> :status"
-        )
-        db.execute(update, status=sql_status, dataset_id=dataset_id, schema_id=schema_id)
 
     def get_dataset_id(self, code, schema_id, db):
         return db.get_dataset_id(code, schema_id)

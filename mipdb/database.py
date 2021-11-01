@@ -98,12 +98,6 @@ class DataBase(ABC):
     def execute(self, *args, **kwargs):
         pass
 
-    def select_table(self, table):
-        pass
-
-    def get_columns(self, table):
-        pass
-
     @abstractmethod
     def get_current_user(self):
         pass
@@ -222,21 +216,6 @@ class DBExecutorMixin(ABC):
 
     def insert_values_to_table(self, table, values):
         self.execute(table.insert(), values)
-
-    def select_table(self, table):
-        res = self.execute(
-            "SELECT * "
-            f"FROM {METADATA_SCHEMA}.{table.name} "
-        )
-        return list(res)
-
-    def get_columns(self, table):
-        res = self.execute(
-            "SELECT columns.name FROM tables "
-            "INNER JOIN columns ON tables.id=columns.table_id "
-            f"where tables.name= '{table.name}' and system = false;"
-        )
-        return [column for column, *_ in res]
 
     def get_executor(self):
         return self._executor

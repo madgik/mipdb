@@ -2,10 +2,7 @@ from mipdb.exceptions import InvalidDatasetError
 import pytest
 import pandas as pd
 
-from mipdb.schema import Schema
-from mipdb.tables import PrimaryDataTable
 from mipdb.dataset import Dataset
-from mipdb.dataelements import make_cdes
 
 
 def test_valid_dataset_name():

@@ -1,10 +1,8 @@
 import ast
 
-from mipdb.dataset import Dataset
 import pandas as pd
 import pytest
 
-from mipdb.exceptions import DataBaseError
 from mipdb.usecases import (
     AddSchema,
     AddDataset,
@@ -20,7 +18,6 @@ from mipdb.usecases import (
     update_datasets_on_dataset_addition,
     update_datasets_on_dataset_deletion,
 )
-from mipdb.constants import METADATA_TABLE, METADATA_SCHEMA
 from tests.mocks import MonetDBMock
 
 
@@ -46,7 +43,7 @@ def test_init_mock():
 def test_init_with_db(db):
     InitDB(db).execute()
     schemas = db.get_schemas()
-    assert METADATA_SCHEMA in schemas
+    assert "mipdb_metadata" in schemas
 
 
 def test_add_schema_mock(schema_data):
@@ -54,8 +51,8 @@ def test_add_schema_mock(schema_data):
     AddSchema(db).execute(schema_data)
     assert 'CREATE SCHEMA "schema:1.0"' in db.captured_queries[1]
     assert 'CREATE TABLE "schema:1.0".primary_data' in db.captured_queries[2]
-    assert f'CREATE TABLE "schema:1.0".{METADATA_TABLE}' in db.captured_queries[3]
-    assert f'INSERT INTO "schema:1.0".{METADATA_TABLE}' in db.captured_queries[4]
+    assert f'CREATE TABLE "schema:1.0".variables_metadata' in db.captured_queries[3]
+    assert f'INSERT INTO "schema:1.0".variables_metadata' in db.captured_queries[4]
     assert len(db.captured_queries) > 5  # verify that handlers issued more queries
 
 
@@ -65,7 +62,7 @@ def test_add_schema_with_db(db, schema_data):
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
     schemas = db.get_schemas()
-    assert METADATA_SCHEMA in schemas
+    assert "mipdb_metadata" in schemas
     assert "schema:1.0" in schemas
 
 
@@ -94,11 +91,11 @@ def test_delete_schema_with_db(db, schema_data):
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
     schemas = db.get_schemas()
-    assert METADATA_SCHEMA in schemas
+    assert "mipdb_metadata" in schemas
     assert "schema:1.0" in schemas
     DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"])
     schemas = db.get_schemas()
-    assert METADATA_SCHEMA in schemas
+    assert "mipdb_metadata" in schemas
     assert "schema:1.0" not in schemas
 
 

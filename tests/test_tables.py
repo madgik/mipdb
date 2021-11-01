@@ -2,9 +2,7 @@ import json
 from mipdb.reader import CSVFileReader
 
 import pytest
-import sqlalchemy as sql
 
-from mipdb.exceptions import DataBaseError
 from mipdb.schema import Schema
 from mipdb.tables import (
     ActionsTable,
@@ -14,15 +12,13 @@ from mipdb.tables import (
     PrimaryDataTable,
 )
 from mipdb.dataelements import CommonDataElement, make_cdes
-from mipdb.database import MonetDB, get_db_config
 from mipdb.dataset import Dataset
-from mipdb.constants import METADATA_TABLE, METADATA_SCHEMA
 from tests.mocks import MonetDBMock
 
 
 @pytest.fixture
 def metadata():
-    return Schema(METADATA_SCHEMA)
+    return Schema("mipdb_metadata")
 
 
 @pytest.fixture
@@ -122,7 +118,7 @@ class TestVariablesMetadataTable:
         metadata_table = MetadataTable(Schema("schema:1.0"))
         # Test
         metadata_table.create(db)
-        assert f'CREATE TABLE "schema:1.0".{METADATA_TABLE}' in db.captured_queries[0]
+        assert f'CREATE TABLE "schema:1.0".variables_metadata' in db.captured_queries[0]
 
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
@@ -133,7 +129,7 @@ class TestVariablesMetadataTable:
         metadata_table = MetadataTable(schema)
         # Test
         metadata_table.create(db)
-        res = db.execute(f'SELECT * FROM "schema:1.0".{METADATA_TABLE}').fetchall()
+        res = db.execute(f'SELECT * FROM "schema:1.0".variables_metadata').fetchall()
         assert res == []
 
     @pytest.mark.database
@@ -149,7 +145,7 @@ class TestVariablesMetadataTable:
         metadata_table.insert_values(values, db)
         res = db.execute(
             "SELECT code, json.filter(metadata, '$.isCategorical') "
-            f'FROM "schema:1.0".{METADATA_TABLE}'
+            f'FROM "schema:1.0".variables_metadata'
         )
         result = [(name, json.loads(val)) for name, val in res.fetchall()]
         assert result == [

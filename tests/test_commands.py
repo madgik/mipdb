@@ -3,13 +3,8 @@ import json
 import pytest
 from click.testing import CliRunner
 
-from mipdb import disable_dataset
-from mipdb import disable_schema
-from mipdb import enable_dataset
-from mipdb import enable_schema
 from mipdb import init, add_schema, delete_schema, add_dataset, delete_dataset
 from mipdb.exceptions import ExitCode
-from mipdb.constants import METADATA_TABLE, METADATA_SCHEMA
 
 
 @pytest.mark.database
@@ -18,11 +13,11 @@ def test_init(db):
     # Setup
     runner = CliRunner()
     # Check schema not present already
-    assert METADATA_SCHEMA not in db.get_schemas()
+    assert "mipdb_metadata" not in db.get_schemas()
     # Test
     result = runner.invoke(init, [])
     assert result.exit_code == ExitCode.OK
-    assert METADATA_SCHEMA in db.get_schemas()
+    assert "mipdb_metadata" in db.get_schemas()
     assert db.execute(f"select * from mipdb_metadata.schemas").fetchall() == []
     assert db.execute(f"select * from mipdb_metadata.actions").fetchall() == []
 
@@ -47,7 +42,7 @@ def test_add_schema(db):
     assert action_id == 1
     assert action != ""
     assert json.loads(action)["action"] == "ADD SCHEMA"
-    metadata = db.execute(f'select * from "schema:1.0".{METADATA_TABLE}').fetchall()
+    metadata = db.execute(f'select * from "schema:1.0".variables_metadata').fetchall()
     # TODO better test
     assert len(metadata) == 5
 
