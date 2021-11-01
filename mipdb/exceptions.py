@@ -36,6 +36,14 @@ class InvalidDatasetError(Exception):
         super().__init__(message)
 
 
+class AccessError(Exception):
+    """Is raised when access rights are violated for specific constraints on some functions."""
+
+    def __init__(self, message) -> None:
+        self.message = message
+        super().__init__(message)
+
+
 class ExitCode(IntEnum):
     OK = 0
     USER_ERROR = 64

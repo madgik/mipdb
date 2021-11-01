@@ -31,6 +31,14 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def get_datasets(self, schema_id):
+        pass
+
+    @abstractmethod
+    def drop_table(self, table):
+        pass
+
+    @abstractmethod
     def get_schemas(self):
         pass
 
@@ -71,6 +79,10 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
+    def drop_table(self, table):
+        pass
+
+    @abstractmethod
     def get_dataset_id(self, code, schema_id):
         pass
 
@@ -79,7 +91,7 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
-    def get_datasets(self):
+    def get_datasets(self, schema_id):
         pass
 
     @abstractmethod
@@ -156,6 +168,10 @@ class DBExecutorMixin(ABC):
     def drop_schema(self, schema_name):
         self.execute(f'DROP SCHEMA "{schema_name}" CASCADE')
 
+    @handle_errors
+    def drop_table(self, table):
+        table.drop(bind=self._executor)
+
     def get_schema_id(self, code, version):
         # I am forced to use textual SQL instead of SQLAlchemy objects because
         # of two bugs. The first one is in sqlalchemy_monetdb which translates
@@ -203,10 +219,11 @@ class DBExecutorMixin(ABC):
         res = self.execute("SELECT name FROM sys.schemas WHERE system=FALSE")
         return [schema for schema, *_ in res]
 
-    def get_datasets(self):
+    def get_datasets(self, schema_id=None):
+        schema_id_clause = "" if schema_id is None else f"WHERE schema_id=schema_id"
         res = self.execute(
             "SELECT datasets.code "
-            f"FROM {METADATA_SCHEMA}.datasets "
+            f"FROM {METADATA_SCHEMA}.datasets {schema_id_clause}"
         )
         return [dataset for dataset, *_ in res]
 

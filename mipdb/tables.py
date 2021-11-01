@@ -1,16 +1,13 @@
 from abc import ABC, abstractmethod
 import json
-from typing import NamedTuple, Union, List
+from typing import Union, List
 
 import sqlalchemy as sql
-from sqlalchemy import text
 from sqlalchemy.ext.compiler import compiles
 
 from mipdb.constants import METADATA_SCHEMA, METADATA_TABLE
-from mipdb.constants import Status
 from mipdb.database import DataBase, Connection
 from mipdb.dataelements import CommonDataElement
-from mipdb.exceptions import DataBaseError
 from mipdb.schema import Schema
 
 
@@ -47,6 +44,9 @@ class Table(ABC):
 
     def insert_values(self, values, db: Union[DataBase, Connection]):
         db.insert_values_to_table(self._table, values)
+
+    def drop(self, db: Union[DataBase, Connection]):
+        db.drop_table(self._table)
 
 
 class SchemasTable(Table):
@@ -106,8 +106,8 @@ class DatasetsTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
-    def get_datasets(self, db):
-        db.get_datasets()
+    def get_datasets(self, db, schema_id=None):
+        return db.get_datasets(schema_id)
 
     def delete_dataset(self, dataset_id, schema_id, db):
         delete = sql.text(

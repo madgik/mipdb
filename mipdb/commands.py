@@ -64,10 +64,11 @@ def validate_dataset():
 @entry.command()
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The schema version")
+@cl.option('--force', '-f', is_flag=True, help="Force deletion of primary data and dataset that are based on the schema")
 @handle_errors
-def delete_schema(name, version):
+def delete_schema(name, version, force):
     db = MonetDB.from_config(get_db_config())
-    DeleteSchema(db).execute(name, version)
+    DeleteSchema(db).execute(name, version, force)
 
 
 @entry.command()
@@ -76,19 +77,13 @@ def delete_schema(name, version):
     "-s",
     "--schema",
     required=True,
-    help="The schema to which the dataset is added",
+    help="The schema to which the dataset is added"
 )
 @cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors
 def delete_dataset(dataset, schema, version):
     db = MonetDB.from_config(get_db_config())
     DeleteDataset(db).execute(dataset, schema, version)
-
-
-@entry.command()
-@handle_errors
-def delete_dataset():
-    pass
 
 
 @entry.command()

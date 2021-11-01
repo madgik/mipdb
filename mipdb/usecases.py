@@ -3,6 +3,7 @@ import json
 from abc import ABC, abstractmethod
 
 from mipdb.database import DataBase, Connection
+from mipdb.exceptions import AccessError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
 from mipdb.dataelements import CommonDataElement, make_cdes
@@ -124,13 +125,14 @@ class DeleteSchema(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, code, version) -> None:
+    def execute(self, code, version, force) -> None:
         name = get_schema_fullname(code, version)
-
+        schema = Schema(name)
         with self.db.begin() as conn:
-            schema = Schema(name)
             schema.drop(conn)
             schema_id = self._get_schema_id(code, version, conn)
+            if not force:
+                self._validate_schema_deletion(name, schema_id, conn)
 
             record = dict(
                 code=code,
@@ -145,6 +147,25 @@ class DeleteSchema(UseCase):
         schema_id = schemas_table.get_schema_id(code, version, conn)
         return schema_id
 
+    def _validate_schema_deletion(self, schema_name, schema_id, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+        datasets = datasets_table.get_datasets(conn, schema_id)
+        if not len(datasets) == 0:
+            raise AccessError(f"The Schema:{schema_name} cannot be deleted because it contains Datasets: {datasets}"
+                              f"\nIf you want to force delete everything, please use the  '-- force' flag")
+
+
+@emitter.handle("delete_schema")
+def update_datasets_on_schema_deletion(record, conn):
+    schema_id = record["schema_id"]
+    metadata = Schema(METADATA_SCHEMA)
+    datasets_table = DatasetsTable(schema=metadata)
+    datasets = datasets_table.get_datasets(conn)
+    for dataset in datasets:
+        dataset_id = datasets_table.get_dataset_id(dataset, record["schema_id"], conn)
+        datasets_table.delete_dataset(dataset_id, schema_id, conn)
+
 
 @emitter.handle("delete_schema")
 def update_schemas_on_schema_deletion(record, conn):
@@ -155,6 +176,7 @@ def update_schemas_on_schema_deletion(record, conn):
     schemas_table.delete_schema(code, version, conn)
 
 
+# TODO: Consider if it is needed to add action of deletion of datasets
 @emitter.handle("delete_schema")
 def update_actions_on_schema_deletion(record, conn):
     metadata = Schema(METADATA_SCHEMA)
@@ -181,9 +203,9 @@ class AddDataset(UseCase):
         dataset = Dataset(dataset_data)
 
         schema_name = get_schema_fullname(code=code, version=version)
+        schema = Schema(schema_name)
         metadata = Schema(METADATA_SCHEMA)
         schemas_table = SchemasTable(schema=metadata)
-        schema = Schema(schema_name)
         schemas_id = schemas_table.get_schema_id(code, version, self.db)
 
         with self.db.begin() as conn:

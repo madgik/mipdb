@@ -3,6 +3,7 @@ import ast
 import pandas as pd
 import pytest
 
+from mipdb.exceptions import AccessError
 from mipdb.usecases import (
     AddSchema,
     AddDataset,
@@ -18,6 +19,7 @@ from mipdb.usecases import (
     update_datasets_on_dataset_addition,
     update_datasets_on_dataset_deletion,
 )
+from mipdb.usecases import update_datasets_on_schema_deletion
 from tests.mocks import MonetDBMock
 
 
@@ -79,21 +81,64 @@ def test_delete_schema():
     db = MonetDBMock()
     code = "schema"
     version = "1.0"
-    DeleteSchema(db).execute(code, version)
+    force = True
+    DeleteSchema(db).execute(code, version, force)
     assert 'DROP SCHEMA "schema:1.0" CASCADE' in db.captured_queries[0]
-    expected_delete = f"DELETE FROM mipdb_metadata.schemas"
-    assert expected_delete in db.captured_queries[1]
+    assert "DELETE FROM mipdb_metadata.datasets" in db.captured_queries[1]
+    assert "DELETE FROM mipdb_metadata.datasets" in db.captured_queries[2]
+    assert "DELETE FROM mipdb_metadata.schemas" in db.captured_queries[3]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_delete_schema_with_db(db, schema_data):
+    # Setup
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "schema:1.0" in schemas
-    DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"])
+
+    # Test with force True
+    DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=True)
+    schemas = db.get_schemas()
+    assert "mipdb_metadata" in schemas
+    assert "schema:1.0" not in schemas
+
+    # Test with force False
+    AddSchema(db).execute(schema_data)
+    DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=False)
+    schemas = db.get_schemas()
+    assert "mipdb_metadata" in schemas
+    assert "schema:1.0" not in schemas
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_delete_schema_with_datasets_with_db(db, schema_data, dataset_data):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    schemas = db.get_schemas()
+    assert "mipdb_metadata" in schemas
+    assert "schema:1.0" in schemas
+    data = pd.DataFrame(
+        {
+            "var1": [1, 2, 3, 4, 5],
+            "var2": ["l1", "l2", "l1", "l1", "l2"],
+            "var3": [11, 12, 13, 14, 15],
+            "var4": [21, 22, 23, 24, 25],
+            "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
+        }
+    )
+    AddDataset(db).execute(data, "schema", "1.0")
+
+    # Test with force False
+    with pytest.raises(AccessError):
+        DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=False)
+
+    # Test with force True
+    DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=True)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "schema:1.0" not in schemas
@@ -104,6 +149,15 @@ def test_update_schemas_on_schema_deletion():
     record = {"code": "code", "version": "1.0"}
     update_schemas_on_schema_deletion(record, db)
     expected = f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
+    assert expected in db.captured_queries[0]
+    assert db.captured_params[0] == record
+
+
+def test_update_datasets_on_schema_deletion():
+    db = MonetDBMock()
+    record = {"dataset_id": 1, "schema_id" : 1}
+    update_datasets_on_schema_deletion(record, db)
+    expected = f"DELETE FROM mipdb_metadata.datasets WHERE "
     assert expected in db.captured_queries[0]
     assert db.captured_params[0] == record
 
@@ -140,12 +194,11 @@ def test_add_dataset_mock(schema_data, dataset_data):
     )
     AddDataset(db).execute(data, "schema", "1.0")
     assert "Sequence('dataset_id_seq'" in db.captured_queries[0]
-    assert 'SELECT datasets.code ' in db.captured_queries[1]
-    assert 'INSERT INTO "schema:1.0".primary_data' in db.captured_queries[2]
-    assert 'INSERT INTO mipdb_metadata.datasets' in db.captured_queries[3]
-    assert "Sequence('action_id_seq'" in db.captured_queries[4]
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[5]
-    assert len(db.captured_queries) > 5  # verify that handlers issued more queries
+    assert 'INSERT INTO "schema:1.0".primary_data' in db.captured_queries[1]
+    assert 'INSERT INTO mipdb_metadata.datasets' in db.captured_queries[2]
+    assert "Sequence('action_id_seq'" in db.captured_queries[3]
+    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[4]
+    assert len(db.captured_queries) > 3  # verify that handlers issued more queries
 
 
 @pytest.mark.database

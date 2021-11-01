@@ -58,7 +58,7 @@ def test_delete_schema(db):
     result = runner.invoke(init, [])
     result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
     # Test
-    result = runner.invoke(delete_schema, ["schema", "-v", "1.0"])
+    result = runner.invoke(delete_schema, ["schema", "-v", "1.0", "-f"])
     assert result.exit_code == ExitCode.OK
     assert "schema:1.0" not in db.get_schemas()
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
