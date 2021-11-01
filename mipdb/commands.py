@@ -92,51 +92,21 @@ def delete_dataset(dataset, schema, version):
 
 
 @entry.command()
-@cl.argument("name", required=True)
-@cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors
-def enable_schema(name, version):
-    db = MonetDB.from_config(get_db_config())
-    EnableSchema(db).execute(name, version)
+def delete_dataset():
+    pass
 
 
 @entry.command()
-@cl.argument("name", required=True)
-@cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors
-def disable_schema(name, version):
-    db = MonetDB.from_config(get_db_config())
-    DisableSchema(db).execute(name, version)
+def enable():
+    pass
 
 
 @entry.command()
-@cl.argument("dataset", required=True)
-@cl.option(
-    "-s",
-    "--schema",
-    required=True,
-    help="The schema to which the dataset is added",
-)
-@cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors
-def enable_dataset(dataset, schema, version):
-    db = MonetDB.from_config(get_db_config())
-    EnableDataset(db).execute(dataset, schema, version)
-
-
-@entry.command()
-@cl.argument("dataset", required=True)
-@cl.option(
-    "-s",
-    "--schema",
-    required=True,
-    help="The schema to which the dataset is added",
-)
-@cl.option("-v", "--version", required=True, help="The schema version")
-@handle_errors
-def disable_dataset(dataset, schema, version):
-    db = MonetDB.from_config(get_db_config())
-    DisableDataset(db).execute(dataset, schema, version)
+def disable():
+    pass
 
 
 @entry.command()
@@ -145,15 +115,7 @@ def tag():
     pass
 
 
-@entry.command()
+@entry.command("list")
 @handle_errors
-def list_schemas():
-    db = MonetDB.from_config(get_db_config())
-    ListSchemas(db).execute()
-
-
-@entry.command()
-@handle_errors
-def list_datasets():
-    db = MonetDB.from_config(get_db_config())
-    ListDatasets(db).execute()
+def list_():
+    pass
