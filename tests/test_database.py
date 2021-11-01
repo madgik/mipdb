@@ -7,6 +7,7 @@ import pytest
 
 import sqlalchemy as sql
 
+from mipdb.exceptions import DataBaseError
 from tests.mocks import MonetDBMock
 
 
@@ -66,6 +67,63 @@ def test_get_datasets(db):
     assert len(datasets) == 1
 
 
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_schema_id(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+
+    # Test when there is no schema in the database with the specific code and version
+    with pytest.raises(DataBaseError):
+        schema_id = db.get_schema_id("schema", "2.0")
+
+    # Test when there more than one schema ids with the specific code and version
+    with pytest.raises(DataBaseError):
+        db.execute(sql.text(
+            "INSERT INTO 'mipdb_metadata'.schemas (schema_id, code, version, status)"
+            "VALUES (2, 'schema', '1.0', 'DISABLED')"
+        ))
+        schema_id = db.get_schema_id("schema", "2.0")
+
+    # Test success
+    schema_id = db.get_schema_id("schema", "1.0")
+    assert schema_id == 1
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_dataset_id(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    dataset_file = "tests/data/dataset.csv"
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(
+        add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
+    )
+
+    # Test success
+    dataset_id = db.get_dataset_id("a_dataset", 1)
+    assert dataset_id == 1
+
+    # Test when there is no dataset in the database with the specific code and schema_id
+    with pytest.raises(DataBaseError):
+        dataset_id = db.get_dataset_id("a_dataset", 2)
+
+    # Test when there more than one dataset ids with the specific code and schema_id
+    with pytest.raises(DataBaseError):
+        db.execute(sql.text(
+            "INSERT INTO 'mipdb_metadata'.datasets (dataset_id, schema_id, code, status)"
+            "VALUES (2, 1, 'a_dataset', 'DISABLED')"
+        ))
+        dataset_id = db.get_dataset_id("a_dataset", 1)
+
+
+
 def test_drop_schema():
     db = MonetDBMock()
     db.drop_schema("a_schema")
@@ -77,6 +135,13 @@ def test_create_table():
     table = sql.Table("a_table", sql.MetaData(), sql.Column("a_column", sql.Integer))
     db.create_table(table)
     assert "CREATE TABLE a_table" in db.captured_queries[0]
+
+
+def test_drop_table():
+    db = MonetDBMock()
+    table = sql.Table("a_table", sql.MetaData(), sql.Column("a_column", sql.Integer))
+    db.drop_table(table)
+    assert "DROP TABLE a_table" in db.captured_queries[0]
 
 
 def test_insert_values_to_table():

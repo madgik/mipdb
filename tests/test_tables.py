@@ -1,4 +1,6 @@
 import json
+
+from mipdb.exceptions import DataBaseError
 from mipdb.reader import CSVFileReader
 
 import pytest
@@ -212,6 +214,21 @@ class TestPrimaryDataTable:
         primary_data_table.create(db)
         res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
         assert res == []
+
+    @pytest.mark.database
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    def test_drop_table_with_db(self, cdes, db):
+        # Setup
+        schema = Schema("schema:1.0")
+        schema.create(db)
+        primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
+        primary_data_table.create(db)
+        # Test
+
+        primary_data_table.drop(db)
+        with pytest.raises(DataBaseError):
+            res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
+            assert res == []
 
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")

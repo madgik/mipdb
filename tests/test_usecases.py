@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from mipdb.exceptions import AccessError
+from mipdb.exceptions import UserInputError
 from mipdb.usecases import (
     AddSchema,
     AddDataset,
@@ -165,6 +166,7 @@ def test_update_datasets_on_schema_deletion():
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_add_dataset(db, schema_data, dataset_data):
+    # Setup
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
     data = pd.DataFrame(
@@ -176,9 +178,14 @@ def test_add_dataset(db, schema_data, dataset_data):
             "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
         }
     )
+    # Test success
     AddDataset(db).execute(data, "schema", "1.0")
     res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
     assert res != []
+
+    # Test that it is not possible to add the same dataset
+    with pytest.raises(UserInputError):
+        AddDataset(db).execute(data, "schema", "1.0")
 
 
 def test_add_dataset_mock(schema_data, dataset_data):

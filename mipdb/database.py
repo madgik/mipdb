@@ -168,10 +168,6 @@ class DBExecutorMixin(ABC):
     def drop_schema(self, schema_name):
         self.execute(f'DROP SCHEMA "{schema_name}" CASCADE')
 
-    @handle_errors
-    def drop_table(self, table):
-        table.drop(bind=self._executor)
-
     def get_schema_id(self, code, version):
         # I am forced to use textual SQL instead of SQLAlchemy objects because
         # of two bugs. The first one is in sqlalchemy_monetdb which translates
@@ -230,6 +226,10 @@ class DBExecutorMixin(ABC):
     @handle_errors
     def create_table(self, table):
         table.create(bind=self._executor)
+
+    @handle_errors
+    def drop_table(self, table):
+        table.drop(bind=self._executor)
 
     def insert_values_to_table(self, table, values):
         self.execute(table.insert(), values)
