@@ -8,6 +8,10 @@ from mipdb.usecases import AddSchema
 from mipdb.usecases import AddDataset
 from mipdb.usecases import InitDB
 from mipdb.exceptions import handle_errors
+from mipdb.usecases import DisableDataset
+from mipdb.usecases import DisableSchema
+from mipdb.usecases import EnableDataset
+from mipdb.usecases import EnableSchema
 
 
 @cl.group()
@@ -87,15 +91,51 @@ def delete_dataset(dataset, schema, version):
 
 
 @entry.command()
+@cl.argument("name", required=True)
+@cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors
-def enable():
-    pass
+def enable_schema(name, version):
+    db = MonetDB.from_config(get_db_config())
+    EnableSchema(db).execute(name, version)
 
 
 @entry.command()
+@cl.argument("name", required=True)
+@cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors
-def disable():
-    pass
+def disable_schema(name, version):
+    db = MonetDB.from_config(get_db_config())
+    DisableSchema(db).execute(name, version)
+
+
+@entry.command()
+@cl.argument("dataset", required=True)
+@cl.option(
+    "-s",
+    "--schema",
+    required=True,
+    help="The schema to which the dataset is added",
+)
+@cl.option("-v", "--version", required=True, help="The schema version")
+@handle_errors
+def enable_dataset(dataset, schema, version):
+    db = MonetDB.from_config(get_db_config())
+    EnableDataset(db).execute(dataset, schema, version)
+
+
+@entry.command()
+@cl.argument("dataset", required=True)
+@cl.option(
+    "-s",
+    "--schema",
+    required=True,
+    help="The schema to which the dataset is added",
+)
+@cl.option("-v", "--version", required=True, help="The schema version")
+@handle_errors
+def disable_dataset(dataset, schema, version):
+    db = MonetDB.from_config(get_db_config())
+    DisableDataset(db).execute(dataset, schema, version)
 
 
 @entry.command()

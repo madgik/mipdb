@@ -25,6 +25,55 @@ def test_get_schemas():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def update_schema_status(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    # Check the status of schema is disabled
+    res = db.execute(sql.text(
+        'SELECT status from  "mipdb_metadata".schemas where schema_id = 1'
+    ))
+    assert list(res)[0] == "DISABLED"
+
+    # Test
+    db.update_metadata_schema_status("ENABLED", "schema", 1)
+    res = db.execute(sql.text(
+        'SELECT status from  "mipdb_metadata".schemas where schema_id = 1'
+    ))
+    assert list(res)[0] == "ENABLED"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def update_dataset_status(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    dataset_file = "tests/data/dataset.csv"
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(
+        add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
+    )
+
+    # Check the status of dataset is disabled
+    res = db.execute(sql.text(
+        'SELECT status from  "mipdb_metadata".datasets where dataset_id = 1'
+    ))
+    assert list(res)[0] == "DISABLED"
+
+    # Test
+    db.update_metadata_schema_status("ENABLED", "dataset", 1)
+    res = db.execute(sql.text(
+        'SELECT status from  "mipdb_metadata".datasets where dataset_id = 1'
+    ))
+    assert list(res)[0] == "ENABLED"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_get_schemas(db):
     # Setup
     runner = CliRunner()

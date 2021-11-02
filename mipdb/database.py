@@ -31,6 +31,10 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def update_metadata_schema_status(self, status, table_name, identifier):
+        pass
+
+    @abstractmethod
     def get_datasets(self, schema_id):
         pass
 
@@ -76,6 +80,10 @@ class DataBase(ABC):
 
     @abstractmethod
     def drop_schema(self, schema_name):
+        pass
+
+    @abstractmethod
+    def update_metadata_schema_status(self, status, table_name, identifier):
         pass
 
     @abstractmethod
@@ -167,6 +175,16 @@ class DBExecutorMixin(ABC):
 
     def drop_schema(self, schema_name):
         self.execute(f'DROP SCHEMA "{schema_name}" CASCADE')
+
+    def update_metadata_schema_status(self, status, table_name, identifier):
+        table_full_name = f"{METADATA_SCHEMA}.{table_name}s"
+        update = sql.text(
+            f"UPDATE {table_full_name} "
+            "SET status = :status "
+            f"WHERE {table_name}_id = {identifier} "
+            "AND status <> :status"
+        )
+        self.execute(update, status=status)
 
     @handle_errors
     def get_schema_id(self, code, version):
