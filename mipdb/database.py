@@ -168,6 +168,7 @@ class DBExecutorMixin(ABC):
     def drop_schema(self, schema_name):
         self.execute(f'DROP SCHEMA "{schema_name}" CASCADE')
 
+    @handle_errors
     def get_schema_id(self, code, version):
         # I am forced to use textual SQL instead of SQLAlchemy objects because
         # of two bugs. The first one is in sqlalchemy_monetdb which translates
@@ -192,6 +193,7 @@ class DBExecutorMixin(ABC):
             )
         return res[0][0]
 
+    @handle_errors
     def get_dataset_id(self, code, schema_id):
         select = sql.text(
             "SELECT datasets.dataset_id "

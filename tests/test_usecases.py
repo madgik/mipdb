@@ -44,7 +44,10 @@ def test_init_mock():
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_init_with_db(db):
+    # Setup
     InitDB(db).execute()
+
+    # Test
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
 
@@ -62,8 +65,11 @@ def test_add_schema_mock(schema_data):
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_add_schema_with_db(db, schema_data):
+    # Setup
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
+
+    # Test
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "schema:1.0" in schemas
@@ -100,18 +106,29 @@ def test_delete_schema_with_db(db, schema_data):
     assert "mipdb_metadata" in schemas
     assert "schema:1.0" in schemas
 
+    # Test with force False
+    DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=False)
+    schemas = db.get_schemas()
+    assert "mipdb_metadata" in schemas
+    assert "schema:1.0" not in schemas
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_delete_schema_with_db_with_force(db, schema_data):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    schemas = db.get_schemas()
+    assert "mipdb_metadata" in schemas
+    assert "schema:1.0" in schemas
+
     # Test with force True
     DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=True)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "schema:1.0" not in schemas
 
-    # Test with force False
-    AddSchema(db).execute(schema_data)
-    DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=False)
-    schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
-    assert "schema:1.0" not in schemas
 
 
 @pytest.mark.database
@@ -137,6 +154,27 @@ def test_delete_schema_with_datasets_with_db(db, schema_data, dataset_data):
     # Test with force False
     with pytest.raises(AccessError):
         DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=False)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_delete_schema_with_datasets_with_db_with_force(db, schema_data, dataset_data):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    schemas = db.get_schemas()
+    assert "mipdb_metadata" in schemas
+    assert "schema:1.0" in schemas
+    data = pd.DataFrame(
+        {
+            "var1": [1, 2, 3, 4, 5],
+            "var2": ["l1", "l2", "l1", "l1", "l2"],
+            "var3": [11, 12, 13, 14, 15],
+            "var4": [21, 22, 23, 24, 25],
+            "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
+        }
+    )
+    AddDataset(db).execute(data, "schema", "1.0")
 
     # Test with force True
     DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=True)
@@ -211,8 +249,11 @@ def test_add_dataset_mock(schema_data, dataset_data):
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_add_dataset_with_db(db, schema_data, dataset_data):
+    # Setup
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
+
+    # Test
     AddDataset(db).execute(dataset_data, "schema", "1.0")
     datasets = db.get_datasets()
     assert len(datasets) == 1
@@ -248,12 +289,15 @@ def test_delete_dataset():
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_delete_dataset_with_db(db, schema_data, dataset_data):
+    # Setup
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
     AddDataset(db).execute(dataset_data, "schema", "1.0")
     datasets = db.get_datasets()
     assert len(datasets) == 1
     assert "a_dataset" in datasets
+
+    # Test
     DeleteDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
     datasets = db.get_datasets()
     assert len(datasets) == 0

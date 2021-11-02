@@ -92,16 +92,6 @@ def test_actions_table(metadata):
     assert f"CREATE SEQUENCE mipdb_metadata.action_id_seq" in db.captured_queries[0]
     assert f"CREATE TABLE mipdb_metadata.actions" in db.captured_queries[1]
 
-# TODO The function get_schema_id is overwritten on the MonetDBMock
-# def test_get_schema_id(metadata):
-#     # Setup
-#     db = MonetDBMock()
-#     schemas_table = SchemasTable(schema=metadata)
-#     # Test
-#     schemas_table.get_schema_id(code="schema", version="1.0", db=db)
-#     expected = f"SELECT schemas.schema_id FROM mipdb_metadata.schemas"
-#     assert expected in db.captured_queries[0]
-
 
 def test_delete_schema(metadata):
     # Setup
