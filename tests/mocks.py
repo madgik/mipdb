@@ -47,6 +47,3 @@ class MonetDBMock(MonetDB):
 
     def get_datasets(self, schema_id=None):
         return [1, 2]
-
-
-

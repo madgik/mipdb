@@ -89,7 +89,7 @@ def test_add_dataset(db):
     result = runner.invoke(
         add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
     )
-    assert 'a_dataset' in db.get_datasets()
+    assert "a_dataset" in db.get_datasets()
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[1]
@@ -111,14 +111,14 @@ def test_delete_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_schema, [schema_file, "-v", "1.0"])
-    runner.invoke(
-        add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
-    )
-    assert 'a_dataset' in db.get_datasets()
+    runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
+    assert "a_dataset" in db.get_datasets()
 
     # Test
-    result = runner.invoke(delete_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"])
-    assert 'a_dataset' not in db.get_datasets()
+    result = runner.invoke(
+        delete_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"]
+    )
+    assert "a_dataset" not in db.get_datasets()
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[2]
@@ -133,7 +133,7 @@ def test_enable_schema(db):
     # Setup
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
-    status_query = f'SELECT status FROM mipdb_metadata.schemas'
+    status_query = f"SELECT status FROM mipdb_metadata.schemas"
     # Check status is disabled
     result = runner.invoke(init, [])
     result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
@@ -180,18 +180,18 @@ def test_enable_dataset(db):
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
     dataset_file = "tests/data/dataset.csv"
-    status_query = f'SELECT status FROM mipdb_metadata.datasets'
+    status_query = f"SELECT status FROM mipdb_metadata.datasets"
 
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_schema, [schema_file, "-v", "1.0"])
-    runner.invoke(
-        add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
-    )
+    runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
     assert _get_status(db, "datasets") == "DISABLED"
 
     # Test
-    result = runner.invoke(enable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"])
+    result = runner.invoke(
+        enable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"]
+    )
     assert result.exit_code == ExitCode.OK
     assert _get_status(db, "datasets") == "ENABLED"
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
@@ -212,14 +212,16 @@ def test_disable_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_schema, [schema_file, "-v", "1.0"])
-    runner.invoke(
-        add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
+    runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
+    result = runner.invoke(
+        enable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"]
     )
-    result = runner.invoke(enable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"])
     assert _get_status(db, "datasets") == "ENABLED"
 
     # Test
-    result = runner.invoke(disable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"])
+    result = runner.invoke(
+        disable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"]
+    )
     assert _get_status(db, "datasets") == "DISABLED"
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
@@ -230,5 +232,5 @@ def test_disable_dataset(db):
 
 
 def _get_status(db, schema_name):
-    status = db.execute(f'SELECT status FROM mipdb_metadata.{schema_name}').fetchone()
+    status = db.execute(f"SELECT status FROM mipdb_metadata.{schema_name}").fetchone()
     return status[0]

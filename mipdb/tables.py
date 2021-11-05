@@ -71,8 +71,11 @@ class SchemasTable(Table):
     def get_schema_id(self, code, version, db):
         return db.get_schema_id(code, version)
 
-    def set_status_schema(self, status, identifier, db):
-        db.update_metadata_schema_status(status, "schema", identifier)
+    def get_schema_status(self, schema_id, db):
+        return db.get_schema_status(schema_id)
+
+    def set_schema_status(self, status, schema_id, db):
+        db.update_schema_status(status, schema_id)
 
     def delete_schema(self, code, version, db):
         delete = sql.text(
@@ -123,8 +126,11 @@ class DatasetsTable(Table):
     def get_next_dataset_id(self, db):
         return db.execute(self.dataset_id_seq)
 
-    def set_status_dataset(self, status, identifier, db):
-        db.update_metadata_schema_status(status, "dataset", identifier)
+    def get_dataset_status(self, schema_id, db):
+        return db.get_dataset_status(schema_id)
+
+    def set_dataset_status(self, status, dataset_id, db):
+        db.update_dataset_status(status, dataset_id)
 
     def get_dataset_id(self, code, schema_id, db):
         return db.get_dataset_id(code, schema_id)
@@ -148,7 +154,9 @@ class ActionsTable(Table):
     def insert_values(self, values, db: Union[DataBase, Connection]):
         # Needs to be overridden because sqlalchemy and monetdb are not cooperating
         # well when inserting values to JSON columns
-        query = sql.text(f'INSERT INTO "{METADATA_SCHEMA}".actions VALUES(:action_id, :action)')
+        query = sql.text(
+            f'INSERT INTO "{METADATA_SCHEMA}".actions VALUES(:action_id, :action)'
+        )
         db.execute(query, values)
 
     def get_next_id(self, db):
@@ -178,7 +186,9 @@ class PrimaryDataTable(Table):
 
     @classmethod
     def from_db(cls, schema: Schema, db: DataBase) -> "PrimaryDataTable":
-        table = sql.Table("primary_data", schema.schema, autoload_with=db.get_executor())
+        table = sql.Table(
+            "primary_data", schema.schema, autoload_with=db.get_executor()
+        )
         new_table = cls()
         new_table.set_table(table)
         return new_table
@@ -190,7 +200,7 @@ class PrimaryDataTable(Table):
     def remove_dataset(self, dataset_name, schema_full_name, db):
         delete = sql.text(
             f'DELETE FROM "{schema_full_name}"."primary_data" '
-            'WHERE dataset = :dataset_name '
+            "WHERE dataset = :dataset_name "
         )
         db.execute(delete, dataset_name=dataset_name)
 

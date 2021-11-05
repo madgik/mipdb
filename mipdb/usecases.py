@@ -152,8 +152,10 @@ class DeleteSchema(UseCase):
         datasets_table = DatasetsTable(schema=metadata)
         datasets = datasets_table.get_datasets(conn, schema_id)
         if not len(datasets) == 0:
-            raise AccessError(f"The Schema:{schema_name} cannot be deleted because it contains Datasets: {datasets}"
-                              f"\nIf you want to force delete everything, please use the  '-- force' flag")
+            raise AccessError(
+                f"The Schema:{schema_name} cannot be deleted because it contains Datasets: {datasets}"
+                f"\nIf you want to force delete everything, please use the  '-- force' flag"
+            )
 
 
 @emitter.handle("delete_schema")
@@ -224,7 +226,7 @@ class AddDataset(UseCase):
         dataset_id = datasets_table.get_next_dataset_id(self.db)
         return dataset_id
 
-    def _dataset_exists(self,dataset, conn):
+    def _dataset_exists(self, dataset, conn):
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
         datasets = dataset_table.get_datasets(conn)
@@ -329,13 +331,17 @@ class EnableSchema(UseCase):
 
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(name, version, conn)
-            schemas_table.set_status_schema("ENABLED", schema_id, conn)
-            record = dict(
-                code=name,
-                version=version,
-                schema_id=schema_id,
-            )
-            emitter.emit("enable_schema", record, conn)
+            current_status = schemas_table.get_schema_status(schema_id, conn)
+            if current_status != "ENABLED":
+                schemas_table.set_schema_status("ENABLED", schema_id, conn)
+                record = dict(
+                    code=name,
+                    version=version,
+                    schema_id=schema_id,
+                )
+                emitter.emit("enable_schema", record, conn)
+            else:
+                print("The schema was already enabled")
 
     def _get_schema_id(self, code, version, conn):
         metadata = Schema(METADATA_SCHEMA)
@@ -371,13 +377,17 @@ class DisableSchema(UseCase):
 
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(name, version, conn)
-            schemas_table.set_status_schema("DISABLED", schema_id, conn)
-            record = dict(
-                code=name,
-                version=version,
-                schema_id=schema_id,
-            )
-            emitter.emit("disable_schema", record, conn)
+            current_status = schemas_table.get_schema_status(schema_id, conn)
+            if current_status != "DISABLED":
+                schemas_table.set_schema_status("DISABLED", schema_id, conn)
+                record = dict(
+                    code=name,
+                    version=version,
+                    schema_id=schema_id,
+                )
+                emitter.emit("disable_schema", record, conn)
+            else:
+                print("The schema was already disabled")
 
     def _get_schema_id(self, code, version, conn):
         metadata = Schema(METADATA_SCHEMA)
@@ -414,14 +424,18 @@ class EnableDataset(UseCase):
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(schema_code, version, conn)
             dataset_id = self._get_dataset_id(dataset, schema_id, conn)
-            datasets_table.set_status_dataset("ENABLED", dataset_id, conn)
-            record = dict(
-                dataset_id=dataset_id,
-                code=dataset,
-                version=version,
-            )
+            current_status = datasets_table.get_dataset_status(dataset_id, conn)
+            if current_status != "ENABLED":
+                datasets_table.set_dataset_status("ENABLED", dataset_id, conn)
+                record = dict(
+                    dataset_id=dataset_id,
+                    code=dataset,
+                    version=version,
+                )
 
-            emitter.emit("enable_dataset", record, conn)
+                emitter.emit("enable_dataset", record, conn)
+            else:
+                print("The dataset was already enabled")
 
     def _get_schema_id(self, code, version, conn):
         metadata = Schema(METADATA_SCHEMA)
@@ -464,14 +478,18 @@ class DisableDataset(UseCase):
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(schema_code, version, conn)
             dataset_id = self._get_dataset_id(dataset, schema_id, conn)
-            datasets_table.set_status_dataset("DISABLED", dataset_id, conn)
-            record = dict(
-                dataset_id=dataset_id,
-                code=dataset,
-                version=version,
-            )
+            current_status = datasets_table.get_dataset_status(dataset_id, conn)
+            if current_status != "DISABLED":
+                datasets_table.set_dataset_status("DISABLED", dataset_id, conn)
+                record = dict(
+                    dataset_id=dataset_id,
+                    code=dataset,
+                    version=version,
+                )
 
-            emitter.emit("disable_dataset", record, conn)
+                emitter.emit("disable_dataset", record, conn)
+            else:
+                print("The dataset was already disabled")
 
     def _get_schema_id(self, code, version, conn):
         metadata = Schema(METADATA_SCHEMA)

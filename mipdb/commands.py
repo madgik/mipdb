@@ -68,7 +68,12 @@ def validate_dataset():
 @entry.command()
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The schema version")
-@cl.option('--force', '-f', is_flag=True, help="Force deletion of dataset that are based on the schema")
+@cl.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Force deletion of dataset that are based on the schema",
+)
 @handle_errors
 def delete_schema(name, version, force):
     db = MonetDB.from_config(get_db_config())
@@ -78,10 +83,7 @@ def delete_schema(name, version, force):
 @entry.command()
 @cl.argument("dataset", required=True)
 @cl.option(
-    "-s",
-    "--schema",
-    required=True,
-    help="The schema to which the dataset is added"
+    "-s", "--schema", required=True, help="The schema to which the dataset is added"
 )
 @cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors

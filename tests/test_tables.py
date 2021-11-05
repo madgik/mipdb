@@ -99,7 +99,9 @@ def test_delete_schema(metadata):
     schemas_table = SchemasTable(schema=metadata)
     # Test
     schemas_table.delete_schema(code="schema", version="1.0", db=db)
-    expected = f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
+    expected = (
+        f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
+    )
     assert expected in db.captured_queries[0]
 
 
