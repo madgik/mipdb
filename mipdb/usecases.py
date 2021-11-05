@@ -20,7 +20,6 @@ from mipdb.dataset import Dataset
 from mipdb.event import EventEmitter
 
 
-
 class UseCase(ABC):
     """Abstract use case class."""
 
