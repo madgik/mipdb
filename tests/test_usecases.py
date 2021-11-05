@@ -1,9 +1,9 @@
-import ast
+import json
 
 import pandas as pd
 import pytest
 
-from mipdb.exceptions import AccessError
+from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.usecases import (
     AddSchema,
@@ -84,6 +84,17 @@ def test_update_schemas_on_schema_addition():
     assert schemas_record["status"] == "DISABLED"
 
 
+def test_update_actions_on_schema_addition():
+    record = {"code": "code", "version": "1.0", "schema_id": 1}
+    db = MonetDBMock()
+    update_actions_on_schema_addition(record, db)
+    assert f'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
+    actions_record = db.captured_multiparams[1][0]
+    actions_record = actions_record["action"]
+    actions_record = json.loads(actions_record)
+    assert set(record.values()) <= set(actions_record.values())
+
+
 def test_delete_schema():
     db = MonetDBMock()
     code = "schema"
@@ -107,7 +118,9 @@ def test_delete_schema_with_db(db, schema_data):
     assert "schema:1.0" in schemas
 
     # Test with force False
-    DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=False)
+    DeleteSchema(db).execute(
+        code=schema_data["code"], version=schema_data["version"], force=False
+    )
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "schema:1.0" not in schemas
@@ -124,11 +137,12 @@ def test_delete_schema_with_db_with_force(db, schema_data):
     assert "schema:1.0" in schemas
 
     # Test with force True
-    DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=True)
+    DeleteSchema(db).execute(
+        code=schema_data["code"], version=schema_data["version"], force=True
+    )
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "schema:1.0" not in schemas
-
 
 
 @pytest.mark.database
@@ -152,8 +166,10 @@ def test_delete_schema_with_datasets_with_db(db, schema_data, dataset_data):
     AddDataset(db).execute(data, "schema", "1.0")
 
     # Test with force False
-    with pytest.raises(AccessError):
-        DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=False)
+    with pytest.raises(ForeignKeyError):
+        DeleteSchema(db).execute(
+            code=schema_data["code"], version=schema_data["version"], force=False
+        )
 
 
 @pytest.mark.database
@@ -177,7 +193,9 @@ def test_delete_schema_with_datasets_with_db_with_force(db, schema_data, dataset
     AddDataset(db).execute(data, "schema", "1.0")
 
     # Test with force True
-    DeleteSchema(db).execute(code=schema_data["code"], version=schema_data["version"], force=True)
+    DeleteSchema(db).execute(
+        code=schema_data["code"], version=schema_data["version"], force=True
+    )
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "schema:1.0" not in schemas
@@ -187,18 +205,29 @@ def test_update_schemas_on_schema_deletion():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0"}
     update_schemas_on_schema_deletion(record, db)
-    expected = f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
+    expected = (
+        f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
+    )
     assert expected in db.captured_queries[0]
     assert db.captured_params[0] == record
 
 
 def test_update_datasets_on_schema_deletion():
     db = MonetDBMock()
-    record = {"dataset_id": 1, "schema_id" : 1}
+    record = {"dataset_ids": [1], "schema_id": 1}
     update_datasets_on_schema_deletion(record, db)
     expected = f"DELETE FROM mipdb_metadata.datasets WHERE "
     assert expected in db.captured_queries[0]
-    assert db.captured_params[0] == record
+
+def test_update_actions_on_schema_deletion():
+    record = {"dataset_ids": [1], "schema_id": 1, "code": "a_dataset"}
+    db = MonetDBMock()
+    update_actions_on_schema_deletion(record, db)
+    assert f'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
+    actions_record = db.captured_multiparams[1][0]
+    actions_record = actions_record["action"]
+    actions_record = json.loads(actions_record)
+    assert len(record.values()) <= len(actions_record.values())
 
 
 @pytest.mark.database
@@ -240,7 +269,7 @@ def test_add_dataset_mock(schema_data, dataset_data):
     AddDataset(db).execute(data, "schema", "1.0")
     assert "Sequence('dataset_id_seq'" in db.captured_queries[0]
     assert 'INSERT INTO "schema:1.0".primary_data' in db.captured_queries[1]
-    assert 'INSERT INTO mipdb_metadata.datasets' in db.captured_queries[2]
+    assert "INSERT INTO mipdb_metadata.datasets" in db.captured_queries[2]
     assert "Sequence('action_id_seq'" in db.captured_queries[3]
     assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[4]
     assert len(db.captured_queries) > 3  # verify that handlers issued more queries
@@ -273,6 +302,17 @@ def test_update_datasets_on_dataset_addition():
     assert datasets_record["status"] == "DISABLED"
 
 
+def test_update_actions_on_dataset_addition():
+    record = {"code": "code", "version": "1.0", "schema_id": 1}
+    db = MonetDBMock()
+    update_actions_on_dataset_addition(record, db)
+    assert f'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
+    actions_record = db.captured_multiparams[1][0]
+    actions_record = actions_record["action"]
+    actions_record = json.loads(actions_record)
+    assert set(record.values()) <= set(actions_record.values())
+
+
 def test_delete_dataset():
     db = MonetDBMock()
     dataset = "a_dataset"
@@ -280,10 +320,9 @@ def test_delete_dataset():
     version = "1.0"
     DeleteDataset(db).execute(dataset, code, version)
     assert 'DELETE FROM "schema:1.0"."primary_data"' in db.captured_queries[0]
-    assert 'DELETE FROM mipdb_metadata.datasets ' in db.captured_queries[1]
+    assert "DELETE FROM mipdb_metadata.datasets " in db.captured_queries[1]
     assert "Sequence('action_id_seq'" in db.captured_queries[2]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[3]
-    assert len(db.captured_queries) > 2  # verify that handlers issued more queries
 
 
 @pytest.mark.database
@@ -316,20 +355,12 @@ def test_update_datasets_on_dataset_deletion():
     assert db.captured_params[0] == record
 
 
-record_and_funcs = [
-    ({"code": "code", "version": "1.0", "schema_id": 1}, update_actions_on_schema_addition),
-    ({"dataset_id": 1, "schema_id": 1, "code": "a_dataset"}, update_actions_on_schema_deletion),
-    ({"code": "code", "version": "1.0", "schema_id": 1}, update_actions_on_dataset_addition),
-    ({"dataset_id": 1, "schema_id": 1, "version": "1.0"}, update_actions_on_dataset_deletion),
- ]
-
-
-@pytest.mark.parametrize("record,func", record_and_funcs)
-def test_update_actions(record, func):
+def test_update_actions_on_dataset_deletion():
+    record = {"dataset_id": 1, "schema_id": 1, "version": "1.0"}
     db = MonetDBMock()
-    func(record, db)
+    update_actions_on_dataset_deletion(record, db)
     assert f'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
     actions_record = db.captured_multiparams[1][0]
     actions_record = actions_record["action"]
-    actions_record = ast.literal_eval(actions_record)
+    actions_record = json.loads(actions_record)
     assert set(record.values()) <= set(actions_record.values())

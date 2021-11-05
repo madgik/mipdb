@@ -64,26 +64,6 @@ def test_schemas_table_realdb(db):
     assert res.fetchall() != []
 
 
-def test_datasets_table(metadata):
-    # Setup
-    db = MonetDBMock()
-    # Test
-    DatasetsTable(schema=metadata).create(db)
-    assert f"CREATE SEQUENCE mipdb_metadata.dataset_id_seq" in db.captured_queries[0]
-    expected_create = (
-        f"\nCREATE TABLE mipdb_metadata.datasets ("
-        "\n\tdataset_id INTEGER NOT NULL, "
-        "\n\tschema_id INTEGER NOT NULL, "
-        "\n\tcode VARCHAR(255) NOT NULL, "
-        "\n\tlabel VARCHAR(255), "
-        "\n\tstatus VARCHAR(255) NOT NULL, "
-        "\n\tproperties JSON, "
-        "\n\tPRIMARY KEY (dataset_id)"
-        "\n)\n\n"
-    )
-    assert expected_create == db.captured_queries[1]
-
-
 def test_actions_table(metadata):
     # Setup
     db = MonetDBMock()
@@ -99,7 +79,9 @@ def test_delete_schema(metadata):
     schemas_table = SchemasTable(schema=metadata)
     # Test
     schemas_table.delete_schema(code="schema", version="1.0", db=db)
-    expected = f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
+    expected = (
+        f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
+    )
     assert expected in db.captured_queries[0]
 
 
@@ -169,9 +151,9 @@ class TestVariablesMetadataTable:
         # Test
         schema = Schema("schema:1.0")
         metadata_table = MetadataTable.from_db(schema, db)
-        assert all(isinstance(cde, str) for cde in metadata_table.cdes.keys())
+        assert all(isinstance(cde, str) for cde in metadata_table.table.keys())
         assert all(
-            isinstance(cde, CommonDataElement) for cde in metadata_table.cdes.values()
+            isinstance(cde, CommonDataElement) for cde in metadata_table.table.values()
         )
 
 
@@ -217,8 +199,7 @@ class TestPrimaryDataTable:
 
         primary_data_table.drop(db)
         with pytest.raises(DataBaseError):
-            res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
-            assert res == []
+            db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
 
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")

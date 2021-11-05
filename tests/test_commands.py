@@ -79,13 +79,13 @@ def test_add_dataset(db):
     # Check dataset not present already
     result = runner.invoke(init, [])
     result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
-    # assert 'a_dataset' not in db.get_datasets()
+    assert "a_dataset" not in db.get_datasets()
 
     # Test
     result = runner.invoke(
         add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
     )
-    assert 'a_dataset' in db.get_datasets()
+    assert "a_dataset" in db.get_datasets()
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[1]
@@ -107,14 +107,14 @@ def test_delete_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_schema, [schema_file, "-v", "1.0"])
-    runner.invoke(
-        add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"]
-    )
-    assert 'a_dataset' in db.get_datasets()
+    runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
+    assert "a_dataset" in db.get_datasets()
 
     # Test
-    result = runner.invoke(delete_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"])
-    assert 'a_dataset' not in db.get_datasets()
+    result = runner.invoke(
+        delete_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"]
+    )
+    assert "a_dataset" not in db.get_datasets()
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[2]

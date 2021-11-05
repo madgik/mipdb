@@ -4,8 +4,15 @@ from typing import Union
 
 import sqlalchemy as sql
 
-from mipdb.constants import METADATA_SCHEMA
 from mipdb.exceptions import DataBaseError
+
+METADATA_SCHEMA = "mipdb_metadata"
+METADATA_TABLE = "variables_metadata"
+
+
+class Status:
+    ENABLED = "ENABLED"
+    DISABLED = "DISABLED"
 
 
 def get_db_config():
@@ -240,7 +247,7 @@ class DBExecutorMixin(ABC):
         return self._executor
 
     def get_current_user(self):
-        user, *_ = self.execute("SELECT CURRENT_USER").fetchone()
+        (user, *_), *_ = self.execute("SELECT CURRENT_USER")
         return user
 
 
