@@ -8,6 +8,8 @@ from mipdb.usecases import AddSchema
 from mipdb.usecases import AddDataset
 from mipdb.usecases import InitDB
 from mipdb.exceptions import handle_errors
+from mipdb.usecases import TagDataset
+from mipdb.usecases import TagSchema
 
 
 @cl.group()
@@ -99,9 +101,41 @@ def disable():
 
 
 @entry.command()
+@cl.argument("name", required=True)
+@cl.option("-v", "--version", required=True, help="The schema version")
+@cl.option("-t", "--tag", default=None, required=False, help="A tag to be added/removed at the properties")
+@cl.option("-kv", "--key-value", default=None, nargs=2, required=False, help="A key value to be added/removed at the properties")
+@cl.option("-r",
+           '--remove-flag',
+           is_flag=True,
+           required=False,
+           help="A flag that determines if the tag/key_value will be added or removed")
 @handle_errors
-def tag():
-    pass
+def tag_schema(name, version, tag, key_value, remove_flag):
+    db = MonetDB.from_config(get_db_config())
+    TagSchema(db).execute(name, version, tag, key_value, remove_flag)
+
+
+@entry.command()
+@cl.argument("dataset", required=True)
+@cl.option(
+    "-s",
+    "--schema",
+    required=True,
+    help="The schema to which the dataset is added"
+)
+@cl.option("-v", "--version", required=True, help="The schema version")
+@cl.option("-t", "--tag", default=None, required=False, help="A tag to be added/removed at the properties")
+@cl.option("-kv", "--key-value", default=None, nargs=2, required=False, help="A key value to be added/removed at the properties")
+@cl.option("-r",
+           '--remove-flag',
+           is_flag=True,
+           required=False,
+           help="A flag that determines if the tag/key_value will be added or removed")
+@handle_errors
+def tag_dataset(dataset, schema, version, tag, key_value, remove_flag):
+    db = MonetDB.from_config(get_db_config())
+    TagDataset(db).execute(dataset, schema, version, tag, key_value, remove_flag)
 
 
 @entry.command("list")

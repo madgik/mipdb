@@ -1,3 +1,4 @@
+import json
 from abc import abstractmethod, ABC
 from contextlib import contextmanager
 from typing import Union
@@ -6,6 +7,7 @@ import sqlalchemy as sql
 
 from mipdb.constants import METADATA_SCHEMA
 from mipdb.exceptions import DataBaseError
+from mipdb.exceptions import UserInputError
 
 
 def get_db_config():
@@ -36,6 +38,22 @@ class Connection(ABC):
 
     @abstractmethod
     def drop_table(self, table):
+        pass
+
+    @abstractmethod
+    def get_dataset_properties(self, dataset_id):
+        pass
+
+    @abstractmethod
+    def get_schema_properties(self, schema_id):
+        pass
+
+    @abstractmethod
+    def set_schema_properties(self, properties, schema_id):
+        pass
+
+    @abstractmethod
+    def set_dataset_properties(self, properties, dataset_id):
         pass
 
     @abstractmethod
@@ -80,6 +98,22 @@ class DataBase(ABC):
 
     @abstractmethod
     def drop_table(self, table):
+        pass
+
+    @abstractmethod
+    def get_dataset_properties(self, dataset_id):
+        pass
+
+    @abstractmethod
+    def get_schema_properties(self, schema_id):
+        pass
+
+    @abstractmethod
+    def set_schema_properties(self, properties, schema_id):
+        pass
+
+    @abstractmethod
+    def set_dataset_properties(self, properties, dataset_id):
         pass
 
     @abstractmethod
@@ -228,6 +262,24 @@ class DBExecutorMixin(ABC):
     @handle_errors
     def create_table(self, table):
         table.create(bind=self._executor)
+
+    def get_dataset_properties(self, dataset_id):
+        (properties, *_), *_ = self.execute(
+            f"SELECT properties FROM {METADATA_SCHEMA}.datasets WHERE dataset_id = {dataset_id}")
+        return properties
+
+    def get_schema_properties(self, schema_id):
+        (properties, *_), *_ = self.execute(
+            f"SELECT properties FROM {METADATA_SCHEMA}.schemas WHERE schema_id = {schema_id}")
+        return properties
+
+    def set_schema_properties(self, properties, schema_id):
+        self.execute(f"UPDATE {METADATA_SCHEMA}.schemas SET properties = '{properties}'"
+                     f" WHERE schema_id = {schema_id}")
+
+    def set_dataset_properties(self, properties, dataset_id):
+        self.execute(f"UPDATE {METADATA_SCHEMA}.datasets SET properties = '{properties}'"
+                     f" WHERE dataset_id = {dataset_id}")
 
     @handle_errors
     def drop_table(self, table):
