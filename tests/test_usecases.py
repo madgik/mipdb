@@ -20,6 +20,10 @@ from mipdb.usecases import (
     update_datasets_on_dataset_addition,
     update_datasets_on_dataset_deletion,
 )
+from mipdb.usecases import TagDataset
+from mipdb.usecases import TagSchema
+from mipdb.usecases import update_actions_on_dataset_tagging
+from mipdb.usecases import update_actions_on_schema_tagging
 from mipdb.usecases import update_datasets_on_schema_deletion
 from tests.mocks import MonetDBMock
 
@@ -316,12 +320,127 @@ def test_update_datasets_on_dataset_deletion():
     assert db.captured_params[0] == record
 
 
+def test_tag_schema():
+    db = MonetDBMock()
+    code = "schema"
+    version = "1.0"
+    tag = "tag"
+    key_value = ("key", "value")
+    remove_flag = False
+    TagSchema(db).execute(code, version, tag, key_value, remove_flag)
+    assert 'UPDATE mipdb_metadata.schemas SET properties' in db.captured_queries[0]
+    assert "Sequence('action_id_seq'" in db.captured_queries[1]
+    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_tag_schema_addition_with_db(db, schema_data):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+
+    # Test
+    TagSchema(db).execute(schema_data["code"],
+                          schema_data["version"],
+                          "tag",
+                          ("key", "value"),
+                          False)
+
+    properties = db.get_schema_properties(1)
+    assert properties == '{"tags": ["tag"], "key": "value"}'
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_tag_schema_deletion_with_db(db, schema_data):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    TagSchema(db).execute(schema_data["code"],
+                          schema_data["version"],
+                          "tag",
+                          ("key", "value"),
+                          False)
+
+    # Test
+    TagSchema(db).execute(schema_data["code"],
+                          schema_data["version"],
+                          "tag",
+                          ("key", "value"),
+                          True)
+    properties = db.get_schema_properties(1)
+    assert properties == '{"tags": []}'
+
+
+def test_tag_dataset():
+    db = MonetDBMock()
+    dataset = "a_dataset"
+    code = "schema"
+    version = "1.0"
+    tag = "tag"
+    key_value = ("key", "value")
+    remove_flag = False
+    TagDataset(db).execute(dataset, code, version, tag, key_value, remove_flag)
+    assert 'UPDATE mipdb_metadata.datasets SET properties' in db.captured_queries[0]
+    assert "Sequence('action_id_seq'" in db.captured_queries[1]
+    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_tag_dataset_addition_with_db(db, schema_data, dataset_data):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    AddDataset(db).execute(dataset_data, "schema", "1.0")
+
+    # Test
+    TagDataset(db).execute("a_dataset",
+                           schema_data["code"],
+                           schema_data["version"],
+                           "tag",
+                           ("key", "value"),
+                           False)
+
+    properties = db.get_dataset_properties(1)
+    assert properties == '{"tags": ["tag"], "key": "value"}'
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_tag_dataset_deletion_with_db(db, schema_data, dataset_data):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    TagDataset(db).execute("a_dataset",
+                           schema_data["code"],
+                           schema_data["version"],
+                           "tag",
+                           ("key", "value"),
+                           False)
+
+    # Test
+    TagDataset(db).execute("a_dataset",
+                           schema_data["code"],
+                           schema_data["version"],
+                           "tag",
+                           ("key", "value"),
+                           True)
+    properties = db.get_dataset_properties(1)
+    assert properties == '{"tags": []}'
+
+
 record_and_funcs = [
     ({"code": "code", "version": "1.0", "schema_id": 1}, update_actions_on_schema_addition),
     ({"dataset_id": 1, "schema_id": 1, "code": "a_dataset"}, update_actions_on_schema_deletion),
     ({"code": "code", "version": "1.0", "schema_id": 1}, update_actions_on_dataset_addition),
     ({"dataset_id": 1, "schema_id": 1, "version": "1.0"}, update_actions_on_dataset_deletion),
- ]
+    ({"code": "code", "version": "1.0", "schema_id": 1, "action": "REMOVE SCHEMA TAG"}, update_actions_on_schema_tagging),
+    ({"dataset_id": 1, "schema_id": 1, "version": "1.0", "action": "ADD DATASET TAG"}, update_actions_on_dataset_tagging),
+
+]
 
 
 @pytest.mark.parametrize("record,func", record_and_funcs)

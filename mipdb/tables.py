@@ -71,6 +71,13 @@ class SchemasTable(Table):
     def get_schema_id(self, code, version, db):
         return db.get_schema_id(code, version)
 
+    def get_schema_properties(self, schema_id, db):
+        return db.get_schema_properties(schema_id)
+
+    def set_schema_properties(self, properties, schema_id, db):
+        db.set_schema_properties(properties, schema_id)
+
+
     def delete_schema(self, code, version, db):
         delete = sql.text(
             f"DELETE FROM {METADATA_SCHEMA}.schemas "
@@ -108,6 +115,12 @@ class DatasetsTable(Table):
 
     def get_datasets(self, db, schema_id=None):
         return db.get_datasets(schema_id)
+
+    def get_dataset_properties(self, dataset_id, db):
+        return db.get_dataset_properties(dataset_id)
+
+    def set_dataset_properties(self, properties, dataset_id, db):
+        db.set_dataset_properties(properties, dataset_id)
 
     def delete_dataset(self, dataset_id, schema_id, db):
         delete = sql.text(
