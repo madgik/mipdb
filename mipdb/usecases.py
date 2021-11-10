@@ -443,26 +443,9 @@ class TagSchema(UseCase):
 
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(code, version, conn)
-            properties = schemas_table.get_schema_properties(schema_id, conn)
-            if remove_flag:
-                if tag:
-                    properties = self._get_properties_after_tag_deletition(
-                        properties, tag
-                    )
-                if key_value:
-                    properties = self._get_properties_after_key_value_deletition(
-                        properties, key_value
-                    )
-            else:
-                if tag:
-                    properties = self._get_properties_after_tag_addition(
-                        properties, tag
-                    )
-                if key_value:
-                    properties = self._get_properties_after_key_value_addition(
-                        properties, key_value
-                    )
-            schemas_table.set_schema_properties(properties, schema_id, conn)
+            properties = Properties(schemas_table.get_schema_properties(schema_id, conn))
+            properties.get_filtered_properties(tag, key_value, remove_flag)
+            schemas_table.set_schema_properties(properties.properties, schema_id, conn)
             action = "REMOVE SCHEMA TAG" if remove_flag else "ADD SCHEMA TAG"
 
             record = dict(
@@ -478,45 +461,6 @@ class TagSchema(UseCase):
         schemas_table = SchemasTable(schema=metadata)
         schema_id = schemas_table.get_schema_id(code, version, conn)
         return schema_id
-
-    def _get_properties_after_tag_deletition(self, properties, tag):
-        if properties is not None:
-            properties_dict = json.loads(properties)
-            if tag in properties_dict["tags"]:
-                properties_dict["tags"].remove(tag)
-                return json.dumps(properties_dict)
-        raise UserInputError("Tag does not exist")
-
-    def _get_properties_after_key_value_deletition(self, properties, key_value):
-        if properties is not None:
-            properties_dict = json.loads(properties)
-            if key_value in properties_dict.items():
-                key, _ = key_value
-                properties_dict.pop(key)
-                return json.dumps(properties_dict)
-        raise UserInputError("Key value does not exist")
-
-    def _get_properties_after_tag_addition(self, properties, tag):
-        if properties is None:
-            return json.dumps({"tags": [tag]})
-        else:
-            properties_dict = json.loads(properties)
-            if tag not in properties_dict["tags"]:
-                properties_dict["tags"].append(tag)
-                return json.dumps(properties_dict)
-        raise UserInputError("Tag already exists")
-
-    def _get_properties_after_key_value_addition(self, properties, key_value):
-        if properties is None:
-            key, value = key_value
-            return json.dumps({key: value})
-        else:
-            properties_dict = json.loads(properties)
-            if key_value not in properties_dict.items():
-                key, value = key_value
-                properties_dict[key] = value
-                return json.dumps(properties_dict)
-        raise UserInputError("Key value already exists")
 
 
 @emitter.handle("tag_schema")
@@ -536,27 +480,9 @@ class TagDataset(UseCase):
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(schema_code, version, conn)
             dataset_id = self._get_dataset_id(dataset, schema_id, conn)
-            properties = dataset_table.get_dataset_properties(dataset_id, conn)
-            if remove_flag:
-                if tag:
-                    properties = self._get_properties_after_tag_deletition(
-                        properties, tag
-                    )
-                if key_value:
-                    properties = self._get_properties_after_key_value_deletition(
-                        properties, key_value
-                    )
-            else:
-                if tag:
-                    properties = self._get_properties_after_tag_addition(
-                        properties, tag
-                    )
-                if key_value:
-                    properties = self._get_properties_after_key_value_addition(
-                        properties, key_value
-                    )
-
-            dataset_table.set_dataset_properties(properties, dataset_id, conn)
+            properties = Properties(dataset_table.get_dataset_properties(dataset_id, conn))
+            properties.get_filtered_properties(tag, key_value, remove_flag)
+            dataset_table.set_dataset_properties(properties.properties, dataset_id, conn)
             action = "REMOVE DATASET TAG" if remove_flag else "ADD DATASET TAG"
 
             record = dict(
@@ -580,45 +506,6 @@ class TagDataset(UseCase):
         dataset_id = datasets_table.get_dataset_id(code, schema_id, conn)
         return dataset_id
 
-    def _get_properties_after_tag_deletition(self, properties, tag):
-        if properties is not None:
-            properties_dict = json.loads(properties)
-            if tag in properties_dict["tags"]:
-                properties_dict["tags"].remove(tag)
-                return json.dumps(properties_dict)
-        raise UserInputError("Tag does not exist")
-
-    def _get_properties_after_key_value_deletition(self, properties, key_value):
-        if properties is not None:
-            properties_dict = json.loads(properties)
-            if key_value in properties_dict.items():
-                key, _ = key_value
-                properties_dict.pop(key)
-                return json.dumps(properties_dict)
-        raise UserInputError("Key value does not exist")
-
-    def _get_properties_after_tag_addition(self, properties, tag):
-        if properties is None:
-            return json.dumps({"tags": [tag]})
-        else:
-            properties_dict = json.loads(properties)
-            if tag not in properties_dict["tags"]:
-                properties_dict["tags"].append(tag)
-                return json.dumps(properties_dict)
-        raise UserInputError("Tag already exists")
-
-    def _get_properties_after_key_value_addition(self, properties, key_value):
-        if properties is None:
-            key, value = key_value
-            return json.dumps({key: value})
-        else:
-            properties_dict = json.loads(properties)
-            if key_value not in properties_dict.items():
-                key, value = key_value
-                properties_dict[key] = value
-                return json.dumps(properties_dict)
-        raise UserInputError("Key value already exists")
-
 
 @emitter.handle("tag_dataset")
 def update_actions_on_dataset_tagging(record, conn):
@@ -638,3 +525,67 @@ def update_actions(record, action, conn):
     action_record["action_id"] = actions_table.get_next_id(conn)
     action_record["action"] = json.dumps(record)
     actions_table.insert_values(action_record, conn)
+
+
+class Properties:
+    def __init__(self, properties) -> None:
+        self.properties = properties
+
+    def get_filtered_properties(self, tag, key_value, remove_flag):
+        if remove_flag:
+            if tag:
+                self.properties = self._get_properties_after_tag_deletition(
+                    tag
+                )
+            if key_value:
+                self.properties = self._get_properties_after_key_value_deletition(
+                    key_value
+                )
+        else:
+            if tag:
+                self.properties = self._get_properties_after_tag_addition(
+                    tag
+                )
+            if key_value:
+                self.properties = self._get_properties_after_key_value_addition(
+                    key_value
+                )
+
+    def _get_properties_after_tag_deletition(self, tag):
+        if self.properties is not None:
+            properties_dict = json.loads(self.properties)
+            if tag in properties_dict["tags"]:
+                properties_dict["tags"].remove(tag)
+                return json.dumps(properties_dict)
+        raise UserInputError("Tag does not exist")
+
+    def _get_properties_after_key_value_deletition(self, key_value):
+        if self.properties is not None:
+            properties_dict = json.loads(self.properties)
+            if key_value in properties_dict.items():
+                key, _ = key_value
+                properties_dict.pop(key)
+                return json.dumps(properties_dict)
+        raise UserInputError("Key value does not exist")
+
+    def _get_properties_after_tag_addition(self, tag):
+        if self.properties is None:
+            return json.dumps({"tags": [tag]})
+        else:
+            properties_dict = json.loads(self.properties)
+            if tag not in properties_dict["tags"]:
+                properties_dict["tags"].append(tag)
+                return json.dumps(properties_dict)
+        raise UserInputError("Tag already exists")
+
+    def _get_properties_after_key_value_addition(self, key_value):
+        if self.properties is None:
+            key, value = key_value
+            return json.dumps({key: value})
+        else:
+            properties_dict = json.loads(self.properties)
+            if key_value not in properties_dict.items():
+                key, value = key_value
+                properties_dict[key] = value
+                return json.dumps(properties_dict)
+        raise UserInputError("Key value already exists")
