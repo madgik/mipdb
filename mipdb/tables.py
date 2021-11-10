@@ -3,10 +3,12 @@ import json
 from typing import Union, List
 
 import sqlalchemy as sql
+from sqlalchemy import ForeignKey
 from sqlalchemy.ext.compiler import compiles
 
-from mipdb.constants import METADATA_SCHEMA, METADATA_TABLE
 from mipdb.database import DataBase, Connection
+from mipdb.database import METADATA_SCHEMA
+from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
 from mipdb.schema import Schema
 
@@ -77,6 +79,11 @@ class SchemasTable(Table):
     def set_schema_properties(self, properties, schema_id, db):
         db.set_schema_properties(properties, schema_id)
 
+    def get_schema_status(self, schema_id, db):
+        return db.get_schema_status(schema_id)
+
+    def set_schema_status(self, status, schema_id, db):
+        db.update_schema_status(status, schema_id)
 
     def delete_schema(self, code, version, db):
         delete = sql.text(
@@ -105,6 +112,7 @@ class DatasetsTable(Table):
             sql.Column(
                 "schema_id",
                 SQLTYPES.INTEGER,
+                ForeignKey("schemas.schema_id"),
                 nullable=False,
             ),
             sql.Column("code", SQLTYPES.STRING, nullable=False),
@@ -133,6 +141,12 @@ class DatasetsTable(Table):
     def get_next_dataset_id(self, db):
         return db.execute(self.dataset_id_seq)
 
+    def get_dataset_status(self, schema_id, db):
+        return db.get_dataset_status(schema_id)
+
+    def set_dataset_status(self, status, dataset_id, db):
+        db.update_dataset_status(status, dataset_id)
+
     def get_dataset_id(self, code, schema_id, db):
         return db.get_dataset_id(code, schema_id)
 
@@ -155,7 +169,9 @@ class ActionsTable(Table):
     def insert_values(self, values, db: Union[DataBase, Connection]):
         # Needs to be overridden because sqlalchemy and monetdb are not cooperating
         # well when inserting values to JSON columns
-        query = sql.text(f'INSERT INTO "{METADATA_SCHEMA}".actions VALUES(:action_id, :action)')
+        query = sql.text(
+            f'INSERT INTO "{METADATA_SCHEMA}".actions VALUES(:action_id, :action)'
+        )
         db.execute(query, values)
 
     def get_next_id(self, db):
@@ -173,7 +189,10 @@ class PrimaryDataTable(Table):
     def from_cdes(
         cls, schema: Schema, cdes: List[CommonDataElement]
     ) -> "PrimaryDataTable":
-        columns = [sql.Column(cde.code, STR2SQLTYPE[cde.sql_type]) for cde in cdes]
+        columns = [
+            sql.Column(cde.code, STR2SQLTYPE[json.loads(cde.metadata)["sql_type"]])
+            for cde in cdes
+        ]
         table = sql.Table(
             "primary_data",
             schema.schema,
@@ -185,7 +204,9 @@ class PrimaryDataTable(Table):
 
     @classmethod
     def from_db(cls, schema: Schema, db: DataBase) -> "PrimaryDataTable":
-        table = sql.Table("primary_data", schema.schema, autoload_with=db.get_executor())
+        table = sql.Table(
+            "primary_data", schema.schema, autoload_with=db.get_executor()
+        )
         new_table = cls()
         new_table.set_table(table)
         return new_table
@@ -197,7 +218,7 @@ class PrimaryDataTable(Table):
     def remove_dataset(self, dataset_name, schema_full_name, db):
         delete = sql.text(
             f'DELETE FROM "{schema_full_name}"."primary_data" '
-            'WHERE dataset = :dataset_name '
+            "WHERE dataset = :dataset_name "
         )
         db.execute(delete, dataset_name=dataset_name)
 
@@ -212,18 +233,23 @@ class MetadataTable(Table):
             sql.Column("metadata", SQLTYPES.JSON),
         )
 
+    def set_table(self, table):
+        self._table = table
+
     @classmethod
     def from_db(cls, schema, db):
-        new = cls(schema)
         res = db.execute(
             "SELECT code, json.filter(metadata, '$') "
             f'FROM "{schema.name}".{METADATA_TABLE}'
         )
-        new.cdes = {
-            name: CommonDataElement.from_cde_data(json.loads(val)[0])
-            for name, val in res.fetchall()
-        }
-        return new
+        new_table = cls(schema)
+        new_table.set_table(
+            {
+                name: CommonDataElement.from_cde_data(json.loads(val)[0])
+                for name, val in res.fetchall()
+            }
+        )
+        return new_table
 
     @staticmethod
     def get_values_from_cdes(cdes):

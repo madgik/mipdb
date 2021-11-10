@@ -38,11 +38,9 @@ def monetdb_container():
         raise DockerNotFoundError(
             "The docker daemon cannot be found. Make sure it is running." ""
         )
-    print(client)
     try:
         container = client.containers.get("mipdb-testing")
     except docker.errors.NotFound:
-        print("NOT FOUND")
         container = client.containers.run(
             "madgik/mipenginedb:0.3.0",
             detach=True,
@@ -50,12 +48,10 @@ def monetdb_container():
             name="mipdb-testing",
             publish_all_ports=True,
         )
-    print(container)
     # The time needed to start a monetdb container varies considerably. We need
     # to wait until some phrase appear in the logs to avoid starting the tests
     # too soon. The process is abandoned after 100 tries (50 sec).
     for _ in range(100):
-        print(container.logs())
         if b"new database mapi:monetdb" in container.logs():
             break
         time.sleep(0.5)

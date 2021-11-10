@@ -8,8 +8,12 @@ from mipdb.usecases import AddSchema
 from mipdb.usecases import AddDataset
 from mipdb.usecases import InitDB
 from mipdb.exceptions import handle_errors
-from mipdb.usecases import TagDataset
+from mipdb.usecases import DisableDataset
+from mipdb.usecases import DisableSchema
+from mipdb.usecases import EnableDataset
+from mipdb.usecases import EnableSchema
 from mipdb.usecases import TagSchema
+from mipdb.usecases import TagDataset
 
 
 @cl.group()
@@ -66,7 +70,12 @@ def validate_dataset():
 @entry.command()
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The schema version")
-@cl.option('--force', '-f', is_flag=True, help="Force deletion of dataset that are based on the schema")
+@cl.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Force deletion of dataset that are based on the schema",
+)
 @handle_errors
 def delete_schema(name, version, force):
     db = MonetDB.from_config(get_db_config())
@@ -76,10 +85,7 @@ def delete_schema(name, version, force):
 @entry.command()
 @cl.argument("dataset", required=True)
 @cl.option(
-    "-s",
-    "--schema",
-    required=True,
-    help="The schema to which the dataset is added"
+    "-s", "--schema", required=True, help="The schema to which the dataset is added"
 )
 @cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors
@@ -89,27 +95,78 @@ def delete_dataset(dataset, schema, version):
 
 
 @entry.command()
+@cl.argument("name", required=True)
+@cl.option("-v", "--version", required=True, help="The schema version")
 @handle_errors
-def enable():
-    pass
-
-
-@entry.command()
-@handle_errors
-def disable():
-    pass
+def enable_schema(name, version):
+    db = MonetDB.from_config(get_db_config())
+    EnableSchema(db).execute(name, version)
 
 
 @entry.command()
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The schema version")
-@cl.option("-t", "--tag", default=None, required=False, help="A tag to be added/removed at the properties")
-@cl.option("-kv", "--key-value", default=None, nargs=2, required=False, help="A key value to be added/removed at the properties")
-@cl.option("-r",
-           '--remove-flag',
-           is_flag=True,
-           required=False,
-           help="A flag that determines if the tag/key_value will be added or removed")
+@handle_errors
+def disable_schema(name, version):
+    db = MonetDB.from_config(get_db_config())
+    DisableSchema(db).execute(name, version)
+
+
+@entry.command()
+@cl.argument("dataset", required=True)
+@cl.option(
+    "-s",
+    "--schema",
+    required=True,
+    help="The schema to which the dataset is added",
+)
+@cl.option("-v", "--version", required=True, help="The schema version")
+@handle_errors
+def enable_dataset(dataset, schema, version):
+    db = MonetDB.from_config(get_db_config())
+    EnableDataset(db).execute(dataset, schema, version)
+
+
+@entry.command()
+@cl.argument("dataset", required=True)
+@cl.option(
+    "-s",
+    "--schema",
+    required=True,
+    help="The schema to which the dataset is added",
+)
+@cl.option("-v", "--version", required=True, help="The schema version")
+@handle_errors
+def disable_dataset(dataset, schema, version):
+    db = MonetDB.from_config(get_db_config())
+    DisableDataset(db).execute(dataset, schema, version)
+
+
+@entry.command()
+@cl.argument("name", required=True)
+@cl.option("-v", "--version", required=True, help="The schema version")
+@cl.option(
+    "-t",
+    "--tag",
+    default=None,
+    required=False,
+    help="A tag to be added/removed at the properties",
+)
+@cl.option(
+    "-kv",
+    "--key-value",
+    default=None,
+    nargs=2,
+    required=False,
+    help="A key value to be added/removed at the properties",
+)
+@cl.option(
+    "-r",
+    "--remove-flag",
+    is_flag=True,
+    required=False,
+    help="A flag that determines if the tag/key_value will be added or removed",
+)
 @handle_errors
 def tag_schema(name, version, tag, key_value, remove_flag):
     db = MonetDB.from_config(get_db_config())
@@ -119,19 +176,31 @@ def tag_schema(name, version, tag, key_value, remove_flag):
 @entry.command()
 @cl.argument("dataset", required=True)
 @cl.option(
-    "-s",
-    "--schema",
-    required=True,
-    help="The schema to which the dataset is added"
+    "-s", "--schema", required=True, help="The schema to which the dataset is added"
 )
 @cl.option("-v", "--version", required=True, help="The schema version")
-@cl.option("-t", "--tag", default=None, required=False, help="A tag to be added/removed at the properties")
-@cl.option("-kv", "--key-value", default=None, nargs=2, required=False, help="A key value to be added/removed at the properties")
-@cl.option("-r",
-           '--remove-flag',
-           is_flag=True,
-           required=False,
-           help="A flag that determines if the tag/key_value will be added or removed")
+@cl.option(
+    "-t",
+    "--tag",
+    default=None,
+    required=False,
+    help="A tag to be added/removed at the properties",
+)
+@cl.option(
+    "-kv",
+    "--key-value",
+    default=None,
+    nargs=2,
+    required=False,
+    help="A key value to be added/removed at the properties",
+)
+@cl.option(
+    "-r",
+    "--remove-flag",
+    is_flag=True,
+    required=False,
+    help="A flag that determines if the tag/key_value will be added or removed",
+)
 @handle_errors
 def tag_dataset(dataset, schema, version, tag, key_value, remove_flag):
     db = MonetDB.from_config(get_db_config())

@@ -3,7 +3,9 @@ import json
 from abc import ABC, abstractmethod
 
 from mipdb.database import DataBase, Connection
-from mipdb.exceptions import AccessError
+from mipdb.database import METADATA_SCHEMA
+from mipdb.database import Status
+from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
 from mipdb.dataelements import CommonDataElement, make_cdes
@@ -16,7 +18,6 @@ from mipdb.tables import (
 )
 from mipdb.dataset import Dataset
 from mipdb.event import EventEmitter
-from mipdb.constants import Status, METADATA_SCHEMA
 
 
 class UseCase(ABC):
@@ -95,7 +96,6 @@ def update_schemas_on_schema_addition(record: dict, conn: Connection):
     metadata = Schema(METADATA_SCHEMA)
     schemas_table = SchemasTable(schema=metadata)
     record = record.copy()
-    record["type"] = "SCHEMA"
     record["status"] = Status.DISABLED
     schemas_table.insert_values(record, conn)
 
@@ -116,16 +116,21 @@ class DeleteSchema(UseCase):
     def execute(self, code, version, force) -> None:
         name = get_schema_fullname(code, version)
         schema = Schema(name)
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+
         with self.db.begin() as conn:
             schema.drop(conn)
             schema_id = self._get_schema_id(code, version, conn)
             if not force:
                 self._validate_schema_deletion(name, schema_id, conn)
-
+            datasets = datasets_table.get_datasets(conn)
+            dataset_ids = [
+                datasets_table.get_dataset_id(dataset, schema_id, conn)
+                for dataset in datasets
+            ]
             record = dict(
-                code=code,
-                version=version,
-                schema_id=schema_id,
+                code=code, version=version, schema_id=schema_id, dataset_ids=dataset_ids
             )
             emitter.emit("delete_schema", record, conn)
 
@@ -140,18 +145,20 @@ class DeleteSchema(UseCase):
         datasets_table = DatasetsTable(schema=metadata)
         datasets = datasets_table.get_datasets(conn, schema_id)
         if not len(datasets) == 0:
-            raise AccessError(f"The Schema:{schema_name} cannot be deleted because it contains Datasets: {datasets}"
-                              f"\nIf you want to force delete everything, please use the  '-- force' flag")
+            raise ForeignKeyError(
+                f"The Schema:{schema_name} cannot be deleted because it contains Datasets: {datasets}"
+                f"\nIf you want to force delete everything, please use the  '-- force' flag"
+            )
 
 
 @emitter.handle("delete_schema")
 def update_datasets_on_schema_deletion(record, conn):
     schema_id = record["schema_id"]
+    dataset_ids = record["dataset_ids"]
     metadata = Schema(METADATA_SCHEMA)
     datasets_table = DatasetsTable(schema=metadata)
-    datasets = datasets_table.get_datasets(conn)
-    for dataset in datasets:
-        dataset_id = datasets_table.get_dataset_id(dataset, record["schema_id"], conn)
+
+    for dataset_id in dataset_ids:
         datasets_table.delete_dataset(dataset_id, schema_id, conn)
 
 
@@ -164,10 +171,12 @@ def update_schemas_on_schema_deletion(record, conn):
     schemas_table.delete_schema(code, version, conn)
 
 
-# TODO: Consider if it is needed to add action of deletion of datasets
 @emitter.handle("delete_schema")
 def update_actions_on_schema_deletion(record, conn):
     update_actions(record, "DELETE SCHEMA", conn)
+
+    if len(record["dataset_ids"]) > 0:
+        update_actions(record, "DELETE DATASETS", conn)
 
 
 class AddDataset(UseCase):
@@ -186,7 +195,7 @@ class AddDataset(UseCase):
 
         with self.db.begin() as conn:
             primary_data_table = PrimaryDataTable.from_db(schema, conn)
-            self._dataset_exists(dataset, conn)
+            self._verify_dataset_does_not_exist(dataset, conn)
             primary_data_table.insert_dataset(dataset, conn)
             record = dict(
                 schema_id=schemas_id,
@@ -201,7 +210,7 @@ class AddDataset(UseCase):
         dataset_id = datasets_table.get_next_dataset_id(self.db)
         return dataset_id
 
-    def _dataset_exists(self,dataset, conn):
+    def _verify_dataset_does_not_exist(self, dataset, conn):
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
         datasets = dataset_table.get_datasets(conn)
@@ -214,7 +223,6 @@ def update_datasets_on_dataset_addition(record: dict, conn: Connection):
     metadata = Schema(METADATA_SCHEMA)
     datasets_table = DatasetsTable(schema=metadata)
     record = record.copy()
-    record["type"] = "DATASET"
     record["status"] = Status.DISABLED
     datasets_table.insert_values(record, conn)
 
@@ -272,6 +280,158 @@ def update_actions_on_dataset_deletion(record, conn):
     update_actions(record, "DELETE DATASET", conn)
 
 
+class EnableSchema(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, name, version) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(name, version, conn)
+            current_status = schemas_table.get_schema_status(schema_id, conn)
+            if current_status != "ENABLED":
+                schemas_table.set_schema_status("ENABLED", schema_id, conn)
+                record = dict(
+                    code=name,
+                    version=version,
+                    schema_id=schema_id,
+                )
+                emitter.emit("enable_schema", record, conn)
+            else:
+                print("The schema was already enabled")
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+
+@emitter.handle("enable_schema")
+def update_actions_on_schema_enablement(record, conn):
+    update_actions(record, "ENABLE SCHEMA", conn)
+
+
+class DisableSchema(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, name, version) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(name, version, conn)
+            current_status = schemas_table.get_schema_status(schema_id, conn)
+            if current_status != "DISABLED":
+                schemas_table.set_schema_status("DISABLED", schema_id, conn)
+                record = dict(
+                    code=name,
+                    version=version,
+                    schema_id=schema_id,
+                )
+                emitter.emit("disable_schema", record, conn)
+            else:
+                print("The schema was already disabled")
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+
+@emitter.handle("disable_schema")
+def update_actions_on_schema_disablement(record, conn):
+    update_actions(record, "DISABLE SCHEMA", conn)
+
+
+class EnableDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, dataset, schema_code, version) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(schema_code, version, conn)
+            dataset_id = self._get_dataset_id(dataset, schema_id, conn)
+            current_status = datasets_table.get_dataset_status(dataset_id, conn)
+            if current_status != "ENABLED":
+                datasets_table.set_dataset_status("ENABLED", dataset_id, conn)
+                record = dict(
+                    dataset_id=dataset_id,
+                    code=dataset,
+                    version=version,
+                )
+
+                emitter.emit("enable_dataset", record, conn)
+            else:
+                print("The dataset was already enabled")
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+    def _get_dataset_id(self, code, schema_id, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+        dataset_id = datasets_table.get_dataset_id(code, schema_id, conn)
+        return dataset_id
+
+
+@emitter.handle("enable_dataset")
+def update_actions_on_dataset_enablement(record, conn):
+    update_actions(record, "ENABLE DATASET", conn)
+
+
+class DisableDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, dataset, schema_code, version) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(schema_code, version, conn)
+            dataset_id = self._get_dataset_id(dataset, schema_id, conn)
+            current_status = datasets_table.get_dataset_status(dataset_id, conn)
+            if current_status != "DISABLED":
+                datasets_table.set_dataset_status("DISABLED", dataset_id, conn)
+                record = dict(
+                    dataset_id=dataset_id,
+                    code=dataset,
+                    version=version,
+                )
+
+                emitter.emit("disable_dataset", record, conn)
+            else:
+                print("The dataset was already disabled")
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+    def _get_dataset_id(self, code, schema_id, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+        dataset_id = datasets_table.get_dataset_id(code, schema_id, conn)
+        return dataset_id
+
+
+@emitter.handle("disable_dataset")
+def update_actions_on_dataset_disablement(record, conn):
+    update_actions(record, "DISABLE DATASET", conn)
+
+
 class TagSchema(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
@@ -285,14 +445,22 @@ class TagSchema(UseCase):
             properties = schemas_table.get_schema_properties(schema_id, conn)
             if remove_flag:
                 if tag:
-                    properties = self._get_properties_after_tag_deletition(properties, tag)
+                    properties = self._get_properties_after_tag_deletition(
+                        properties, tag
+                    )
                 if key_value:
-                    properties = self._get_properties_after_key_value_deletition(properties, key_value)
+                    properties = self._get_properties_after_key_value_deletition(
+                        properties, key_value
+                    )
             else:
                 if tag:
-                    properties = self._get_properties_after_tag_addition(properties, tag)
+                    properties = self._get_properties_after_tag_addition(
+                        properties, tag
+                    )
                 if key_value:
-                    properties = self._get_properties_after_key_value_addition(properties, key_value)
+                    properties = self._get_properties_after_key_value_addition(
+                        properties, key_value
+                    )
             schemas_table.set_schema_properties(properties, schema_id, conn)
             action = "REMOVE SCHEMA TAG" if remove_flag else "ADD SCHEMA TAG"
 
@@ -359,7 +527,9 @@ class TagDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, dataset, schema_code, version, tag, key_value, remove_flag) -> None:
+    def execute(
+        self, dataset, schema_code, version, tag, key_value, remove_flag
+    ) -> None:
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
         with self.db.begin() as conn:
@@ -368,14 +538,22 @@ class TagDataset(UseCase):
             properties = dataset_table.get_dataset_properties(dataset_id, conn)
             if remove_flag:
                 if tag:
-                    properties = self._get_properties_after_tag_deletition(properties, tag)
+                    properties = self._get_properties_after_tag_deletition(
+                        properties, tag
+                    )
                 if key_value:
-                    properties = self._get_properties_after_key_value_deletition(properties, key_value)
+                    properties = self._get_properties_after_key_value_deletition(
+                        properties, key_value
+                    )
             else:
                 if tag:
-                    properties = self._get_properties_after_tag_addition(properties, tag)
+                    properties = self._get_properties_after_tag_addition(
+                        properties, tag
+                    )
                 if key_value:
-                    properties = self._get_properties_after_key_value_addition(properties, key_value)
+                    properties = self._get_properties_after_key_value_addition(
+                        properties, key_value
+                    )
 
             dataset_table.set_dataset_properties(properties, dataset_id, conn)
             action = "REMOVE DATASET TAG" if remove_flag else "ADD DATASET TAG"

@@ -29,5 +29,4 @@ def test_make_cde():
     }
     cde = CommonDataElement.from_cde_data(cde_data)
     assert hasattr(cde, "code")
-    assert hasattr(cde, "sql_type")
     assert hasattr(cde, "metadata")

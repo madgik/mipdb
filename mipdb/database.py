@@ -5,9 +5,16 @@ from typing import Union
 
 import sqlalchemy as sql
 
-from mipdb.constants import METADATA_SCHEMA
 from mipdb.exceptions import DataBaseError
 from mipdb.exceptions import UserInputError
+
+METADATA_SCHEMA = "mipdb_metadata"
+METADATA_TABLE = "variables_metadata"
+
+
+class Status:
+    ENABLED = "ENABLED"
+    DISABLED = "DISABLED"
 
 
 def get_db_config():
@@ -30,6 +37,22 @@ class Connection(ABC):
 
     @abstractmethod
     def drop_schema(self, schema_name):
+        pass
+
+    @abstractmethod
+    def get_schema_status(self, schema_id):
+        pass
+
+    @abstractmethod
+    def update_schema_status(self, status, schema_id):
+        pass
+
+    @abstractmethod
+    def get_dataset_status(self, dataset_id):
+        pass
+
+    @abstractmethod
+    def update_dataset_status(self, status, dataset_id):
         pass
 
     @abstractmethod
@@ -94,6 +117,22 @@ class DataBase(ABC):
 
     @abstractmethod
     def drop_schema(self, schema_name):
+        pass
+
+    @abstractmethod
+    def get_schema_status(self, schema_id):
+        pass
+
+    @abstractmethod
+    def update_schema_status(self, status, schema_id):
+        pass
+
+    @abstractmethod
+    def get_dataset_status(self, dataset_id):
+        pass
+
+    @abstractmethod
+    def update_dataset_status(self, status, dataset_id):
         pass
 
     @abstractmethod
@@ -202,6 +241,40 @@ class DBExecutorMixin(ABC):
     def drop_schema(self, schema_name):
         self.execute(f'DROP SCHEMA "{schema_name}" CASCADE')
 
+    def get_schema_status(self, schema_id):
+        select = sql.text(
+            f"SELECT status FROM {METADATA_SCHEMA}.schemas "
+            "WHERE schema_id = :schema_id "
+        )
+        res = self.execute(select, schema_id=schema_id)
+        return list(res)
+
+    def update_schema_status(self, status, schema_id):
+        update = sql.text(
+            f"UPDATE {METADATA_SCHEMA}.schemas "
+            "SET status = :status "
+            "WHERE schema_id = :schema_id "
+            "AND status <> :status"
+        )
+        self.execute(update, status=status, schema_id=schema_id)
+
+    def get_dataset_status(self, dataset_id):
+        select = sql.text(
+            f"SELECT status FROM {METADATA_SCHEMA}.datasets "
+            "WHERE dataset_id = :dataset_id "
+        )
+        res = self.execute(select, dataset_id=dataset_id)
+        return list(res)
+
+    def update_dataset_status(self, status, dataset_id):
+        update = sql.text(
+            f"UPDATE {METADATA_SCHEMA}.datasets "
+            "SET status = :status "
+            "WHERE dataset_id = :dataset_id "
+            "AND status <> :status"
+        )
+        self.execute(update, status=status, dataset_id=dataset_id)
+
     @handle_errors
     def get_schema_id(self, code, version):
         # I am forced to use textual SQL instead of SQLAlchemy objects because
@@ -265,21 +338,27 @@ class DBExecutorMixin(ABC):
 
     def get_dataset_properties(self, dataset_id):
         (properties, *_), *_ = self.execute(
-            f"SELECT properties FROM {METADATA_SCHEMA}.datasets WHERE dataset_id = {dataset_id}")
+            f"SELECT properties FROM {METADATA_SCHEMA}.datasets WHERE dataset_id = {dataset_id}"
+        )
         return properties
 
     def get_schema_properties(self, schema_id):
         (properties, *_), *_ = self.execute(
-            f"SELECT properties FROM {METADATA_SCHEMA}.schemas WHERE schema_id = {schema_id}")
+            f"SELECT properties FROM {METADATA_SCHEMA}.schemas WHERE schema_id = {schema_id}"
+        )
         return properties
 
     def set_schema_properties(self, properties, schema_id):
-        self.execute(f"UPDATE {METADATA_SCHEMA}.schemas SET properties = '{properties}'"
-                     f" WHERE schema_id = {schema_id}")
+        self.execute(
+            f"UPDATE {METADATA_SCHEMA}.schemas SET properties = '{properties}'"
+            f" WHERE schema_id = {schema_id}"
+        )
 
     def set_dataset_properties(self, properties, dataset_id):
-        self.execute(f"UPDATE {METADATA_SCHEMA}.datasets SET properties = '{properties}'"
-                     f" WHERE dataset_id = {dataset_id}")
+        self.execute(
+            f"UPDATE {METADATA_SCHEMA}.datasets SET properties = '{properties}'"
+            f" WHERE dataset_id = {dataset_id}"
+        )
 
     @handle_errors
     def drop_table(self, table):
@@ -292,7 +371,7 @@ class DBExecutorMixin(ABC):
         return self._executor
 
     def get_current_user(self):
-        user, *_ = self.execute("SELECT CURRENT_USER").fetchone()
+        (user, *_), *_ = self.execute("SELECT CURRENT_USER")
         return user
 
 
