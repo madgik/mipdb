@@ -3,7 +3,9 @@ import json
 from abc import ABC, abstractmethod
 
 from mipdb.database import DataBase, Connection
-from mipdb.exceptions import AccessError
+from mipdb.database import METADATA_SCHEMA
+from mipdb.database import Status
+from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
 from mipdb.dataelements import CommonDataElement, make_cdes
@@ -16,7 +18,6 @@ from mipdb.tables import (
 )
 from mipdb.dataset import Dataset
 from mipdb.event import EventEmitter
-from mipdb.constants import Status, METADATA_SCHEMA
 
 
 class UseCase(ABC):
@@ -95,7 +96,6 @@ def update_schemas_on_schema_addition(record: dict, conn: Connection):
     metadata = Schema(METADATA_SCHEMA)
     schemas_table = SchemasTable(schema=metadata)
     record = record.copy()
-    record["type"] = "SCHEMA"
     record["status"] = Status.DISABLED
     schemas_table.insert_values(record, conn)
 
@@ -128,16 +128,21 @@ class DeleteSchema(UseCase):
     def execute(self, code, version, force) -> None:
         name = get_schema_fullname(code, version)
         schema = Schema(name)
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+
         with self.db.begin() as conn:
             schema.drop(conn)
             schema_id = self._get_schema_id(code, version, conn)
             if not force:
                 self._validate_schema_deletion(name, schema_id, conn)
-
+            datasets = datasets_table.get_datasets(conn)
+            dataset_ids = [datasets_table.get_dataset_id(dataset, schema_id, conn) for dataset in datasets]
             record = dict(
                 code=code,
                 version=version,
                 schema_id=schema_id,
+                dataset_ids=dataset_ids
             )
             emitter.emit("delete_schema", record, conn)
 
@@ -152,20 +157,18 @@ class DeleteSchema(UseCase):
         datasets_table = DatasetsTable(schema=metadata)
         datasets = datasets_table.get_datasets(conn, schema_id)
         if not len(datasets) == 0:
-            raise AccessError(
-                f"The Schema:{schema_name} cannot be deleted because it contains Datasets: {datasets}"
-                f"\nIf you want to force delete everything, please use the  '-- force' flag"
-            )
+            raise ForeignKeyError(f"The Schema:{schema_name} cannot be deleted because it contains Datasets: {datasets}"
+                              f"\nIf you want to force delete everything, please use the  '-- force' flag")
 
 
 @emitter.handle("delete_schema")
 def update_datasets_on_schema_deletion(record, conn):
     schema_id = record["schema_id"]
+    dataset_ids = record["dataset_ids"]
     metadata = Schema(METADATA_SCHEMA)
     datasets_table = DatasetsTable(schema=metadata)
-    datasets = datasets_table.get_datasets(conn)
-    for dataset in datasets:
-        dataset_id = datasets_table.get_dataset_id(dataset, record["schema_id"], conn)
+
+    for dataset_id in dataset_ids:
         datasets_table.delete_dataset(dataset_id, schema_id, conn)
 
 
@@ -194,6 +197,14 @@ def update_actions_on_schema_deletion(record, conn):
     action_record["action"] = json.dumps(record)
     actions_table.insert_values(action_record, conn)
 
+    if len(record["dataset_ids"]) > 0:
+        action = f"DELETE DATASETS"
+        record["action"] = action
+        action_record = dict()
+        action_record["action_id"] = actions_table.get_next_id(conn)
+        action_record["action"] = json.dumps(record)
+        actions_table.insert_values(action_record, conn)
+
 
 class AddDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
@@ -211,7 +222,7 @@ class AddDataset(UseCase):
 
         with self.db.begin() as conn:
             primary_data_table = PrimaryDataTable.from_db(schema, conn)
-            self._dataset_exists(dataset, conn)
+            self._verify_dataset_does_not_exist(dataset, conn)
             primary_data_table.insert_dataset(dataset, conn)
             record = dict(
                 schema_id=schemas_id,
@@ -226,7 +237,7 @@ class AddDataset(UseCase):
         dataset_id = datasets_table.get_next_dataset_id(self.db)
         return dataset_id
 
-    def _dataset_exists(self, dataset, conn):
+    def _verify_dataset_does_not_exist(self,dataset, conn):
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
         datasets = dataset_table.get_datasets(conn)
@@ -239,7 +250,6 @@ def update_datasets_on_dataset_addition(record: dict, conn: Connection):
     metadata = Schema(METADATA_SCHEMA)
     datasets_table = DatasetsTable(schema=metadata)
     record = record.copy()
-    record["type"] = "DATASET"
     record["status"] = Status.DISABLED
     datasets_table.insert_values(record, conn)
 

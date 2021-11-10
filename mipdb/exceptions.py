@@ -36,8 +36,8 @@ class InvalidDatasetError(Exception):
         super().__init__(message)
 
 
-class AccessError(Exception):
-    """Is raised when access rights are violated for specific constraints on some functions."""
+class ForeignKeyError(Exception):
+    """Is raised when a table is deleted while there is a foreign key constrain from another table."""
 
     def __init__(self, message) -> None:
         self.message = message

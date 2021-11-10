@@ -3,10 +3,12 @@ import json
 from typing import Union, List
 
 import sqlalchemy as sql
+from sqlalchemy import ForeignKey
 from sqlalchemy.ext.compiler import compiles
 
-from mipdb.constants import METADATA_SCHEMA, METADATA_TABLE
 from mipdb.database import DataBase, Connection
+from mipdb.database import METADATA_SCHEMA
+from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
 from mipdb.schema import Schema
 
@@ -104,6 +106,7 @@ class DatasetsTable(Table):
             sql.Column(
                 "schema_id",
                 SQLTYPES.INTEGER,
+                ForeignKey("schemas.schema_id"),
                 nullable=False,
             ),
             sql.Column("code", SQLTYPES.STRING, nullable=False),
@@ -174,7 +177,10 @@ class PrimaryDataTable(Table):
     def from_cdes(
         cls, schema: Schema, cdes: List[CommonDataElement]
     ) -> "PrimaryDataTable":
-        columns = [sql.Column(cde.code, STR2SQLTYPE[cde.sql_type]) for cde in cdes]
+        columns = [
+            sql.Column(cde.code, STR2SQLTYPE[json.loads(cde.metadata)["sql_type"]])
+            for cde in cdes
+        ]
         table = sql.Table(
             "primary_data",
             schema.schema,
@@ -215,18 +221,23 @@ class MetadataTable(Table):
             sql.Column("metadata", SQLTYPES.JSON),
         )
 
+    def set_table(self, table):
+        self._table = table
+
     @classmethod
     def from_db(cls, schema, db):
-        new = cls(schema)
         res = db.execute(
             "SELECT code, json.filter(metadata, '$') "
             f'FROM "{schema.name}".{METADATA_TABLE}'
         )
-        new.cdes = {
-            name: CommonDataElement.from_cde_data(json.loads(val)[0])
-            for name, val in res.fetchall()
-        }
-        return new
+        new_table = cls(schema)
+        new_table.set_table(
+            {
+                name: CommonDataElement.from_cde_data(json.loads(val)[0])
+                for name, val in res.fetchall()
+            }
+        )
+        return new_table
 
     @staticmethod
     def get_values_from_cdes(cdes):

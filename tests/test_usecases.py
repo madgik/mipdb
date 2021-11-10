@@ -1,9 +1,10 @@
 import ast
+import json
 
 import pandas as pd
 import pytest
 
-from mipdb.exceptions import AccessError
+from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.usecases import (
     AddSchema,
@@ -163,7 +164,7 @@ def test_delete_schema_with_datasets_with_db(db, schema_data, dataset_data):
     AddDataset(db).execute(data, "schema", "1.0")
 
     # Test with force False
-    with pytest.raises(AccessError):
+    with pytest.raises(ForeignKeyError):
         DeleteSchema(db).execute(
             code=schema_data["code"], version=schema_data["version"], force=False
         )
@@ -211,11 +212,10 @@ def test_update_schemas_on_schema_deletion():
 
 def test_update_datasets_on_schema_deletion():
     db = MonetDBMock()
-    record = {"dataset_id": 1, "schema_id": 1}
+    record = {"dataset_ids": [1], "schema_id": 1}
     update_datasets_on_schema_deletion(record, db)
     expected = f"DELETE FROM mipdb_metadata.datasets WHERE "
     assert expected in db.captured_queries[0]
-    assert db.captured_params[0] == record
 
 
 @pytest.mark.database
@@ -300,7 +300,6 @@ def test_delete_dataset():
     assert "DELETE FROM mipdb_metadata.datasets " in db.captured_queries[1]
     assert "Sequence('action_id_seq'" in db.captured_queries[2]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[3]
-    assert len(db.captured_queries) > 2  # verify that handlers issued more queries
 
 
 @pytest.mark.database
@@ -443,7 +442,7 @@ record_and_funcs = [
         update_actions_on_schema_addition,
     ),
     (
-        {"dataset_id": 1, "schema_id": 1, "code": "a_dataset"},
+        {"dataset_ids": [1], "schema_id": 1, "code": "a_dataset"},
         update_actions_on_schema_deletion,
     ),
     (
@@ -480,5 +479,5 @@ def test_update_actions(record, func):
     assert f'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
     actions_record = db.captured_multiparams[1][0]
     actions_record = actions_record["action"]
-    actions_record = ast.literal_eval(actions_record)
-    assert set(record.values()) <= set(actions_record.values())
+    actions_record = json.loads(actions_record)
+    assert len(record.values()) <= len(actions_record.values())

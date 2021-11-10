@@ -83,7 +83,7 @@ def test_add_dataset(db):
     # Check dataset not present already
     result = runner.invoke(init, [])
     result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
-    # assert 'a_dataset' not in db.get_datasets()
+    assert "a_dataset" not in db.get_datasets()
 
     # Test
     result = runner.invoke(
