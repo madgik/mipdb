@@ -7,12 +7,11 @@ from mipdb.database import DataBase
 
 class Schema:
     name: str
-    label: str
-    _schema: sql.MetaData
+    schema: sql.MetaData
 
     def __init__(self, name) -> None:
         self.name = name
-        self._schema = sql.MetaData(schema=self.name)
+        self.schema = sql.MetaData(schema=self.name)
 
     def __repr__(self) -> str:
         return f"Schema(name={self.name})"
@@ -22,6 +21,3 @@ class Schema:
 
     def drop(self, db: DataBase):
         db.drop_schema(self.name)
-
-    def get_id(self, db: DataBase):
-        db.get_schema_id(self.code, self.version)

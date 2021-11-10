@@ -1,11 +1,18 @@
 from abc import abstractmethod, ABC
 from contextlib import contextmanager
-from pathlib import Path
-from typing import Optional, Union
+from typing import Union
 
 import sqlalchemy as sql
 
 from mipdb.exceptions import DataBaseError
+
+METADATA_SCHEMA = "mipdb_metadata"
+METADATA_TABLE = "variables_metadata"
+
+
+class Status:
+    ENABLED = "ENABLED"
+    DISABLED = "DISABLED"
 
 
 def get_db_config():
@@ -31,7 +38,19 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def get_datasets(self, schema_id):
+        pass
+
+    @abstractmethod
+    def drop_table(self, table):
+        pass
+
+    @abstractmethod
     def get_schemas(self):
+        pass
+
+    @abstractmethod
+    def get_schema_id(self, code, version):
         pass
 
     @abstractmethod
@@ -43,8 +62,17 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def get_dataset_id(self, code, schema_id):
+        pass
+
+    @abstractmethod
     def execute(self, *args, **kwargs):
         pass
+
+    @abstractmethod
+    def get_current_user(self):
+        pass
+
 
 class DataBase(ABC):
     """Abstract class representing a database interface."""
@@ -58,7 +86,19 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
+    def drop_table(self, table):
+        pass
+
+    @abstractmethod
+    def get_dataset_id(self, code, schema_id):
+        pass
+
+    @abstractmethod
     def get_schemas(self):
+        pass
+
+    @abstractmethod
+    def get_datasets(self, schema_id):
         pass
 
     @abstractmethod
@@ -77,6 +117,14 @@ class DataBase(ABC):
     def execute(self, *args, **kwargs):
         pass
 
+    @abstractmethod
+    def get_current_user(self):
+        pass
+
+    @abstractmethod
+    def get_executor(self):
+        pass
+
 
 def handle_errors(func):
     """Decorator for any function susceptible to raise a DB related exception.
@@ -88,6 +136,9 @@ def handle_errors(func):
         try:
             yield
         except sql.exc.OperationalError as exc:
+            _, msg = exc.orig.args[0].split("!")
+            raise DataBaseError(msg)
+        except sql.exc.IntegrityError as exc:
             _, msg = exc.orig.args[0].split("!")
             raise DataBaseError(msg)
 
@@ -112,7 +163,7 @@ class DBExecutorMixin(ABC):
     because tables need to be already bound to a connectable, which in our case
     they aren't. Hence a small hack is needed to implement create_table."""
 
-    _executor = Union[sql.engine.Engine, sql.engine.Connection]
+    _executor: Union[sql.engine.Engine, sql.engine.Connection]
 
     @abstractmethod
     def execute(self, *args, **kwargs) -> list:
@@ -124,16 +175,80 @@ class DBExecutorMixin(ABC):
     def drop_schema(self, schema_name):
         self.execute(f'DROP SCHEMA "{schema_name}" CASCADE')
 
+    @handle_errors
+    def get_schema_id(self, code, version):
+        # I am forced to use textual SQL instead of SQLAlchemy objects because
+        # of two bugs. The first one is in sqlalchemy_monetdb which translates
+        # the 'not equal' operator as != instead of the correct <>. The second
+        # bug is in Monet DB where column names of level >= 3 are not yet
+        # implemented.
+        select = sql.text(
+            "SELECT schemas.schema_id "
+            f"FROM {METADATA_SCHEMA}.schemas "
+            "WHERE schemas.code = :code "
+            "AND schemas.version = :version "
+            "AND schemas.status <> 'DELETED'"
+        )
+        res = list(self.execute(select, code=code, version=version))
+        if len(res) > 1:
+            raise DataBaseError(
+                f"Got more than one schema ids for {code=} and {version=}."
+            )
+        if len(res) == 0:
+            raise DataBaseError(
+                f"Schemas table doesn't have a record with {code=}, {version=}"
+            )
+        return res[0][0]
+
+    @handle_errors
+    def get_dataset_id(self, code, schema_id):
+        select = sql.text(
+            "SELECT datasets.dataset_id "
+            f"FROM {METADATA_SCHEMA}.datasets "
+            "WHERE datasets.code = :code "
+            "AND datasets.schema_id = :schema_id "
+            "AND datasets.status <> 'DELETED'"
+        )
+        res = list(self.execute(select, code=code, schema_id=schema_id))
+        if len(res) > 1:
+            raise DataBaseError(
+                f"Got more than one dataset ids for {code=} and {schema_id=}."
+            )
+        if len(res) == 0:
+            raise DataBaseError(
+                f"Datasets table doesn't have a record with {code=}, {schema_id=}"
+            )
+        return res[0][0]
+
     def get_schemas(self):
         res = self.execute("SELECT name FROM sys.schemas WHERE system=FALSE")
         return [schema for schema, *_ in res]
+
+    def get_datasets(self, schema_id=None):
+        schema_id_clause = "" if schema_id is None else f"WHERE schema_id=schema_id"
+        res = self.execute(
+            "SELECT datasets.code "
+            f"FROM {METADATA_SCHEMA}.datasets {schema_id_clause}"
+        )
+        return [dataset for dataset, *_ in res]
 
     @handle_errors
     def create_table(self, table):
         table.create(bind=self._executor)
 
+    @handle_errors
+    def drop_table(self, table):
+        table.drop(bind=self._executor)
+
     def insert_values_to_table(self, table, values):
         self.execute(table.insert(), values)
+
+    def get_executor(self):
+        return self._executor
+
+    def get_current_user(self):
+        (user, *_), *_ = self.execute("SELECT CURRENT_USER")
+        return user
 
 
 class MonetDBConnection(DBExecutorMixin, Connection):

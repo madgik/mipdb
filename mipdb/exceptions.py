@@ -28,6 +28,22 @@ class FileContentError(Exception):
         super().__init__(message)
 
 
+class InvalidDatasetError(Exception):
+    """Is raised when a dataset violates the constraints imposed by the schema."""
+
+    def __init__(self, message) -> None:
+        self.message = message
+        super().__init__(message)
+
+
+class ForeignKeyError(Exception):
+    """Is raised when a table is deleted while there is a foreign key constrain from another table."""
+
+    def __init__(self, message) -> None:
+        self.message = message
+        super().__init__(message)
+
+
 class ExitCode(IntEnum):
     OK = 0
     USER_ERROR = 64

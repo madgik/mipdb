@@ -1,10 +1,13 @@
-from mipdb.schema import Schema
-from mipdb.tables import SchemasTable
-from unittest.mock import Mock
+from click.testing import CliRunner
+
+from mipdb import add_dataset
+from mipdb import add_schema
+from mipdb import init
 import pytest
 
 import sqlalchemy as sql
 
+from mipdb.exceptions import DataBaseError
 from tests.mocks import MonetDBMock
 
 
@@ -14,11 +17,151 @@ def test_create_schema():
     assert "CREATE SCHEMA a_schema" in db.captured_queries[0]
 
 
-# TODO needs integration test
 def test_get_schemas():
     db = MonetDBMock()
     schemas = db.get_schemas()
     assert schemas == []
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_schemas_with_db(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    # Check schema not present already
+    assert db.get_schemas() == []
+
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+
+    # Check schema present
+    schemas = db.get_schemas()
+    assert len(schemas) == 2
+
+
+def test_get_datasets():
+    db = MonetDBMock()
+    datasets = db.get_datasets()
+    assert datasets == [1,2]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_datasets_with_db(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    dataset_file = "tests/data/dataset.csv"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
+
+    # Check dataset present
+    datasets = db.get_datasets()
+    assert "a_dataset" in datasets
+    assert len(datasets) == 1
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_schema_id_with_db(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+
+    # Test success
+    schema_id = db.get_schema_id("schema", "1.0")
+    assert schema_id == 1
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_schema_id_not_found_error(db):
+    # Setup
+    runner = CliRunner()
+    runner.invoke(init, [])
+
+    # Test when there is no schema in the database with the specific code and version
+    with pytest.raises(DataBaseError):
+        schema_id = db.get_schema_id("schema", "1.0")
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_schema_id_duplication_error(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    db.execute(
+        sql.text(
+            'INSERT INTO "mipdb_metadata".schemas (schema_id, code, version, status)'
+            "VALUES (2, 'schema', '1.0', 'DISABLED')"
+        )
+    )
+
+    # Test when there more than one schema ids with the specific code and version
+    with pytest.raises(DataBaseError):
+        db.get_schema_id("schema", "1.0")
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_dataset_id_with_db(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    dataset_file = "tests/data/dataset.csv"
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
+
+    # Test
+    dataset_id = db.get_dataset_id("a_dataset", 1)
+    assert dataset_id == 1
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_dataset_id_duplication_error(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    dataset_file = "tests/data/dataset.csv"
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
+
+    db.execute(
+        sql.text(
+            'INSERT INTO "mipdb_metadata".datasets (dataset_id, schema_id, code, status)'
+            "VALUES (2, 1, 'a_dataset', 'DISABLED')"
+        )
+    )
+
+    # Test when there more than one dataset ids with the specific code and schema_id
+    with pytest.raises(DataBaseError):
+        dataset_id = db.get_dataset_id("a_dataset", 1)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_get_dataset_id_not_found_error(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+
+    # Test when there is no dataset in the database with the specific code and schema_id
+    with pytest.raises(DataBaseError):
+        dataset_id = db.get_dataset_id("a_dataset", 1)
 
 
 def test_drop_schema():

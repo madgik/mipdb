@@ -1,14 +1,15 @@
 from abc import ABC, abstractmethod
 import json
-from typing import NamedTuple, Union, List
+from typing import Union, List
 
 import sqlalchemy as sql
+from sqlalchemy import ForeignKey
 from sqlalchemy.ext.compiler import compiles
 
-from mipdb.constants import METADATA_SCHEMA, METADATA_TABLE
 from mipdb.database import DataBase, Connection
+from mipdb.database import METADATA_SCHEMA
+from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
-from mipdb.exceptions import DataBaseError
 from mipdb.schema import Schema
 
 
@@ -46,13 +47,16 @@ class Table(ABC):
     def insert_values(self, values, db: Union[DataBase, Connection]):
         db.insert_values_to_table(self._table, values)
 
+    def drop(self, db: Union[DataBase, Connection]):
+        db.drop_table(self._table)
+
 
 class SchemasTable(Table):
     def __init__(self, schema):
-        self.schema_id_seq = sql.Sequence("schema_id_seq", metadata=schema._schema)
+        self.schema_id_seq = sql.Sequence("schema_id_seq", metadata=schema.schema)
         self._table = sql.Table(
             "schemas",
-            schema._schema,
+            schema.schema,
             sql.Column(
                 "schema_id",
                 SQLTYPES.INTEGER,
@@ -67,39 +71,15 @@ class SchemasTable(Table):
         )
 
     def get_schema_id(self, code, version, db):
-        # I am forced to use textual SQL instead of SQLAlchemy objects because
-        # of two bugs. The first one is in sqlalchemy_monetdb which translates
-        # the 'not equal' operator as != instead of the correct <>. The second
-        # bug is in Monet DB where column names of level >= 3 are not yet
-        # implemented.
-        select = sql.text(
-            "SELECT schemas.schema_id "
-            f"FROM {METADATA_SCHEMA}.schemas "
-            "WHERE schemas.code = :code "
-            "AND schemas.version = :version "
-            "AND schemas.status <> 'DELETED'"
-        )
-        res = list(db.execute(select, code=code, version=version))
-        if len(res) > 1:
-            raise DataBaseError(
-                f"Got more than one schema ids for {code=} and {version=}."
-            )
-        if len(res) == 0:
-            raise DataBaseError(
-                f"Schemas table doesn't have a record with {code=}, {version=}"
-            )
-        return res[0][0]
+        return db.get_schema_id(code, version)
 
-    # TODO delete instead of marking as deleted
-    def mark_schema_as_deleted(self, code, version, db):
-        update = sql.text(
-            f"UPDATE {METADATA_SCHEMA}.schemas "
-            "SET status = 'DELETED' "
+    def delete_schema(self, code, version, db):
+        delete = sql.text(
+            f"DELETE FROM {METADATA_SCHEMA}.schemas "
             "WHERE code = :code "
             "AND version = :version "
-            "AND status <> 'DELETED'"
         )
-        db.execute(update, code=code, version=version)
+        db.execute(delete, code=code, version=version)
 
     def get_next_schema_id(self, db):
         return db.execute(self.schema_id_seq)
@@ -107,63 +87,145 @@ class SchemasTable(Table):
 
 class DatasetsTable(Table):
     def __init__(self, schema):
+        self.dataset_id_seq = sql.Sequence("dataset_id_seq", metadata=schema.schema)
         self._table = sql.Table(
             "datasets",
-            schema._schema,
+            schema.schema,
             sql.Column(
                 "dataset_id",
                 SQLTYPES.INTEGER,
-                sql.Sequence("dataset_id_seq", metadata=schema._schema),
+                self.dataset_id_seq,
                 primary_key=True,
             ),
             sql.Column(
                 "schema_id",
                 SQLTYPES.INTEGER,
+                ForeignKey("schemas.schema_id"),
                 nullable=False,
             ),
-            sql.Column("version", SQLTYPES.STRING, nullable=False),
+            sql.Column("code", SQLTYPES.STRING, nullable=False),
             sql.Column("label", SQLTYPES.STRING),
             sql.Column("status", SQLTYPES.STRING, nullable=False),
             sql.Column("properties", SQLTYPES.JSON),
         )
 
+    def get_datasets(self, db, schema_id=None):
+        return db.get_datasets(schema_id)
+
+    def delete_dataset(self, dataset_id, schema_id, db):
+        delete = sql.text(
+            f"DELETE FROM {METADATA_SCHEMA}.datasets "
+            "WHERE dataset_id = :dataset_id "
+            "AND schema_id = :schema_id "
+        )
+        db.execute(delete, dataset_id=dataset_id, schema_id=schema_id)
+
+    def get_next_dataset_id(self, db):
+        return db.execute(self.dataset_id_seq)
+
+    def get_dataset_id(self, code, schema_id, db):
+        return db.get_dataset_id(code, schema_id)
+
 
 class ActionsTable(Table):
     def __init__(self, schema):
+        self.action_id_seq = sql.Sequence("action_id_seq", metadata=schema.schema)
         self._table = sql.Table(
             "actions",
-            schema._schema,
+            schema.schema,
             sql.Column(
                 "action_id",
                 SQLTYPES.INTEGER,
-                sql.Sequence("action_id_seq", metadata=schema._schema),
+                self.action_id_seq,
                 primary_key=True,
             ),
-            sql.Column("description", SQLTYPES.STRING, nullable=False),
-            sql.Column("user", SQLTYPES.STRING, nullable=False),
-            sql.Column("date", SQLTYPES.STRING, nullable=False),
+            sql.Column("action", SQLTYPES.JSON),
         )
+
+    def insert_values(self, values, db: Union[DataBase, Connection]):
+        # Needs to be overridden because sqlalchemy and monetdb are not cooperating
+        # well when inserting values to JSON columns
+        query = sql.text(
+            f'INSERT INTO "{METADATA_SCHEMA}".actions VALUES(:action_id, :action)'
+        )
+        db.execute(query, values)
+
+    def get_next_id(self, db):
+        return db.execute(self.action_id_seq)
 
 
 class PrimaryDataTable(Table):
-    def __init__(self, schema: Schema, cdes: List[CommonDataElement]) -> None:
-        columns = [sql.Column(cde.code, STR2SQLTYPE[cde.sql_type]) for cde in cdes]
-        self._table = sql.Table(
+    def __init__(self):
+        self._table = None
+
+    def set_table(self, table):
+        self._table = table
+
+    @classmethod
+    def from_cdes(
+        cls, schema: Schema, cdes: List[CommonDataElement]
+    ) -> "PrimaryDataTable":
+        columns = [
+            sql.Column(cde.code, STR2SQLTYPE[json.loads(cde.metadata)["sql_type"]])
+            for cde in cdes
+        ]
+        table = sql.Table(
             "primary_data",
-            schema._schema,
+            schema.schema,
             *columns,
         )
+        new_table = cls()
+        new_table.set_table(table)
+        return new_table
+
+    @classmethod
+    def from_db(cls, schema: Schema, db: DataBase) -> "PrimaryDataTable":
+        table = sql.Table(
+            "primary_data", schema.schema, autoload_with=db.get_executor()
+        )
+        new_table = cls()
+        new_table.set_table(table)
+        return new_table
+
+    def insert_dataset(self, dataset, db):
+        values = dataset.to_dict()
+        self.insert_values(values, db)
+
+    def remove_dataset(self, dataset_name, schema_full_name, db):
+        delete = sql.text(
+            f'DELETE FROM "{schema_full_name}"."primary_data" '
+            "WHERE dataset = :dataset_name "
+        )
+        db.execute(delete, dataset_name=dataset_name)
 
 
 class MetadataTable(Table):
     def __init__(self, schema: Schema) -> None:
-        self._schema = schema.name
+        self.schema = schema.name
         self._table = sql.Table(
             METADATA_TABLE,
-            schema._schema,
+            schema.schema,
             sql.Column("code", SQLTYPES.STRING, primary_key=True),
             sql.Column("metadata", SQLTYPES.JSON),
         )
+
+    def set_table(self, table):
+        self._table = table
+
+    @classmethod
+    def from_db(cls, schema, db):
+        res = db.execute(
+            "SELECT code, json.filter(metadata, '$') "
+            f'FROM "{schema.name}".{METADATA_TABLE}'
+        )
+        new_table = cls(schema)
+        new_table.set_table(
+            {
+                name: CommonDataElement.from_cde_data(json.loads(val)[0])
+                for name, val in res.fetchall()
+            }
+        )
+        return new_table
 
     @staticmethod
     def get_values_from_cdes(cdes):
@@ -173,6 +235,6 @@ class MetadataTable(Table):
         # Needs to be overridden because sqlalchemy and monetdb are not cooperating
         # well when inserting values to JSON columns
         query = sql.text(
-            f'INSERT INTO "{self._schema}".{METADATA_TABLE} VALUES(:code, :metadata)'
+            f'INSERT INTO "{self.schema}".{METADATA_TABLE} VALUES(:code, :metadata)'
         )
         db.execute(query, values)

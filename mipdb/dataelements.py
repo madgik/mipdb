@@ -6,15 +6,17 @@ from dataclasses import dataclass, fields
 @dataclass
 class CommonDataElement:
     code: str
-    sql_type: str
     metadata: str
 
     @classmethod
     def from_cde_data(cls, cde_data):
         code = cde_data["code"]
-        sql_type = cde_data["sql_type"]
+
         metadata = json.dumps(cde_data)
-        return cls(code, sql_type, metadata)
+        return cls(
+            code,
+            metadata,
+        )
 
 
 def make_cdes(schema_data):

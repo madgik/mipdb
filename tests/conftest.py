@@ -4,6 +4,7 @@ import pytest
 import docker
 
 from mipdb.database import MonetDB, get_db_config
+from mipdb.reader import CSVFileReader
 from mipdb.reader import JsonFileReader
 
 
@@ -14,18 +15,34 @@ def schema_data():
     return reader.read()
 
 
+@pytest.fixture
+def dataset_data():
+    dataset_file = "tests/data/dataset.csv"
+    reader = CSVFileReader(dataset_file)
+    return reader.read()
+
+
 class MonetDBSetupError(Exception):
     """Raised when the MonetDB container is unable to start."""
 
 
+class DockerNotFoundError(Exception):
+    """Raised when attempting to run tests while docker daemon is not running."""
+
+
 @pytest.fixture(scope="session")
 def monetdb_container():
-    client = docker.from_env()
+    try:
+        client = docker.from_env()
+    except docker.errors.DockerException:
+        raise DockerNotFoundError(
+            "The docker daemon cannot be found. Make sure it is running." ""
+        )
     try:
         container = client.containers.get("mipdb-testing")
     except docker.errors.NotFound:
         container = client.containers.run(
-            "madgik/mipenginedb:dev1.4",
+            "madgik/mipenginedb:0.3.0",
             detach=True,
             ports={"50000/tcp": "50123"},
             name="mipdb-testing",

@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 import pytest
-from sqlalchemy.sql.schema import MetaData
 
 from mipdb.schema import Schema
 from mipdb.database import DataBase

@@ -28,7 +28,22 @@ class MonetDBMock(MonetDB):
     @contextmanager
     def begin(self):
         # Mock engine in SQLAlchemy doesn't have a begin method probably
-        # because it makes no sense beggining a transaction on a mock engine.
+        # because it makes no sense beginning a transaction on a mock engine.
         # However, in order to have unit tests without having to use an
         # external database, I do the following trick and it works!
         yield self
+
+    def get_current_user(self):
+        return "test_user"
+
+    def get_schema_id(self, code, version):
+        return 1
+
+    def get_dataset_id(self, code, schema_id):
+        return 1
+
+    def get_executor(self):
+        return None
+
+    def get_datasets(self, schema_id=None):
+        return [1, 2]
