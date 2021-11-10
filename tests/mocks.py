@@ -48,6 +48,12 @@ class MonetDBMock(MonetDB):
     def get_datasets(self, schema_id=None):
         return [1, 2]
 
+    def get_dataset_status(self, dataset_id):
+        return "WrongStatus"
+
+    def get_schema_status(self, schema_id):
+        return "WrongStatus"
+
     def get_dataset_properties(self, dataset_id):
         return '{"tags":[]}'
 

@@ -300,7 +300,7 @@ class EnableSchema(UseCase):
                 )
                 emitter.emit("enable_schema", record, conn)
             else:
-                print("The schema was already enabled")
+                raise UserInputError("The schema was already enabled")
 
     def _get_schema_id(self, code, version, conn):
         metadata = Schema(METADATA_SCHEMA)
@@ -325,6 +325,7 @@ class DisableSchema(UseCase):
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(name, version, conn)
             current_status = schemas_table.get_schema_status(schema_id, conn)
+
             if current_status != "DISABLED":
                 schemas_table.set_schema_status("DISABLED", schema_id, conn)
                 record = dict(
@@ -334,7 +335,7 @@ class DisableSchema(UseCase):
                 )
                 emitter.emit("disable_schema", record, conn)
             else:
-                print("The schema was already disabled")
+                raise UserInputError("The schema was already disabled")
 
     def _get_schema_id(self, code, version, conn):
         metadata = Schema(METADATA_SCHEMA)
@@ -370,7 +371,7 @@ class EnableDataset(UseCase):
 
                 emitter.emit("enable_dataset", record, conn)
             else:
-                print("The dataset was already enabled")
+                raise UserInputError("The dataset was already enabled")
 
     def _get_schema_id(self, code, version, conn):
         metadata = Schema(METADATA_SCHEMA)
@@ -412,7 +413,7 @@ class DisableDataset(UseCase):
 
                 emitter.emit("disable_dataset", record, conn)
             else:
-                print("The dataset was already disabled")
+                raise UserInputError("The dataset was already disabled")
 
     def _get_schema_id(self, code, version, conn):
         metadata = Schema(METADATA_SCHEMA)

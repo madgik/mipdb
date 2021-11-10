@@ -246,8 +246,8 @@ class DBExecutorMixin(ABC):
             f"SELECT status FROM {METADATA_SCHEMA}.schemas "
             "WHERE schema_id = :schema_id "
         )
-        res = self.execute(select, schema_id=schema_id)
-        return list(res)
+        (status, *_), *_ = self.execute(select, schema_id=schema_id)
+        return status
 
     def update_schema_status(self, status, schema_id):
         update = sql.text(
@@ -263,8 +263,8 @@ class DBExecutorMixin(ABC):
             f"SELECT status FROM {METADATA_SCHEMA}.datasets "
             "WHERE dataset_id = :dataset_id "
         )
-        res = self.execute(select, dataset_id=dataset_id)
-        return list(res)
+        (status, *_), *_ = self.execute(select, dataset_id=dataset_id)
+        return status
 
     def update_dataset_status(self, status, dataset_id):
         update = sql.text(
