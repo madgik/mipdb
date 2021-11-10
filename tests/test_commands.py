@@ -3,6 +3,10 @@ import json
 import pytest
 from click.testing import CliRunner
 
+from mipdb import disable_dataset
+from mipdb import disable_schema
+from mipdb import enable_dataset
+from mipdb import enable_schema
 from mipdb import init, add_schema, delete_schema, add_dataset, delete_dataset
 from mipdb.exceptions import ExitCode
 
@@ -121,3 +125,112 @@ def test_delete_dataset(db):
     assert action_id == 3
     assert action != ""
     assert json.loads(action)["action"] == "DELETE DATASET"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_enable_schema(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    status_query = f"SELECT status FROM mipdb_metadata.schemas"
+    # Check status is disabled
+    result = runner.invoke(init, [])
+    result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    assert _get_status(db, "schemas") == "DISABLED"
+
+    # Test
+    result = runner.invoke(enable_schema, ["schema", "-v", "1.0"])
+    assert result.exit_code == ExitCode.OK
+    assert _get_status(db, "schemas") == "ENABLED"
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+    action_id, action = action_record[1]
+    assert action_id == 2
+    assert action != ""
+    assert json.loads(action)["action"] == "ENABLE SCHEMA"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_disable_schema(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    # Check status is enabled
+    result = runner.invoke(init, [])
+    result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    result = runner.invoke(enable_schema, ["schema", "-v", "1.0"])
+    assert _get_status(db, "schemas") == "ENABLED"
+
+    # Test
+    result = runner.invoke(disable_schema, ["schema", "-v", "1.0"])
+    assert result.exit_code == ExitCode.OK
+    assert _get_status(db, "schemas") == "DISABLED"
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+    action_id, action = action_record[2]
+    assert action_id == 3
+    assert action != ""
+    assert json.loads(action)["action"] == "DISABLE SCHEMA"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_enable_dataset(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    dataset_file = "tests/data/dataset.csv"
+    status_query = f"SELECT status FROM mipdb_metadata.datasets"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
+    assert _get_status(db, "datasets") == "DISABLED"
+
+    # Test
+    result = runner.invoke(
+        enable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"]
+    )
+    assert result.exit_code == ExitCode.OK
+    assert _get_status(db, "datasets") == "ENABLED"
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+    action_id, action = action_record[2]
+    assert action_id == 3
+    assert action != ""
+    assert json.loads(action)["action"] == "ENABLE DATASET"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_disable_dataset(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+    dataset_file = "tests/data/dataset.csv"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
+    result = runner.invoke(
+        enable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"]
+    )
+    assert _get_status(db, "datasets") == "ENABLED"
+
+    # Test
+    result = runner.invoke(
+        disable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"]
+    )
+    assert _get_status(db, "datasets") == "DISABLED"
+    assert result.exit_code == ExitCode.OK
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+    action_id, action = action_record[3]
+    assert action_id == 4
+    assert action != ""
+    assert json.loads(action)["action"] == "DISABLE DATASET"
+
+
+def _get_status(db, schema_name):
+    status = db.execute(f"SELECT status FROM mipdb_metadata.{schema_name}").fetchone()
+    return status[0]

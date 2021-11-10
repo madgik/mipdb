@@ -137,7 +137,7 @@ class DeleteSchema(UseCase):
             if not force:
                 self._validate_schema_deletion(name, schema_id, conn)
             datasets = datasets_table.get_datasets(conn)
-            dataset_ids = [datasets_table.get_dataset_id(dataset, schema_id, conn) for dataset in datasets ]
+            dataset_ids = [datasets_table.get_dataset_id(dataset, schema_id, conn) for dataset in datasets]
             record = dict(
                 code=code,
                 version=version,
@@ -158,7 +158,7 @@ class DeleteSchema(UseCase):
         datasets = datasets_table.get_datasets(conn, schema_id)
         if not len(datasets) == 0:
             raise ForeignKeyError(f"The Schema:{schema_name} cannot be deleted because it contains Datasets: {datasets}"
-                              f"\nIf you want to force delete everything, please use the  '--force' flag")
+                              f"\nIf you want to force delete everything, please use the  '-- force' flag")
 
 
 @emitter.handle("delete_schema")
@@ -321,6 +321,206 @@ def update_actions_on_dataset_deletion(record, conn):
 
     record = record.copy()
     action = f"DELETE DATASET"
+    record["action"] = action
+    record["user"] = conn.get_current_user()
+    record["date"] = datetime.datetime.now().isoformat()
+
+    action_record = dict()
+    action_record["action_id"] = actions_table.get_next_id(conn)
+    action_record["action"] = json.dumps(record)
+    actions_table.insert_values(action_record, conn)
+
+
+class EnableSchema(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, name, version) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(name, version, conn)
+            current_status = schemas_table.get_schema_status(schema_id, conn)
+            if current_status != "ENABLED":
+                schemas_table.set_schema_status("ENABLED", schema_id, conn)
+                record = dict(
+                    code=name,
+                    version=version,
+                    schema_id=schema_id,
+                )
+                emitter.emit("enable_schema", record, conn)
+            else:
+                print("The schema was already enabled")
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+
+@emitter.handle("enable_schema")
+def update_actions_on_schema_enablement(record, conn):
+    metadata = Schema(METADATA_SCHEMA)
+    actions_table = ActionsTable(schema=metadata)
+
+    record = record.copy()
+    action = f"ENABLE SCHEMA"
+    record["action"] = action
+    record["user"] = conn.get_current_user()
+    record["date"] = datetime.datetime.now().isoformat()
+
+    action_record = dict()
+    action_record["action_id"] = actions_table.get_next_id(conn)
+    action_record["action"] = json.dumps(record)
+    actions_table.insert_values(action_record, conn)
+
+
+class DisableSchema(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, name, version) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(name, version, conn)
+            current_status = schemas_table.get_schema_status(schema_id, conn)
+            if current_status != "DISABLED":
+                schemas_table.set_schema_status("DISABLED", schema_id, conn)
+                record = dict(
+                    code=name,
+                    version=version,
+                    schema_id=schema_id,
+                )
+                emitter.emit("disable_schema", record, conn)
+            else:
+                print("The schema was already disabled")
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+
+@emitter.handle("disable_schema")
+def update_actions_on_schema_disablement(record, conn):
+    metadata = Schema(METADATA_SCHEMA)
+    actions_table = ActionsTable(schema=metadata)
+
+    record = record.copy()
+    action = f"DISABLE SCHEMA"
+    record["action"] = action
+    record["user"] = conn.get_current_user()
+    record["date"] = datetime.datetime.now().isoformat()
+
+    action_record = dict()
+    action_record["action_id"] = actions_table.get_next_id(conn)
+    action_record["action"] = json.dumps(record)
+    actions_table.insert_values(action_record, conn)
+
+
+class EnableDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, dataset, schema_code, version) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(schema_code, version, conn)
+            dataset_id = self._get_dataset_id(dataset, schema_id, conn)
+            current_status = datasets_table.get_dataset_status(dataset_id, conn)
+            if current_status != "ENABLED":
+                datasets_table.set_dataset_status("ENABLED", dataset_id, conn)
+                record = dict(
+                    dataset_id=dataset_id,
+                    code=dataset,
+                    version=version,
+                )
+
+                emitter.emit("enable_dataset", record, conn)
+            else:
+                print("The dataset was already enabled")
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+    def _get_dataset_id(self, code, schema_id, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+        dataset_id = datasets_table.get_dataset_id(code, schema_id, conn)
+        return dataset_id
+
+
+@emitter.handle("enable_dataset")
+def update_actions_on_dataset_enablement(record, conn):
+    metadata = Schema(METADATA_SCHEMA)
+    actions_table = ActionsTable(schema=metadata)
+
+    record = record.copy()
+    action = f"ENABLE DATASET"
+    record["action"] = action
+    record["user"] = conn.get_current_user()
+    record["date"] = datetime.datetime.now().isoformat()
+
+    action_record = dict()
+    action_record["action_id"] = actions_table.get_next_id(conn)
+    action_record["action"] = json.dumps(record)
+    actions_table.insert_values(action_record, conn)
+
+
+class DisableDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, dataset, schema_code, version) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(schema_code, version, conn)
+            dataset_id = self._get_dataset_id(dataset, schema_id, conn)
+            current_status = datasets_table.get_dataset_status(dataset_id, conn)
+            if current_status != "DISABLED":
+                datasets_table.set_dataset_status("DISABLED", dataset_id, conn)
+                record = dict(
+                    dataset_id=dataset_id,
+                    code=dataset,
+                    version=version,
+                )
+
+                emitter.emit("disable_dataset", record, conn)
+            else:
+                print("The dataset was already disabled")
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+    def _get_dataset_id(self, code, schema_id, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+        dataset_id = datasets_table.get_dataset_id(code, schema_id, conn)
+        return dataset_id
+
+
+@emitter.handle("disable_dataset")
+def update_actions_on_dataset_disablement(record, conn):
+    metadata = Schema(METADATA_SCHEMA)
+    actions_table = ActionsTable(schema=metadata)
+
+    record = record.copy()
+    action = f"DISABLE DATASET"
     record["action"] = action
     record["user"] = conn.get_current_user()
     record["date"] = datetime.datetime.now().isoformat()

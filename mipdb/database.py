@@ -38,6 +38,22 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def get_schema_status(self, schema_id):
+        pass
+
+    @abstractmethod
+    def update_schema_status(self, status, schema_id):
+        pass
+
+    @abstractmethod
+    def get_dataset_status(self, dataset_id):
+        pass
+
+    @abstractmethod
+    def update_dataset_status(self, status, dataset_id):
+        pass
+
+    @abstractmethod
     def get_datasets(self, schema_id):
         pass
 
@@ -83,6 +99,22 @@ class DataBase(ABC):
 
     @abstractmethod
     def drop_schema(self, schema_name):
+        pass
+
+    @abstractmethod
+    def get_schema_status(self, schema_id):
+        pass
+
+    @abstractmethod
+    def update_schema_status(self, status, schema_id):
+        pass
+
+    @abstractmethod
+    def get_dataset_status(self, dataset_id):
+        pass
+
+    @abstractmethod
+    def update_dataset_status(self, status, dataset_id):
         pass
 
     @abstractmethod
@@ -174,6 +206,40 @@ class DBExecutorMixin(ABC):
 
     def drop_schema(self, schema_name):
         self.execute(f'DROP SCHEMA "{schema_name}" CASCADE')
+
+    def get_schema_status(self, schema_id):
+        select = sql.text(
+            f"SELECT status FROM {METADATA_SCHEMA}.schemas "
+            "WHERE schema_id = :schema_id "
+        )
+        res = self.execute(select, schema_id=schema_id)
+        return list(res)
+
+    def update_schema_status(self, status, schema_id):
+        update = sql.text(
+            f"UPDATE {METADATA_SCHEMA}.schemas "
+            "SET status = :status "
+            "WHERE schema_id = :schema_id "
+            "AND status <> :status"
+        )
+        self.execute(update, status=status, schema_id=schema_id)
+
+    def get_dataset_status(self, dataset_id):
+        select = sql.text(
+            f"SELECT status FROM {METADATA_SCHEMA}.datasets "
+            "WHERE dataset_id = :dataset_id "
+        )
+        res = self.execute(select, dataset_id=dataset_id)
+        return list(res)
+
+    def update_dataset_status(self, status, dataset_id):
+        update = sql.text(
+            f"UPDATE {METADATA_SCHEMA}.datasets "
+            "SET status = :status "
+            "WHERE dataset_id = :dataset_id "
+            "AND status <> :status"
+        )
+        self.execute(update, status=status, dataset_id=dataset_id)
 
     @handle_errors
     def get_schema_id(self, code, version):

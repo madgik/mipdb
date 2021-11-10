@@ -1,3 +1,4 @@
+import ast
 import json
 
 import pandas as pd
@@ -10,6 +11,10 @@ from mipdb.usecases import (
     AddDataset,
     DeleteSchema,
     DeleteDataset,
+    EnableSchema,
+    DisableSchema,
+    EnableDataset,
+    DisableDataset,
     InitDB,
     update_actions_on_schema_addition,
     update_actions_on_schema_deletion,
@@ -19,6 +24,10 @@ from mipdb.usecases import (
     update_actions_on_dataset_deletion,
     update_datasets_on_dataset_addition,
     update_datasets_on_dataset_deletion,
+    update_actions_on_schema_enablement,
+    update_actions_on_schema_disablement,
+    update_actions_on_dataset_enablement,
+    update_actions_on_dataset_disablement,
 )
 from mipdb.usecases import update_datasets_on_schema_deletion
 from tests.mocks import MonetDBMock
@@ -82,17 +91,6 @@ def test_update_schemas_on_schema_addition():
     assert f"INSERT INTO mipdb_metadata.schemas" in db.captured_queries[0]
     schemas_record = db.captured_multiparams[0][0]
     assert schemas_record["status"] == "DISABLED"
-
-
-def test_update_actions_on_schema_addition():
-    record = {"code": "code", "version": "1.0", "schema_id": 1}
-    db = MonetDBMock()
-    update_actions_on_schema_addition(record, db)
-    assert f'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
-    actions_record = db.captured_multiparams[1][0]
-    actions_record = actions_record["action"]
-    actions_record = json.loads(actions_record)
-    assert set(record.values()) <= set(actions_record.values())
 
 
 def test_delete_schema():
@@ -219,16 +217,6 @@ def test_update_datasets_on_schema_deletion():
     expected = f"DELETE FROM mipdb_metadata.datasets WHERE "
     assert expected in db.captured_queries[0]
 
-def test_update_actions_on_schema_deletion():
-    record = {"dataset_ids": [1], "schema_id": 1, "code": "a_dataset"}
-    db = MonetDBMock()
-    update_actions_on_schema_deletion(record, db)
-    assert f'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
-    actions_record = db.captured_multiparams[1][0]
-    actions_record = actions_record["action"]
-    actions_record = json.loads(actions_record)
-    assert len(record.values()) <= len(actions_record.values())
-
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
@@ -302,17 +290,6 @@ def test_update_datasets_on_dataset_addition():
     assert datasets_record["status"] == "DISABLED"
 
 
-def test_update_actions_on_dataset_addition():
-    record = {"code": "code", "version": "1.0", "schema_id": 1}
-    db = MonetDBMock()
-    update_actions_on_dataset_addition(record, db)
-    assert f'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
-    actions_record = db.captured_multiparams[1][0]
-    actions_record = actions_record["action"]
-    actions_record = json.loads(actions_record)
-    assert set(record.values()) <= set(actions_record.values())
-
-
 def test_delete_dataset():
     db = MonetDBMock()
     dataset = "a_dataset"
@@ -355,12 +332,152 @@ def test_update_datasets_on_dataset_deletion():
     assert db.captured_params[0] == record
 
 
-def test_update_actions_on_dataset_deletion():
-    record = {"dataset_id": 1, "schema_id": 1, "version": "1.0"}
+def test_enable_schema():
     db = MonetDBMock()
-    update_actions_on_dataset_deletion(record, db)
+    code = "schema"
+    version = "1.0"
+    EnableSchema(db).execute(code, version)
+    assert f"SELECT status" in db.captured_queries[0]
+    assert "UPDATE mipdb_metadata.schemas" in db.captured_queries[1]
+    assert "Sequence('action_id_seq'" in db.captured_queries[2]
+    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[3]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_enable_schema_with_db(db, schema_data):
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    assert status[0] == "DISABLED"
+    EnableSchema(db).execute(schema_data["code"], schema_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    assert status[0] == "ENABLED"
+
+
+def test_disable_schema():
+    db = MonetDBMock()
+    code = "schema"
+    version = "1.0"
+    DisableSchema(db).execute(code, version)
+    assert f"SELECT status" in db.captured_queries[0]
+    assert "UPDATE mipdb_metadata.schemas" in db.captured_queries[1]
+    assert "Sequence('action_id_seq'" in db.captured_queries[2]
+    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[3]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_disable_schema_with_db(db, schema_data):
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    assert status[0] == "DISABLED"
+    EnableSchema(db).execute(schema_data["code"], schema_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    assert status[0] == "ENABLED"
+    DisableSchema(db).execute(schema_data["code"], schema_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    assert status[0] == "DISABLED"
+
+
+def test_enable_dataset():
+    db = MonetDBMock()
+    dataset = "a_dataset"
+    code = "schema"
+    version = "1.0"
+    EnableDataset(db).execute(dataset, code, version)
+    assert f"SELECT status" in db.captured_queries[0]
+    assert "UPDATE mipdb_metadata.datasets" in db.captured_queries[1]
+    assert "Sequence('action_id_seq'" in db.captured_queries[2]
+    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[3]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_enable_dataset_with_db(db, schema_data, dataset_data):
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    datasets = db.get_datasets()
+    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    assert status[0] == "DISABLED"
+    EnableDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    assert status[0] == "ENABLED"
+
+
+def test_disable_dataset():
+    db = MonetDBMock()
+    dataset = "a_dataset"
+    code = "schema"
+    version = "1.0"
+    DisableDataset(db).execute(dataset, code, version)
+    assert f"SELECT status" in db.captured_queries[0]
+    assert "UPDATE mipdb_metadata.datasets" in db.captured_queries[1]
+    assert "Sequence('action_id_seq'" in db.captured_queries[2]
+    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[3]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_disable_dataset_with_db(db, schema_data, dataset_data):
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    datasets = db.get_datasets()
+    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    assert status[0] == "DISABLED"
+    EnableDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    assert status[0] == "ENABLED"
+    DisableDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    assert status[0] == "DISABLED"
+
+
+record_and_funcs = [
+    (
+        {"code": "code", "version": "1.0", "schema_id": 1},
+        update_actions_on_schema_addition,
+    ),
+    (
+        {"dataset_ids": [1], "schema_id": 1, "code": "a_dataset"},
+        update_actions_on_schema_deletion,
+    ),
+    (
+        {"code": "code", "version": "1.0", "schema_id": 1},
+        update_actions_on_dataset_addition,
+    ),
+    (
+        {"dataset_id": 1, "schema_id": 1, "version": "1.0"},
+        update_actions_on_dataset_deletion,
+    ),
+    (
+        {"code": "code", "version": "1.0", "schema_id": 1},
+        update_actions_on_schema_enablement,
+    ),
+    (
+        {"code": "code", "version": "1.0", "schema_id": 1},
+        update_actions_on_schema_disablement,
+    ),
+    (
+        {"dataset_id": 1, "schema_id": 1, "version": "1.0"},
+        update_actions_on_dataset_enablement,
+    ),
+    (
+        {"dataset_id": 1, "schema_id": 1, "version": "1.0"},
+        update_actions_on_dataset_disablement,
+    ),
+]
+
+
+@pytest.mark.parametrize("record,func", record_and_funcs)
+def test_update_actions(record, func):
+    db = MonetDBMock()
+    func(record, db)
     assert f'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
     actions_record = db.captured_multiparams[1][0]
     actions_record = actions_record["action"]
     actions_record = json.loads(actions_record)
-    assert set(record.values()) <= set(actions_record.values())
+    assert len(record.values()) <= len(actions_record.values())
