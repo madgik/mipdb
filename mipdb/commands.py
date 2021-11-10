@@ -1,6 +1,7 @@
 import click as cl
 
 from mipdb.database import MonetDB, get_db_config
+from mipdb.exceptions import UserInputError
 from mipdb.reader import CSVFileReader, JsonFileReader
 from mipdb.usecases import DeleteDataset
 from mipdb.usecases import DeleteSchema
@@ -161,16 +162,23 @@ def disable_dataset(dataset, schema, version):
     help="A key value to be added/removed at the properties",
 )
 @cl.option(
-    "-r",
-    "--remove-flag",
+    "-a",
+    "--add",
     is_flag=True,
     required=False,
-    help="A flag that determines if the tag/key_value will be added or removed",
+    help="A flag that determines if the tag/key_value will be added",
+)
+@cl.option(
+    "-r",
+    "--remove",
+    is_flag=True,
+    required=False,
+    help="A flag that determines if the tag/key_value will be removed",
 )
 @handle_errors
-def tag_schema(name, version, tag, key_value, remove_flag):
+def tag_schema(name, version, tag, key_value, add, remove):
     db = MonetDB.from_config(get_db_config())
-    TagSchema(db).execute(name, version, tag, key_value, remove_flag)
+    TagSchema(db).execute(name, version, tag, key_value, add, remove)
 
 
 @entry.command()
@@ -195,16 +203,23 @@ def tag_schema(name, version, tag, key_value, remove_flag):
     help="A key value to be added/removed at the properties",
 )
 @cl.option(
-    "-r",
-    "--remove-flag",
+    "-a",
+    "--add",
     is_flag=True,
     required=False,
-    help="A flag that determines if the tag/key_value will be added or removed",
+    help="A flag that determines if the tag/key_value will be added",
+)
+@cl.option(
+    "-r",
+    "--remove",
+    is_flag=True,
+    required=False,
+    help="A flag that determines if the tag/key_value will be removed",
 )
 @handle_errors
-def tag_dataset(dataset, schema, version, tag, key_value, remove_flag):
+def tag_dataset(dataset, schema, version, tag, key_value, add, remove):
     db = MonetDB.from_config(get_db_config())
-    TagDataset(db).execute(dataset, schema, version, tag, key_value, remove_flag)
+    TagDataset(db).execute(dataset, schema, version, tag, key_value, add, remove)
 
 
 @entry.command("list")

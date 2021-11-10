@@ -1,4 +1,3 @@
-import ast
 import json
 
 import pandas as pd
@@ -443,7 +442,9 @@ def test_enable_dataset_already_enabled_with_db(db, schema_data, dataset_data):
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
-        EnableDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+        EnableDataset(db).execute(
+            datasets[0], schema_data["code"], schema_data["version"]
+        )
 
 
 def test_disable_dataset():
@@ -483,7 +484,9 @@ def test_disable_dataset_already_disabled_with_db(db, schema_data, dataset_data)
     assert status[0] == "DISABLED"
 
     with pytest.raises(UserInputError):
-        DisableDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+        DisableDataset(db).execute(
+            datasets[0], schema_data["code"], schema_data["version"]
+        )
 
 
 def test_tag_schema():
@@ -492,11 +495,48 @@ def test_tag_schema():
     version = "1.0"
     tag = "tag"
     key_value = ("key", "value")
-    remove_flag = False
-    TagSchema(db).execute(code, version, tag, key_value, remove_flag)
+    add = True
+    remove = False
+    TagSchema(db).execute(code, version, tag, key_value, add, remove)
     assert "UPDATE mipdb_metadata.schemas SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_tag_schema_tag_or_key_value_needed_with_db(db, schema_data):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+
+    # Test
+    TagSchema(db).execute(
+        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
+    )
+
+    with pytest.raises(UserInputError):
+        TagSchema(db).execute(
+            schema_data["code"], schema_data["version"], None, (), True, False
+        )
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_tag_schema_both_actions_with_db(db, schema_data):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+
+    # Test
+    TagSchema(db).execute(
+        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
+    )
+
+    with pytest.raises(UserInputError):
+        TagSchema(db).execute(
+            schema_data["code"], schema_data["version"], "tags", (), True, True
+        )
 
 
 @pytest.mark.database
@@ -508,7 +548,7 @@ def test_tag_schema_addition_with_db(db, schema_data):
 
     # Test
     TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), False
+        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
     )
 
     properties = db.get_schema_properties(1)
@@ -524,12 +564,12 @@ def test_tag_schema_addition_tag_already_exist_with_db(db, schema_data):
 
     # Test
     TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), False
+        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
     )
 
     with pytest.raises(UserInputError):
         TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], "tag", (), False
+            schema_data["code"], schema_data["version"], "tag", (), True, False
         )
 
 
@@ -542,12 +582,12 @@ def test_tag_schema_addition_key_value_already_exist_with_db(db, schema_data):
 
     # Test
     TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), False
+        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
     )
 
     with pytest.raises(UserInputError):
         TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], None, ("key", "value"), False
+            schema_data["code"], schema_data["version"], None, ("key", "value"), True, False
         )
 
 
@@ -558,12 +598,12 @@ def test_tag_schema_deletion_with_db(db, schema_data):
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
     TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), False
+        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
     )
 
     # Test
     TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True
+        schema_data["code"], schema_data["version"], "tag", ("key", "value"), False, True
     )
     properties = db.get_schema_properties(1)
     assert properties == '{"tags": []}'
@@ -578,7 +618,7 @@ def test_tag_schema_deletion_tag_non_existant_with_db(db, schema_data):
 
     with pytest.raises(UserInputError):
         TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], "tag", (), True
+            schema_data["code"], schema_data["version"], "tag", (), False, True
         )
 
 
@@ -591,7 +631,7 @@ def test_tag_schema_deletion_key_value_non_existant_with_db(db, schema_data):
 
     with pytest.raises(UserInputError):
         TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], None, ("key", "value"), True
+            schema_data["code"], schema_data["version"], None, ("key", "value"), False, True
         )
 
 
@@ -602,11 +642,58 @@ def test_tag_dataset():
     version = "1.0"
     tag = "tag"
     key_value = ("key", "value")
-    remove_flag = False
-    TagDataset(db).execute(dataset, code, version, tag, key_value, remove_flag)
+    add = True
+    remove = False
+    TagDataset(db).execute(dataset, code, version, tag, key_value, add, remove)
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_tag_dataset_tag_or_key_value_needed_with_db(
+    db, schema_data, dataset_data
+):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    AddDataset(db).execute(dataset_data, "schema", "1.0")
+
+    # Test
+    with pytest.raises(UserInputError):
+        TagDataset(db).execute(
+            "a_dataset",
+            schema_data["code"],
+            schema_data["version"],
+            None,
+            (),
+            False,
+            True,
+        )
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_tag_dataset_both_actions_with_db(
+    db, schema_data, dataset_data
+):
+    # Setup
+    InitDB(db).execute()
+    AddSchema(db).execute(schema_data)
+    AddDataset(db).execute(dataset_data, "schema", "1.0")
+
+    # Test
+    with pytest.raises(UserInputError):
+        TagDataset(db).execute(
+            "a_dataset",
+            schema_data["code"],
+            schema_data["version"],
+            None,
+            (),
+            True,
+            True,
+        )
 
 
 @pytest.mark.database
@@ -624,6 +711,7 @@ def test_tag_dataset_addition_with_db(db, schema_data, dataset_data):
         schema_data["version"],
         "tag",
         ("key", "value"),
+        True,
         False,
     )
 
@@ -645,6 +733,7 @@ def test_tag_dataset_addition_tag_already_exist_with_db(db, schema_data, dataset
         schema_data["version"],
         "tag",
         ("key", "value"),
+        True,
         False,
     )
 
@@ -656,13 +745,16 @@ def test_tag_dataset_addition_tag_already_exist_with_db(db, schema_data, dataset
             schema_data["version"],
             "tag",
             (),
+            True,
             False,
         )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_addition_key_value_already_exist_with_db(db, schema_data, dataset_data):
+def test_tag_dataset_addition_key_value_already_exist_with_db(
+    db, schema_data, dataset_data
+):
     # Setup
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
@@ -673,6 +765,7 @@ def test_tag_dataset_addition_key_value_already_exist_with_db(db, schema_data, d
         schema_data["version"],
         "tag",
         ("key", "value"),
+        True,
         False,
     )
     properties = db.get_dataset_properties(1)
@@ -686,6 +779,7 @@ def test_tag_dataset_addition_key_value_already_exist_with_db(db, schema_data, d
             schema_data["version"],
             None,
             ("key", "value"),
+            True,
             False,
         )
 
@@ -703,6 +797,7 @@ def test_tag_dataset_deletion_with_db(db, schema_data, dataset_data):
         schema_data["version"],
         "tag",
         ("key", "value"),
+        True,
         False,
     )
 
@@ -713,6 +808,7 @@ def test_tag_dataset_deletion_with_db(db, schema_data, dataset_data):
         schema_data["version"],
         "tag",
         ("key", "value"),
+        False,
         True,
     )
     properties = db.get_dataset_properties(1)
@@ -735,13 +831,16 @@ def test_tag_dataset_deletion_tag_non_existant_with_db(db, schema_data, dataset_
             schema_data["version"],
             "tag",
             ("key", "value"),
+            False,
             True,
         )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_deletion_key_value_non_existant_with_db(db, schema_data, dataset_data):
+def test_tag_dataset_deletion_key_value_non_existant_with_db(
+    db, schema_data, dataset_data
+):
     # Setup
     InitDB(db).execute()
     AddSchema(db).execute(schema_data)
@@ -755,6 +854,7 @@ def test_tag_dataset_deletion_key_value_non_existant_with_db(db, schema_data, da
             schema_data["version"],
             None,
             ("key", "value"),
+            False,
             True,
         )
 

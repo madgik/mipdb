@@ -20,6 +20,11 @@ from mipdb.dataset import Dataset
 from mipdb.event import EventEmitter
 
 
+class Action:
+    ADD = "ADD"
+    REMOVE = "REMOVE"
+
+
 class UseCase(ABC):
     """Abstract use case class."""
 
@@ -437,16 +442,24 @@ class TagSchema(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, code, version, tag, key_value, remove_flag) -> None:
+    def execute(self, code, version, tag, key_value, add, remove) -> None:
+        if not tag and not key_value:
+            raise UserInputError("You need to provide a tag or/and a key value pair")
+        if add == remove:
+            raise UserInputError("You need to add or remove")
+
+        action = Action.ADD if add else Action.REMOVE
         metadata = Schema(METADATA_SCHEMA)
         schemas_table = SchemasTable(schema=metadata)
 
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(code, version, conn)
-            properties = Properties(schemas_table.get_schema_properties(schema_id, conn))
-            properties.get_filtered_properties(tag, key_value, remove_flag)
+            properties = Properties(
+                schemas_table.get_schema_properties(schema_id, conn)
+            )
+            properties.update_properties(tag, key_value, action)
             schemas_table.set_schema_properties(properties.properties, schema_id, conn)
-            action = "REMOVE SCHEMA TAG" if remove_flag else "ADD SCHEMA TAG"
+            action = "REMOVE SCHEMA TAG" if action == Action.REMOVE else "ADD SCHEMA TAG"
 
             record = dict(
                 code=code,
@@ -473,17 +486,27 @@ class TagDataset(UseCase):
         self.db = db
 
     def execute(
-        self, dataset, schema_code, version, tag, key_value, remove_flag
+        self, dataset, schema_code, version, tag, key_value, add, remove
     ) -> None:
+        if not tag and not key_value:
+            raise UserInputError("You need to provide a tag or/and a key value pair")
+        if add == remove:
+            raise UserInputError("You need to add or remove")
+
+        action = Action.ADD if add else Action.REMOVE
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(schema_code, version, conn)
             dataset_id = self._get_dataset_id(dataset, schema_id, conn)
-            properties = Properties(dataset_table.get_dataset_properties(dataset_id, conn))
-            properties.get_filtered_properties(tag, key_value, remove_flag)
-            dataset_table.set_dataset_properties(properties.properties, dataset_id, conn)
-            action = "REMOVE DATASET TAG" if remove_flag else "ADD DATASET TAG"
+            properties = Properties(
+                dataset_table.get_dataset_properties(dataset_id, conn)
+            )
+            properties.update_properties(tag, key_value, action)
+            dataset_table.set_dataset_properties(
+                properties.properties, dataset_id, conn
+            )
+            action = "REMOVE DATASET TAG" if action == Action.REMOVE else "ADD DATASET TAG"
 
             record = dict(
                 dataset_id=dataset_id,
@@ -531,61 +554,46 @@ class Properties:
     def __init__(self, properties) -> None:
         self.properties = properties
 
-    def get_filtered_properties(self, tag, key_value, remove_flag):
-        if remove_flag:
-            if tag:
-                self.properties = self._get_properties_after_tag_deletition(
-                    tag
-                )
-            if key_value:
-                self.properties = self._get_properties_after_key_value_deletition(
-                    key_value
-                )
-        else:
-            if tag:
-                self.properties = self._get_properties_after_tag_addition(
-                    tag
-                )
-            if key_value:
-                self.properties = self._get_properties_after_key_value_addition(
-                    key_value
-                )
+    def update_properties(self, tag, key_value, action):
+        if not self.properties:
+            self.properties = json.dumps({"tags": []})
 
-    def _get_properties_after_tag_deletition(self, tag):
-        if self.properties is not None:
+        if tag:
+            self.update_properties_tag(tag, action)
+
+        if key_value:
+            self.update_properties_key_value(key_value, action)
+
+    def update_properties_tag(self, tag, action):
+        if action == Action.REMOVE:
             properties_dict = json.loads(self.properties)
             if tag in properties_dict["tags"]:
                 properties_dict["tags"].remove(tag)
-                return json.dumps(properties_dict)
-        raise UserInputError("Tag does not exist")
-
-    def _get_properties_after_key_value_deletition(self, key_value):
-        if self.properties is not None:
-            properties_dict = json.loads(self.properties)
-            if key_value in properties_dict.items():
-                key, _ = key_value
-                properties_dict.pop(key)
-                return json.dumps(properties_dict)
-        raise UserInputError("Key value does not exist")
-
-    def _get_properties_after_tag_addition(self, tag):
-        if self.properties is None:
-            return json.dumps({"tags": [tag]})
+                self.properties = json.dumps(properties_dict)
+            else:
+                raise UserInputError("Tag does not exist")
         else:
             properties_dict = json.loads(self.properties)
             if tag not in properties_dict["tags"]:
                 properties_dict["tags"].append(tag)
-                return json.dumps(properties_dict)
-        raise UserInputError("Tag already exists")
+                self.properties = json.dumps(properties_dict)
+            else:
+                raise UserInputError("Tag already exists")
 
-    def _get_properties_after_key_value_addition(self, key_value):
-        if self.properties is None:
-            key, value = key_value
-            return json.dumps({key: value})
+    def update_properties_key_value(self, key_value, action):
+        if action == Action.REMOVE:
+            properties_dict = json.loads(self.properties)
+            if key_value in properties_dict.items():
+                key, _ = key_value
+                properties_dict.pop(key)
+                self.properties = json.dumps(properties_dict)
+            else:
+                raise UserInputError("Key value does not exist")
         else:
             properties_dict = json.loads(self.properties)
             if key_value not in properties_dict.items():
                 key, value = key_value
                 properties_dict[key] = value
-                return json.dumps(properties_dict)
-        raise UserInputError("Key value already exists")
+                self.properties = json.dumps(properties_dict)
+            else:
+                raise UserInputError("Key value already exists")

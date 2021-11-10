@@ -146,7 +146,7 @@ def test_tag_schema_addition(db):
 
     # Test
     result = runner.invoke(
-        tag_schema, ["schema", "-t", "tag", "-kv", "2", "1", "-v", "1.0"]
+        tag_schema, ["schema", "-t", "tag", "-kv", "2", "1", "-v", "1.0", "-a"]
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -162,7 +162,7 @@ def test_tag_schema_addition(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_schema_delition(db):
+def test_tag_schema_deletion(db):
     # Setup
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
@@ -171,7 +171,7 @@ def test_tag_schema_delition(db):
     runner.invoke(init, [])
     runner.invoke(add_schema, [schema_file, "-v", "1.0"])
     result = runner.invoke(
-        tag_schema, ["schema", "-t", "tag", "-kv", "2", "1", "-v", "1.0"]
+        tag_schema, ["schema", "-t", "tag", "-kv", "2", "1", "-v", "1.0", "-a"]
     )
 
     # Test
@@ -207,7 +207,7 @@ def test_tag_dataset_addition(db):
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-kv", "2", "1", "-s", "schema", "-v", "1.0"],
+        ["a_dataset", "-t", "tag", "-kv", "2", "1", "-s", "schema", "-v", "1.0", "-a"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -223,7 +223,7 @@ def test_tag_dataset_addition(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_delition(db):
+def test_tag_dataset_deletion(db):
     # Setup
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
@@ -235,7 +235,7 @@ def test_tag_dataset_delition(db):
     runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-kv", "2", "1", "-s", "schema", "-v", "1.0"],
+        ["a_dataset", "-t", "tag", "-kv", "2", "1", "-s", "schema", "-v", "1.0", "-a"],
     )
 
     # Test
