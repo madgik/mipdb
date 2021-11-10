@@ -689,7 +689,7 @@ def test_tag_dataset_both_actions_with_db(
             "a_dataset",
             schema_data["code"],
             schema_data["version"],
-            None,
+            "tag",
             (),
             True,
             True,
