@@ -8,7 +8,7 @@ from mipdb.database import Status
 from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
-from mipdb.dataelements import CommonDataElement, make_cdes
+from mipdb.dataelements import make_cdes
 from mipdb.tables import (
     DataModelTable,
     DatasetsTable,

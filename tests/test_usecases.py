@@ -30,7 +30,6 @@ from mipdb.usecases import (
 )
 from mipdb.usecases import TagDataset
 from mipdb.usecases import TagDataModel
-from mipdb.usecases import update_actions_on_data_model_tagging
 from mipdb.usecases import update_actions_on_dataset_tagging
 from mipdb.usecases import update_actions_on_data_model_tagging
 from mipdb.usecases import update_datasets_on_data_model_deletion

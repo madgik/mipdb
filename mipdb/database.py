@@ -6,7 +6,6 @@ from typing import Union
 import sqlalchemy as sql
 
 from mipdb.exceptions import DataBaseError
-from mipdb.exceptions import UserInputError
 
 METADATA_SCHEMA = "mipdb_metadata"
 METADATA_TABLE = "variables_metadata"
