@@ -6,38 +6,39 @@ import pytest
 from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.usecases import (
-    AddSchema,
+    AddDataModel,
     AddDataset,
-    DeleteSchema,
+    DeleteDataModel,
     DeleteDataset,
-    EnableSchema,
-    DisableSchema,
+    EnableDataModel,
+    DisableDataModel,
     EnableDataset,
     DisableDataset,
     InitDB,
-    update_actions_on_schema_addition,
-    update_actions_on_schema_deletion,
-    update_schemas_on_schema_addition,
-    update_schemas_on_schema_deletion,
+    update_actions_on_data_model_addition,
+    update_actions_on_data_model_deletion,
+    update_data_models_on_data_model_addition,
+    update_data_models_on_data_model_deletion,
     update_actions_on_dataset_addition,
     update_actions_on_dataset_deletion,
     update_datasets_on_dataset_addition,
     update_datasets_on_dataset_deletion,
-    update_actions_on_schema_enablement,
-    update_actions_on_schema_disablement,
+    update_actions_on_data_model_enablement,
+    update_actions_on_data_model_disablement,
     update_actions_on_dataset_enablement,
     update_actions_on_dataset_disablement,
 )
 from mipdb.usecases import TagDataset
-from mipdb.usecases import TagSchema
+from mipdb.usecases import TagDataModel
+from mipdb.usecases import update_actions_on_data_model_tagging
 from mipdb.usecases import update_actions_on_dataset_tagging
-from mipdb.usecases import update_actions_on_schema_tagging
-from mipdb.usecases import update_datasets_on_schema_deletion
+from mipdb.usecases import update_actions_on_data_model_tagging
+from mipdb.usecases import update_datasets_on_data_model_deletion
 from tests.mocks import MonetDBMock
 
 
-# NOTE Some use cases have a main responsibility (e.g. add a new schema) which
-# is followed by some additional actions (e.g. updating the schemas and actions
+# NOTE Some use cases have a main responsibility (e.g. add a new data_model) which
+# is followed by some additional actions (e.g. updating the data_models and actions
 # table).  These additional actions are implemented as handlers using an event
 # system. The use case tests below verify that the main queries are correct and
 # that more queries have been issued by the handlers. Separate tests verify
@@ -48,7 +49,7 @@ def test_init_mock():
     db = MonetDBMock()
     InitDB(db).execute()
     assert f"CREATE SCHEMA mipdb_metadata" in db.captured_queries[0]
-    assert f"CREATE TABLE mipdb_metadata.schemas" in db.captured_queries[2]
+    assert f"CREATE TABLE mipdb_metadata.data_models" in db.captured_queries[2]
     assert f"CREATE TABLE mipdb_metadata.datasets" in db.captured_queries[4]
     assert f"CREATE TABLE mipdb_metadata.actions" in db.captured_queries[6]
 
@@ -64,97 +65,97 @@ def test_init_with_db(db):
     assert "mipdb_metadata" in schemas
 
 
-def test_add_schema_mock(schema_data):
+def test_add_data_model_mock(data_model_data):
     db = MonetDBMock()
-    AddSchema(db).execute(schema_data)
-    assert 'CREATE SCHEMA "schema:1.0"' in db.captured_queries[1]
-    assert 'CREATE TABLE "schema:1.0".primary_data' in db.captured_queries[2]
-    assert f'CREATE TABLE "schema:1.0".variables_metadata' in db.captured_queries[3]
-    assert f'INSERT INTO "schema:1.0".variables_metadata' in db.captured_queries[4]
+    AddDataModel(db).execute(data_model_data)
+    assert 'CREATE SCHEMA "data_model:1.0"' in db.captured_queries[1]
+    assert 'CREATE TABLE "data_model:1.0".primary_data' in db.captured_queries[2]
+    assert f'CREATE TABLE "data_model:1.0".variables_metadata' in db.captured_queries[3]
+    assert f'INSERT INTO "data_model:1.0".variables_metadata' in db.captured_queries[4]
     assert len(db.captured_queries) > 5  # verify that handlers issued more queries
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_schema_with_db(db, schema_data):
+def test_add_data_model_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
 
     # Test
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
-    assert "schema:1.0" in schemas
+    assert "data_model:1.0" in schemas
 
 
-def test_update_schemas_on_schema_addition():
+def test_update_data_models_on_data_model_addition():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0", "label": "Label"}
-    update_schemas_on_schema_addition(record, db)
-    assert f"INSERT INTO mipdb_metadata.schemas" in db.captured_queries[0]
-    schemas_record = db.captured_multiparams[0][0]
-    assert schemas_record["status"] == "DISABLED"
+    update_data_models_on_data_model_addition(record, db)
+    assert f"INSERT INTO mipdb_metadata.data_models" in db.captured_queries[0]
+    data_models_record = db.captured_multiparams[0][0]
+    assert data_models_record["status"] == "DISABLED"
 
 
-def test_delete_schema():
+def test_delete_data_model():
     db = MonetDBMock()
-    code = "schema"
+    code = "data_model"
     version = "1.0"
     force = True
-    DeleteSchema(db).execute(code, version, force)
-    assert 'DROP SCHEMA "schema:1.0" CASCADE' in db.captured_queries[0]
+    DeleteDataModel(db).execute(code, version, force)
+    assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[0]
     assert "DELETE FROM mipdb_metadata.datasets" in db.captured_queries[1]
     assert "DELETE FROM mipdb_metadata.datasets" in db.captured_queries[2]
-    assert "DELETE FROM mipdb_metadata.schemas" in db.captured_queries[3]
+    assert "DELETE FROM mipdb_metadata.data_models" in db.captured_queries[3]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_schema_with_db(db, schema_data):
+def test_delete_data_model_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
-    assert "schema:1.0" in schemas
+    assert "data_model:1.0" in schemas
 
     # Test with force False
-    DeleteSchema(db).execute(
-        code=schema_data["code"], version=schema_data["version"], force=False
+    DeleteDataModel(db).execute(
+        code=data_model_data["code"], version=data_model_data["version"], force=False
     )
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
-    assert "schema:1.0" not in schemas
+    assert "data_model:1.0" not in schemas
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_schema_with_db_with_force(db, schema_data):
+def test_delete_data_model_with_db_with_force(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
-    assert "schema:1.0" in schemas
+    assert "data_model:1.0" in schemas
 
     # Test with force True
-    DeleteSchema(db).execute(
-        code=schema_data["code"], version=schema_data["version"], force=True
+    DeleteDataModel(db).execute(
+        code=data_model_data["code"], version=data_model_data["version"], force=True
     )
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
-    assert "schema:1.0" not in schemas
+    assert "data_model:1.0" not in schemas
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_schema_with_datasets_with_db(db, schema_data, dataset_data):
+def test_delete_data_model_with_datasets_with_db(db, data_model_data, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
-    assert "schema:1.0" in schemas
+    assert "data_model:1.0" in schemas
     data = pd.DataFrame(
         {
             "var1": [1, 2, 3, 4, 5],
@@ -164,24 +165,24 @@ def test_delete_schema_with_datasets_with_db(db, schema_data, dataset_data):
             "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
         }
     )
-    AddDataset(db).execute(data, "schema", "1.0")
+    AddDataset(db).execute(data, "data_model", "1.0")
 
     # Test with force False
     with pytest.raises(ForeignKeyError):
-        DeleteSchema(db).execute(
-            code=schema_data["code"], version=schema_data["version"], force=False
+        DeleteDataModel(db).execute(
+            code=data_model_data["code"], version=data_model_data["version"], force=False
         )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_schema_with_datasets_with_db_with_force(db, schema_data, dataset_data):
+def test_delete_data_model_with_datasets_with_db_with_force(db, data_model_data, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
-    assert "schema:1.0" in schemas
+    assert "data_model:1.0" in schemas
     data = pd.DataFrame(
         {
             "var1": [1, 2, 3, 4, 5],
@@ -191,42 +192,42 @@ def test_delete_schema_with_datasets_with_db_with_force(db, schema_data, dataset
             "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
         }
     )
-    AddDataset(db).execute(data, "schema", "1.0")
+    AddDataset(db).execute(data, "data_model", "1.0")
 
     # Test with force True
-    DeleteSchema(db).execute(
-        code=schema_data["code"], version=schema_data["version"], force=True
+    DeleteDataModel(db).execute(
+        code=data_model_data["code"], version=data_model_data["version"], force=True
     )
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
-    assert "schema:1.0" not in schemas
+    assert "data_model:1.0" not in schemas
 
 
-def test_update_schemas_on_schema_deletion():
+def test_update_data_models_on_data_model_deletion():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0"}
-    update_schemas_on_schema_deletion(record, db)
+    update_data_models_on_data_model_deletion(record, db)
     expected = (
-        f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
+        f"DELETE FROM mipdb_metadata.data_models WHERE code = :code AND version = :version "
     )
     assert expected in db.captured_queries[0]
     assert db.captured_params[0] == record
 
 
-def test_update_datasets_on_schema_deletion():
+def test_update_datasets_on_data_model_deletion():
     db = MonetDBMock()
-    record = {"dataset_ids": [1], "schema_id": 1}
-    update_datasets_on_schema_deletion(record, db)
+    record = {"dataset_ids": [1], "data_model_id": 1}
+    update_datasets_on_data_model_deletion(record, db)
     expected = f"DELETE FROM mipdb_metadata.datasets WHERE "
     assert expected in db.captured_queries[0]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset(db, schema_data, dataset_data):
+def test_add_dataset(db, data_model_data, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
     data = pd.DataFrame(
         {
             "var1": [1, 2, 3, 4, 5],
@@ -237,16 +238,16 @@ def test_add_dataset(db, schema_data, dataset_data):
         }
     )
     # Test success
-    AddDataset(db).execute(data, "schema", "1.0")
-    res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
+    AddDataset(db).execute(data, "data_model", "1.0")
+    res = db.execute('SELECT * FROM "data_model:1.0".primary_data').fetchall()
     assert res != []
 
     # Test that it is not possible to add the same dataset
     with pytest.raises(UserInputError):
-        AddDataset(db).execute(data, "schema", "1.0")
+        AddDataset(db).execute(data, "data_model", "1.0")
 
 
-def test_add_dataset_mock(schema_data, dataset_data):
+def test_add_dataset_mock(data_model_data, dataset_data):
     db = MonetDBMock()
     data = pd.DataFrame(
         {
@@ -257,9 +258,9 @@ def test_add_dataset_mock(schema_data, dataset_data):
             "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
         }
     )
-    AddDataset(db).execute(data, "schema", "1.0")
+    AddDataset(db).execute(data, "data_model", "1.0")
     assert "Sequence('dataset_id_seq'" in db.captured_queries[0]
-    assert 'INSERT INTO "schema:1.0".primary_data' in db.captured_queries[1]
+    assert 'INSERT INTO "data_model:1.0".primary_data' in db.captured_queries[1]
     assert "INSERT INTO mipdb_metadata.datasets" in db.captured_queries[2]
     assert "Sequence('action_id_seq'" in db.captured_queries[3]
     assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[4]
@@ -268,13 +269,13 @@ def test_add_dataset_mock(schema_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset_with_db(db, schema_data, dataset_data):
+def test_add_dataset_with_db(db, data_model_data, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
 
     # Test
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
     datasets = db.get_datasets()
     assert len(datasets) == 1
     assert datasets[0] == "a_dataset"
@@ -283,7 +284,7 @@ def test_add_dataset_with_db(db, schema_data, dataset_data):
 def test_update_datasets_on_dataset_addition():
     db = MonetDBMock()
     record = dict(
-        schema_id=1,
+        data_model_id=1,
         dataset_id=1,
         code="a_dataset",
     )
@@ -296,10 +297,10 @@ def test_update_datasets_on_dataset_addition():
 def test_delete_dataset():
     db = MonetDBMock()
     dataset = "a_dataset"
-    code = "schema"
+    code = "data_model"
     version = "1.0"
     DeleteDataset(db).execute(dataset, code, version)
-    assert 'DELETE FROM "schema:1.0"."primary_data"' in db.captured_queries[0]
+    assert 'DELETE FROM "data_model:1.0"."primary_data"' in db.captured_queries[0]
     assert "DELETE FROM mipdb_metadata.datasets " in db.captured_queries[1]
     assert "Sequence('action_id_seq'" in db.captured_queries[2]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[3]
@@ -307,17 +308,17 @@ def test_delete_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_dataset_with_db(db, schema_data, dataset_data):
+def test_delete_dataset_with_db(db, data_model_data, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
     datasets = db.get_datasets()
     assert len(datasets) == 1
     assert "a_dataset" in datasets
 
     # Test
-    DeleteDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+    DeleteDataset(db).execute(datasets[0], data_model_data["code"], data_model_data["version"])
     datasets = db.get_datasets()
     assert len(datasets) == 0
     assert "a_dataset" not in datasets
@@ -327,88 +328,88 @@ def test_update_datasets_on_dataset_deletion():
     db = MonetDBMock()
     record = dict(
         dataset_id=1,
-        schema_id=1,
+        data_model_id=1,
     )
     update_datasets_on_dataset_deletion(record, db)
-    expected = f"DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND schema_id = :schema_id"
+    expected = f"DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id"
     assert expected in db.captured_queries[0]
     assert db.captured_params[0] == record
 
 
-def test_enable_schema():
+def test_enable_data_model():
     db = MonetDBMock()
-    code = "schema"
+    code = "data_model"
     version = "1.0"
-    EnableSchema(db).execute(code, version)
-    assert "UPDATE mipdb_metadata.schemas" in db.captured_queries[0]
+    EnableDataModel(db).execute(code, version)
+    assert "UPDATE mipdb_metadata.data_models" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[2]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_schema_with_db(db, schema_data):
+def test_enable_data_model_with_db(db, data_model_data):
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    AddDataModel(db).execute(data_model_data)
+    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
-    EnableSchema(db).execute(schema_data["code"], schema_data["version"])
-    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    EnableDataModel(db).execute(data_model_data["code"], data_model_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_schema_already_enabled_with_db(db, schema_data):
+def test_enable_data_model_already_enabled_with_db(db, data_model_data):
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    EnableSchema(db).execute(schema_data["code"], schema_data["version"])
-    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    AddDataModel(db).execute(data_model_data)
+    EnableDataModel(db).execute(data_model_data["code"], data_model_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
-        EnableSchema(db).execute(schema_data["code"], schema_data["version"])
+        EnableDataModel(db).execute(data_model_data["code"], data_model_data["version"])
 
 
-def test_disable_schema():
+def test_disable_data_model():
     db = MonetDBMock()
-    code = "schema"
+    code = "data_model"
     version = "1.0"
-    DisableSchema(db).execute(code, version)
-    assert "UPDATE mipdb_metadata.schemas" in db.captured_queries[0]
+    DisableDataModel(db).execute(code, version)
+    assert "UPDATE mipdb_metadata.data_models" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[2]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_schema_with_db(db, schema_data):
+def test_disable_data_model_with_db(db, data_model_data):
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    EnableSchema(db).execute(schema_data["code"], schema_data["version"])
-    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    AddDataModel(db).execute(data_model_data)
+    EnableDataModel(db).execute(data_model_data["code"], data_model_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
-    DisableSchema(db).execute(schema_data["code"], schema_data["version"])
-    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    DisableDataModel(db).execute(data_model_data["code"], data_model_data["version"])
+    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_schema_already_disabled_with_db(db, schema_data):
+def test_disable_data_model_already_disabled_with_db(db, data_model_data):
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    status = db.execute(f"SELECT status FROM mipdb_metadata.schemas").fetchone()
+    AddDataModel(db).execute(data_model_data)
+    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
 
     with pytest.raises(UserInputError):
-        DisableSchema(db).execute(schema_data["code"], schema_data["version"])
+        DisableDataModel(db).execute(data_model_data["code"], data_model_data["version"])
 
 
 def test_enable_dataset():
     db = MonetDBMock()
     dataset = "a_dataset"
-    code = "schema"
+    code = "data_model"
     version = "1.0"
     EnableDataset(db).execute(dataset, code, version)
     assert "UPDATE mipdb_metadata.datasets" in db.captured_queries[0]
@@ -418,39 +419,39 @@ def test_enable_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_dataset_with_db(db, schema_data, dataset_data):
+def test_enable_dataset_with_db(db, data_model_data, dataset_data):
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
     datasets = db.get_datasets()
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
-    EnableDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+    EnableDataset(db).execute(datasets[0], data_model_data["code"], data_model_data["version"])
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_dataset_already_enabled_with_db(db, schema_data, dataset_data):
+def test_enable_dataset_already_enabled_with_db(db, data_model_data, dataset_data):
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
     datasets = db.get_datasets()
-    EnableDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+    EnableDataset(db).execute(datasets[0], data_model_data["code"], data_model_data["version"])
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
         EnableDataset(db).execute(
-            datasets[0], schema_data["code"], schema_data["version"]
+            datasets[0], data_model_data["code"], data_model_data["version"]
         )
 
 
 def test_disable_dataset():
     db = MonetDBMock()
     dataset = "a_dataset"
-    code = "schema"
+    code = "data_model"
     version = "1.0"
     DisableDataset(db).execute(dataset, code, version)
     assert "UPDATE mipdb_metadata.datasets" in db.captured_queries[0]
@@ -460,185 +461,185 @@ def test_disable_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_dataset_with_db(db, schema_data, dataset_data):
+def test_disable_dataset_with_db(db, data_model_data, dataset_data):
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
     datasets = db.get_datasets()
-    EnableDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+    EnableDataset(db).execute(datasets[0], data_model_data["code"], data_model_data["version"])
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
-    DisableDataset(db).execute(datasets[0], schema_data["code"], schema_data["version"])
+    DisableDataset(db).execute(datasets[0], data_model_data["code"], data_model_data["version"])
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_dataset_already_disabled_with_db(db, schema_data, dataset_data):
+def test_disable_dataset_already_disabled_with_db(db, data_model_data, dataset_data):
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
     datasets = db.get_datasets()
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
 
     with pytest.raises(UserInputError):
         DisableDataset(db).execute(
-            datasets[0], schema_data["code"], schema_data["version"]
+            datasets[0], data_model_data["code"], data_model_data["version"]
         )
 
 
-def test_tag_schema():
+def test_tag_data_model():
     db = MonetDBMock()
-    code = "schema"
+    code = "data_model"
     version = "1.0"
     tag = "tag"
     key_value = ("key", "value")
     add = True
     remove = False
-    TagSchema(db).execute(code, version, tag, key_value, add, remove)
-    assert "UPDATE mipdb_metadata.schemas SET properties" in db.captured_queries[0]
+    TagDataModel(db).execute(code, version, tag, key_value, add, remove)
+    assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_schema_tag_or_key_value_needed_with_db(db, schema_data):
+def test_tag_data_model_tag_or_key_value_needed_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
 
     # Test
-    TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
+    TagDataModel(db).execute(
+        data_model_data["code"], data_model_data["version"], "tag", ("key", "value"), True, False
     )
 
     with pytest.raises(UserInputError):
-        TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], None, (), True, False
+        TagDataModel(db).execute(
+            data_model_data["code"], data_model_data["version"], None, (), True, False
         )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_schema_both_actions_with_db(db, schema_data):
+def test_tag_data_model_both_actions_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
 
     # Test
-    TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
+    TagDataModel(db).execute(
+        data_model_data["code"], data_model_data["version"], "tag", ("key", "value"), True, False
     )
 
     with pytest.raises(UserInputError):
-        TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], "tags", (), True, True
+        TagDataModel(db).execute(
+            data_model_data["code"], data_model_data["version"], "tags", (), True, True
         )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_schema_addition_with_db(db, schema_data):
+def test_tag_data_model_addition_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
 
     # Test
-    TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
+    TagDataModel(db).execute(
+        data_model_data["code"], data_model_data["version"], "tag", ("key", "value"), True, False
     )
 
-    properties = db.get_schema_properties(1)
+    properties = db.get_data_model_properties(1)
     assert properties == '{"tags": ["tag"], "key": "value"}'
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_schema_addition_tag_already_exist_with_db(db, schema_data):
+def test_tag_data_model_addition_tag_already_exist_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
 
     # Test
-    TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
+    TagDataModel(db).execute(
+        data_model_data["code"], data_model_data["version"], "tag", ("key", "value"), True, False
     )
 
     with pytest.raises(UserInputError):
-        TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], "tag", (), True, False
+        TagDataModel(db).execute(
+            data_model_data["code"], data_model_data["version"], "tag", (), True, False
         )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_schema_addition_key_value_already_exist_with_db(db, schema_data):
+def test_tag_data_model_addition_key_value_already_exist_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
 
     # Test
-    TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
+    TagDataModel(db).execute(
+        data_model_data["code"], data_model_data["version"], "tag", ("key", "value"), True, False
     )
 
     with pytest.raises(UserInputError):
-        TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], None, ("key", "value"), True, False
+        TagDataModel(db).execute(
+            data_model_data["code"], data_model_data["version"], None, ("key", "value"), True, False
         )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_schema_deletion_with_db(db, schema_data):
+def test_tag_data_model_deletion_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), True, False
+    AddDataModel(db).execute(data_model_data)
+    TagDataModel(db).execute(
+        data_model_data["code"], data_model_data["version"], "tag", ("key", "value"), True, False
     )
 
     # Test
-    TagSchema(db).execute(
-        schema_data["code"], schema_data["version"], "tag", ("key", "value"), False, True
+    TagDataModel(db).execute(
+        data_model_data["code"], data_model_data["version"], "tag", ("key", "value"), False, True
     )
-    properties = db.get_schema_properties(1)
+    properties = db.get_data_model_properties(1)
     assert properties == '{"tags": []}'
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_schema_deletion_tag_non_existant_with_db(db, schema_data):
+def test_tag_data_model_deletion_tag_non_existant_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
 
     with pytest.raises(UserInputError):
-        TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], "tag", (), False, True
+        TagDataModel(db).execute(
+            data_model_data["code"], data_model_data["version"], "tag", (), False, True
         )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_schema_deletion_key_value_non_existant_with_db(db, schema_data):
+def test_tag_data_model_deletion_key_value_non_existant_with_db(db, data_model_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
+    AddDataModel(db).execute(data_model_data)
 
     with pytest.raises(UserInputError):
-        TagSchema(db).execute(
-            schema_data["code"], schema_data["version"], None, ("key", "value"), False, True
+        TagDataModel(db).execute(
+            data_model_data["code"], data_model_data["version"], None, ("key", "value"), False, True
         )
 
 
 def test_tag_dataset():
     db = MonetDBMock()
     dataset = "a_dataset"
-    code = "schema"
+    code = "data_model"
     version = "1.0"
     tag = "tag"
     key_value = ("key", "value")
@@ -653,19 +654,19 @@ def test_tag_dataset():
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_tag_dataset_tag_or_key_value_needed_with_db(
-    db, schema_data, dataset_data
+    db, data_model_data, dataset_data
 ):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
 
     # Test
     with pytest.raises(UserInputError):
         TagDataset(db).execute(
             "a_dataset",
-            schema_data["code"],
-            schema_data["version"],
+            data_model_data["code"],
+            data_model_data["version"],
             None,
             (),
             False,
@@ -676,19 +677,19 @@ def test_tag_dataset_tag_or_key_value_needed_with_db(
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_tag_dataset_both_actions_with_db(
-    db, schema_data, dataset_data
+    db, data_model_data, dataset_data
 ):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
 
     # Test
     with pytest.raises(UserInputError):
         TagDataset(db).execute(
             "a_dataset",
-            schema_data["code"],
-            schema_data["version"],
+            data_model_data["code"],
+            data_model_data["version"],
             "tag",
             (),
             True,
@@ -698,17 +699,17 @@ def test_tag_dataset_both_actions_with_db(
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_addition_with_db(db, schema_data, dataset_data):
+def test_tag_dataset_addition_with_db(db, data_model_data, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
 
     # Test
     TagDataset(db).execute(
         "a_dataset",
-        schema_data["code"],
-        schema_data["version"],
+        data_model_data["code"],
+        data_model_data["version"],
         "tag",
         ("key", "value"),
         True,
@@ -721,16 +722,16 @@ def test_tag_dataset_addition_with_db(db, schema_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_addition_tag_already_exist_with_db(db, schema_data, dataset_data):
+def test_tag_dataset_addition_tag_already_exist_with_db(db, data_model_data, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
 
     TagDataset(db).execute(
         "a_dataset",
-        schema_data["code"],
-        schema_data["version"],
+        data_model_data["code"],
+        data_model_data["version"],
         "tag",
         ("key", "value"),
         True,
@@ -741,8 +742,8 @@ def test_tag_dataset_addition_tag_already_exist_with_db(db, schema_data, dataset
     with pytest.raises(UserInputError):
         TagDataset(db).execute(
             "a_dataset",
-            schema_data["code"],
-            schema_data["version"],
+            data_model_data["code"],
+            data_model_data["version"],
             "tag",
             (),
             True,
@@ -753,16 +754,16 @@ def test_tag_dataset_addition_tag_already_exist_with_db(db, schema_data, dataset
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_tag_dataset_addition_key_value_already_exist_with_db(
-    db, schema_data, dataset_data
+    db, data_model_data, dataset_data
 ):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
     TagDataset(db).execute(
         "a_dataset",
-        schema_data["code"],
-        schema_data["version"],
+        data_model_data["code"],
+        data_model_data["version"],
         "tag",
         ("key", "value"),
         True,
@@ -775,8 +776,8 @@ def test_tag_dataset_addition_key_value_already_exist_with_db(
     with pytest.raises(UserInputError):
         TagDataset(db).execute(
             "a_dataset",
-            schema_data["code"],
-            schema_data["version"],
+            data_model_data["code"],
+            data_model_data["version"],
             None,
             ("key", "value"),
             True,
@@ -786,15 +787,15 @@ def test_tag_dataset_addition_key_value_already_exist_with_db(
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_deletion_with_db(db, schema_data, dataset_data):
+def test_tag_dataset_deletion_with_db(db, data_model_data, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
     TagDataset(db).execute(
         "a_dataset",
-        schema_data["code"],
-        schema_data["version"],
+        data_model_data["code"],
+        data_model_data["version"],
         "tag",
         ("key", "value"),
         True,
@@ -804,8 +805,8 @@ def test_tag_dataset_deletion_with_db(db, schema_data, dataset_data):
     # Test
     TagDataset(db).execute(
         "a_dataset",
-        schema_data["code"],
-        schema_data["version"],
+        data_model_data["code"],
+        data_model_data["version"],
         "tag",
         ("key", "value"),
         False,
@@ -817,18 +818,18 @@ def test_tag_dataset_deletion_with_db(db, schema_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_deletion_tag_non_existant_with_db(db, schema_data, dataset_data):
+def test_tag_dataset_deletion_tag_non_existant_with_db(db, data_model_data, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
 
     # Test
     with pytest.raises(UserInputError):
         TagDataset(db).execute(
             "a_dataset",
-            schema_data["code"],
-            schema_data["version"],
+            data_model_data["code"],
+            data_model_data["version"],
             "tag",
             ("key", "value"),
             False,
@@ -839,19 +840,19 @@ def test_tag_dataset_deletion_tag_non_existant_with_db(db, schema_data, dataset_
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_tag_dataset_deletion_key_value_non_existant_with_db(
-    db, schema_data, dataset_data
+    db, data_model_data, dataset_data
 ):
     # Setup
     InitDB(db).execute()
-    AddSchema(db).execute(schema_data)
-    AddDataset(db).execute(dataset_data, "schema", "1.0")
+    AddDataModel(db).execute(data_model_data)
+    AddDataset(db).execute(dataset_data, "data_model", "1.0")
 
     # Test
     with pytest.raises(UserInputError):
         TagDataset(db).execute(
             "a_dataset",
-            schema_data["code"],
-            schema_data["version"],
+            data_model_data["code"],
+            data_model_data["version"],
             None,
             ("key", "value"),
             False,
@@ -861,50 +862,50 @@ def test_tag_dataset_deletion_key_value_non_existant_with_db(
 
 record_and_funcs = [
     (
-        {"code": "code", "version": "1.0", "schema_id": 1},
-        update_actions_on_schema_addition,
+        {"code": "code", "version": "1.0", "data_model_id": 1},
+        update_actions_on_data_model_addition,
     ),
     (
-        {"dataset_ids": [1], "schema_id": 1, "code": "a_dataset"},
-        update_actions_on_schema_deletion,
+        {"dataset_ids": [1], "data_model_id": 1, "code": "a_dataset"},
+        update_actions_on_data_model_deletion,
     ),
     (
-        {"code": "code", "version": "1.0", "schema_id": 1},
+        {"code": "code", "version": "1.0", "data_model_id": 1},
         update_actions_on_dataset_addition,
     ),
     (
-        {"dataset_id": 1, "schema_id": 1, "version": "1.0"},
+        {"dataset_id": 1, "data_model_id": 1, "version": "1.0"},
         update_actions_on_dataset_deletion,
     ),
     (
-        {"code": "code", "version": "1.0", "schema_id": 1},
-        update_actions_on_schema_enablement,
+        {"code": "code", "version": "1.0", "data_model_id": 1},
+        update_actions_on_data_model_enablement,
     ),
     (
-        {"code": "code", "version": "1.0", "schema_id": 1},
-        update_actions_on_schema_disablement,
+        {"code": "code", "version": "1.0", "data_model_id": 1},
+        update_actions_on_data_model_disablement,
     ),
     (
-        {"dataset_id": 1, "schema_id": 1, "version": "1.0"},
+        {"dataset_id": 1, "data_model_id": 1, "version": "1.0"},
         update_actions_on_dataset_enablement,
     ),
     (
-        {"dataset_id": 1, "schema_id": 1, "version": "1.0"},
+        {"dataset_id": 1, "data_model_id": 1, "version": "1.0"},
         update_actions_on_dataset_disablement,
     ),
     (
         {
             "code": "code",
             "version": "1.0",
-            "schema_id": 1,
+            "data_model_id": 1,
             "action": "REMOVE SCHEMA TAG",
         },
-        update_actions_on_schema_tagging,
+        update_actions_on_data_model_tagging,
     ),
     (
         {
             "dataset_id": 1,
-            "schema_id": 1,
+            "data_model_id": 1,
             "version": "1.0",
             "action": "ADD DATASET TAG",
         },
