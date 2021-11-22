@@ -55,7 +55,8 @@ class MonetDBMock(MonetDB):
         return "WrongStatus"
 
     def get_dataset_properties(self, dataset_id):
-        return '{"tags":[]}'
+        return '{"tags":["tag1"], "properties": {"key1": "value1"}}'
 
-    def get_schema_properties(self, dataset_id):
-        return '{"tags":[]}'
+    def get_schema_properties(self, schema_id):
+        return '{"tags":["tag1"], "properties": {"key1": "value1"}}'
+

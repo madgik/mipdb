@@ -40,7 +40,7 @@ def test_add_schema(db):
     schema_file = "tests/data/schema.json"
     # Check schema not present already
     assert "schema:1.0" not in db.get_schemas()
-    result = runner.invoke(init, [])
+    runner.invoke(init, [])
     # Test
     result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
@@ -65,8 +65,8 @@ def test_delete_schema(db):
     schema_file = "tests/data/schema.json"
     # Check schema not present already
     assert "schema:1.0" not in db.get_schemas()
-    result = runner.invoke(init, [])
-    result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
     # Test
     result = runner.invoke(delete_schema, ["schema", "-v", "1.0", "-f"])
     assert result.exit_code == ExitCode.OK
@@ -87,9 +87,9 @@ def test_add_dataset(db):
     dataset_file = "tests/data/dataset.csv"
 
     # Check dataset not present already
-    result = runner.invoke(init, [])
-    result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
-    # assert 'a_dataset' not in db.get_datasets()
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    assert 'a_dataset' not in db.get_datasets()
 
     # Test
     result = runner.invoke(
@@ -140,19 +140,45 @@ def test_tag_schema_addition(db):
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
 
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+
+    # Test
+    result = runner.invoke(
+        tag_schema, ["schema", "-t", "tag", "-v", "1.0"]
+    )
+    assert result.exit_code == ExitCode.OK
+    (properties, *_), *_ = db.execute(
+        f"select properties from mipdb_metadata.schemas"
+    ).fetchall()
+    assert '{"tags": ["tag"], "properties": {}}' == properties
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+    action_id, action = action_record[1]
+    assert action_id == 2
+    assert action != ""
+    assert json.loads(action)["action"] == "ADD SCHEMA TAG"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_add_property_schema_addition(db):
+    # Setup
+    runner = CliRunner()
+    schema_file = "tests/data/schema.json"
+
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_schema, [schema_file, "-v", "1.0"])
 
     # Test
     result = runner.invoke(
-        tag_schema, ["schema", "-t", "tag", "-kv", "2", "1", "-v", "1.0", "-a"]
+        tag_schema, ["schema", "-t", "tag", "-v", "1.0"]
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.schemas"
     ).fetchall()
-    assert '{"tags": ["tag"], "2": "1"}' == properties
+    assert '{"tags": ["tag"], "properties": {}}' == properties
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[1]
     assert action_id == 2
@@ -170,19 +196,19 @@ def test_tag_schema_deletion(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_schema, [schema_file, "-v", "1.0"])
-    result = runner.invoke(
-        tag_schema, ["schema", "-t", "tag", "-kv", "2", "1", "-v", "1.0", "-a"]
+    runner.invoke(
+        tag_schema, ["schema", "-t", "tag", "-v", "1.0"]
     )
 
     # Test
     result = runner.invoke(
-        tag_schema, ["schema", "-t", "tag", "-kv", "2", "1", "-v", "1.0", "-r"]
+        tag_schema, ["schema", "-t", "tag", "-v", "1.0", "-r"]
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.schemas"
     ).fetchall()
-    assert '{"tags": []}' == properties
+    assert '{"tags": [], "properties": {}}' == properties
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
 
     action_id, action = action_record[2]
@@ -207,13 +233,13 @@ def test_tag_dataset_addition(db):
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-kv", "2", "1", "-s", "schema", "-v", "1.0", "-a"],
+        ["a_dataset", "-t", "tag", "-s", "schema", "-v", "1.0"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
-    assert '{"tags": ["tag"], "2": "1"}' == properties
+    assert '{"tags": ["tag"], "properties": {}}' == properties
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[2]
     assert action_id == 3
@@ -233,21 +259,21 @@ def test_tag_dataset_deletion(db):
     runner.invoke(init, [])
     runner.invoke(add_schema, [schema_file, "-v", "1.0"])
     runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
-    result = runner.invoke(
+    runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-kv", "2", "1", "-s", "schema", "-v", "1.0", "-a"],
+        ["a_dataset", "-t", "tag", "-s", "schema", "-v", "1.0"],
     )
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-kv", "2", "1", "-s", "schema", "-v", "1.0", "-r"],
+        ["a_dataset", "-t", "tag", "-s", "schema", "-v", "1.0", "-r"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
-    assert '{"tags": []}' == properties
+    assert '{"tags": [], "properties": {}}' == properties
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[2]
     assert action_id == 3
@@ -261,10 +287,9 @@ def test_enable_schema(db):
     # Setup
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
-    status_query = f"SELECT status FROM mipdb_metadata.schemas"
     # Check status is disabled
-    result = runner.invoke(init, [])
-    result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
     assert _get_status(db, "schemas") == "DISABLED"
 
     # Test
@@ -285,9 +310,9 @@ def test_disable_schema(db):
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
     # Check status is enabled
-    result = runner.invoke(init, [])
-    result = runner.invoke(add_schema, [schema_file, "-v", "1.0"])
-    result = runner.invoke(enable_schema, ["schema", "-v", "1.0"])
+    runner.invoke(init, [])
+    runner.invoke(add_schema, [schema_file, "-v", "1.0"])
+    runner.invoke(enable_schema, ["schema", "-v", "1.0"])
     assert _get_status(db, "schemas") == "ENABLED"
 
     # Test
@@ -308,7 +333,6 @@ def test_enable_dataset(db):
     runner = CliRunner()
     schema_file = "tests/data/schema.json"
     dataset_file = "tests/data/dataset.csv"
-    status_query = f"SELECT status FROM mipdb_metadata.datasets"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -341,7 +365,7 @@ def test_disable_dataset(db):
     runner.invoke(init, [])
     runner.invoke(add_schema, [schema_file, "-v", "1.0"])
     runner.invoke(add_dataset, [dataset_file, "--schema", "schema", "-v", "1.0"])
-    result = runner.invoke(
+    runner.invoke(
         enable_dataset, ["a_dataset", "--schema", "schema", "-v", "1.0"]
     )
     assert _get_status(db, "datasets") == "ENABLED"

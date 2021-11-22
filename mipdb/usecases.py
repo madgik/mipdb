@@ -7,8 +7,9 @@ from mipdb.database import METADATA_SCHEMA
 from mipdb.database import Status
 from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
+from mipdb.properties import Properties
 from mipdb.schema import Schema
-from mipdb.dataelements import CommonDataElement, make_cdes
+from mipdb.dataelements import make_cdes
 from mipdb.tables import (
     SchemasTable,
     DatasetsTable,
@@ -18,11 +19,6 @@ from mipdb.tables import (
 )
 from mipdb.dataset import Dataset
 from mipdb.event import EventEmitter
-
-
-class Action:
-    ADD = "ADD"
-    REMOVE = "REMOVE"
 
 
 class UseCase(ABC):
@@ -289,17 +285,17 @@ class EnableSchema(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, name, version) -> None:
+    def execute(self, code, version) -> None:
         metadata = Schema(METADATA_SCHEMA)
         schemas_table = SchemasTable(schema=metadata)
 
         with self.db.begin() as conn:
-            schema_id = self._get_schema_id(name, version, conn)
+            schema_id = self._get_schema_id(code, version, conn)
             current_status = schemas_table.get_schema_status(schema_id, conn)
             if current_status != "ENABLED":
                 schemas_table.set_schema_status("ENABLED", schema_id, conn)
                 record = dict(
-                    code=name,
+                    code=code,
                     version=version,
                     schema_id=schema_id,
                 )
@@ -323,18 +319,18 @@ class DisableSchema(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, name, version) -> None:
+    def execute(self, code, version) -> None:
         metadata = Schema(METADATA_SCHEMA)
         schemas_table = SchemasTable(schema=metadata)
 
         with self.db.begin() as conn:
-            schema_id = self._get_schema_id(name, version, conn)
+            schema_id = self._get_schema_id(code, version, conn)
             current_status = schemas_table.get_schema_status(schema_id, conn)
 
             if current_status != "DISABLED":
                 schemas_table.set_schema_status("DISABLED", schema_id, conn)
                 record = dict(
-                    code=name,
+                    code=code,
                     version=version,
                     schema_id=schema_id,
                 )
@@ -442,13 +438,7 @@ class TagSchema(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, code, version, tag, key_value, add, remove) -> None:
-        if not tag and not key_value:
-            raise UserInputError("You need to provide a tag or/and a key value pair")
-        if add == remove:
-            raise UserInputError("You need to add or remove")
-
-        action = Action.ADD if add else Action.REMOVE
+    def execute(self, code, version, tag) -> None:
         metadata = Schema(METADATA_SCHEMA)
         schemas_table = SchemasTable(schema=metadata)
 
@@ -457,9 +447,105 @@ class TagSchema(UseCase):
             properties = Properties(
                 schemas_table.get_schema_properties(schema_id, conn)
             )
-            properties.update_properties(tag, key_value, action)
+            properties.add_tag(tag)
             schemas_table.set_schema_properties(properties.properties, schema_id, conn)
-            action = "REMOVE SCHEMA TAG" if action == Action.REMOVE else "ADD SCHEMA TAG"
+            action = "ADD SCHEMA TAG"
+
+            record = dict(
+                code=code,
+                version=version,
+                schema_id=schema_id,
+                action=action,
+            )
+            emitter.emit("tag_schema", record, conn)
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+
+class UntagSchema(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, code, version, tag) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(code, version, conn)
+            properties = Properties(
+                schemas_table.get_schema_properties(schema_id, conn)
+            )
+            properties.remove_tag(tag)
+            schemas_table.set_schema_properties(properties.properties, schema_id, conn)
+            action = "REMOVE SCHEMA TAG"
+
+            record = dict(
+                code=code,
+                version=version,
+                schema_id=schema_id,
+                action=action,
+            )
+            emitter.emit("tag_schema", record, conn)
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+
+class AddPropertyToSchema(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, code, version, key, value, force) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(code, version, conn)
+            properties = Properties(
+                schemas_table.get_schema_properties(schema_id, conn)
+            )
+            properties.add_property(key, value, force)
+            schemas_table.set_schema_properties(properties.properties, schema_id, conn)
+            action = "ADD SCHEMA TAG"
+
+            record = dict(
+                code=code,
+                version=version,
+                schema_id=schema_id,
+                action=action,
+            )
+            emitter.emit("tag_schema", record, conn)
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+
+class RemovePropertyFromSchema(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, code, version, key, value) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(code, version, conn)
+            properties = Properties(
+                schemas_table.get_schema_properties(schema_id, conn)
+            )
+            properties.remove_property(key, value)
+            schemas_table.set_schema_properties(properties.properties, schema_id, conn)
+            action = "REMOVE SCHEMA TAG"
 
             record = dict(
                 code=code,
@@ -486,27 +572,150 @@ class TagDataset(UseCase):
         self.db = db
 
     def execute(
-        self, dataset, schema_code, version, tag, key_value, add, remove
+            self, dataset, schema_code, version, tag
     ) -> None:
-        if not tag and not key_value:
-            raise UserInputError("You need to provide a tag or/and a key value pair")
-        if add == remove:
-            raise UserInputError("You need to add or remove")
-
-        action = Action.ADD if add else Action.REMOVE
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
         with self.db.begin() as conn:
             schema_id = self._get_schema_id(schema_code, version, conn)
             dataset_id = self._get_dataset_id(dataset, schema_id, conn)
             properties = Properties(
-                dataset_table.get_dataset_properties(dataset_id, conn)
+                dataset_table.get_dataset_properties(schema_id, conn)
             )
-            properties.update_properties(tag, key_value, action)
+            properties.add_tag(tag)
             dataset_table.set_dataset_properties(
                 properties.properties, dataset_id, conn
             )
-            action = "REMOVE DATASET TAG" if action == Action.REMOVE else "ADD DATASET TAG"
+            action = "ADD DATASET TAG"
+
+            record = dict(
+                dataset_id=dataset_id,
+                schema_id=schema_id,
+                version=version,
+                action=action,
+            )
+
+            emitter.emit("tag_dataset", record, conn)
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+    def _get_dataset_id(self, code, schema_id, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+        dataset_id = datasets_table.get_dataset_id(code, schema_id, conn)
+        return dataset_id
+
+
+class UntagDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(
+            self, dataset, schema_code, version, tag
+    ) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        dataset_table = DatasetsTable(schema=metadata)
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(schema_code, version, conn)
+            dataset_id = self._get_dataset_id(dataset, schema_id, conn)
+            properties = Properties(
+                dataset_table.get_dataset_properties(schema_id, conn)
+            )
+            properties.remove_tag(tag)
+            dataset_table.set_dataset_properties(
+                properties.properties, dataset_id, conn
+            )
+            action = "ADD DATASET TAG"
+
+            record = dict(
+                dataset_id=dataset_id,
+                schema_id=schema_id,
+                version=version,
+                action=action,
+            )
+
+            emitter.emit("tag_dataset", record, conn)
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+    def _get_dataset_id(self, code, schema_id, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+        dataset_id = datasets_table.get_dataset_id(code, schema_id, conn)
+        return dataset_id
+
+
+class AddPropertyToDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(
+            self, dataset, schema_code, version, key, value, force
+    ) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        dataset_table = DatasetsTable(schema=metadata)
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(schema_code, version, conn)
+            dataset_id = self._get_dataset_id(dataset, schema_id, conn)
+            properties = Properties(
+                dataset_table.get_dataset_properties(schema_id, conn)
+            )
+            properties.add_property(key, value, force)
+            dataset_table.set_dataset_properties(
+                properties.properties, dataset_id, conn
+            )
+            action = "ADD DATASET TAG"
+
+            record = dict(
+                dataset_id=dataset_id,
+                schema_id=schema_id,
+                version=version,
+                action=action,
+            )
+
+            emitter.emit("tag_dataset", record, conn)
+
+    def _get_schema_id(self, code, version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        schemas_table = SchemasTable(schema=metadata)
+        schema_id = schemas_table.get_schema_id(code, version, conn)
+        return schema_id
+
+    def _get_dataset_id(self, code, schema_id, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+        dataset_id = datasets_table.get_dataset_id(code, schema_id, conn)
+        return dataset_id
+
+
+class RemovePropertyFromDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(
+            self, dataset, schema_code, version, key, value
+    ) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        dataset_table = DatasetsTable(schema=metadata)
+        with self.db.begin() as conn:
+            schema_id = self._get_schema_id(schema_code, version, conn)
+            dataset_id = self._get_dataset_id(dataset, schema_id, conn)
+            properties = Properties(
+                dataset_table.get_dataset_properties(schema_id, conn)
+            )
+            properties.remove_property(key, value)
+            dataset_table.set_dataset_properties(
+                properties.properties, dataset_id, conn
+            )
+            action = "REMOVE DATASET TAG"
 
             record = dict(
                 dataset_id=dataset_id,
@@ -549,51 +758,3 @@ def update_actions(record, action, conn):
     action_record["action"] = json.dumps(record)
     actions_table.insert_values(action_record, conn)
 
-
-class Properties:
-    def __init__(self, properties) -> None:
-        self.properties = properties
-
-    def update_properties(self, tag, key_value, action):
-        if not self.properties:
-            self.properties = json.dumps({"tags": []})
-
-        if tag:
-            self.update_properties_tag(tag, action)
-
-        if key_value:
-            self.update_properties_key_value(key_value, action)
-
-    def update_properties_tag(self, tag, action):
-        if action == Action.REMOVE:
-            properties_dict = json.loads(self.properties)
-            if tag in properties_dict["tags"]:
-                properties_dict["tags"].remove(tag)
-                self.properties = json.dumps(properties_dict)
-            else:
-                raise UserInputError("Tag does not exist")
-        else:
-            properties_dict = json.loads(self.properties)
-            if tag not in properties_dict["tags"]:
-                properties_dict["tags"].append(tag)
-                self.properties = json.dumps(properties_dict)
-            else:
-                raise UserInputError("Tag already exists")
-
-    def update_properties_key_value(self, key_value, action):
-        if action == Action.REMOVE:
-            properties_dict = json.loads(self.properties)
-            if key_value in properties_dict.items():
-                key, _ = key_value
-                properties_dict.pop(key)
-                self.properties = json.dumps(properties_dict)
-            else:
-                raise UserInputError("Key value does not exist")
-        else:
-            properties_dict = json.loads(self.properties)
-            if key_value not in properties_dict.items():
-                key, value = key_value
-                properties_dict[key] = value
-                self.properties = json.dumps(properties_dict)
-            else:
-                raise UserInputError("Key value already exists")

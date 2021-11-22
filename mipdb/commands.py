@@ -1,8 +1,9 @@
 import click as cl
 
 from mipdb.database import MonetDB, get_db_config
-from mipdb.exceptions import UserInputError
 from mipdb.reader import CSVFileReader, JsonFileReader
+from mipdb.usecases import AddPropertyToDataset
+from mipdb.usecases import AddPropertyToSchema
 from mipdb.usecases import DeleteDataset
 from mipdb.usecases import DeleteSchema
 from mipdb.usecases import AddSchema
@@ -13,8 +14,12 @@ from mipdb.usecases import DisableDataset
 from mipdb.usecases import DisableSchema
 from mipdb.usecases import EnableDataset
 from mipdb.usecases import EnableSchema
+from mipdb.usecases import RemovePropertyFromDataset
+from mipdb.usecases import RemovePropertyFromSchema
 from mipdb.usecases import TagSchema
 from mipdb.usecases import TagDataset
+from mipdb.usecases import UntagDataset
+from mipdb.usecases import UntagSchema
 
 
 @cl.group()
@@ -150,23 +155,8 @@ def disable_dataset(dataset, schema, version):
     "-t",
     "--tag",
     default=None,
-    required=False,
-    help="A tag to be added/removed at the properties",
-)
-@cl.option(
-    "-kv",
-    "--key-value",
-    default=None,
-    nargs=2,
-    required=False,
-    help="A key value to be added/removed at the properties",
-)
-@cl.option(
-    "-a",
-    "--add",
-    is_flag=True,
-    required=False,
-    help="A flag that determines if the tag/key_value will be added",
+    required=True,
+    help="A tag to be added/removed",
 )
 @cl.option(
     "-r",
@@ -175,10 +165,26 @@ def disable_dataset(dataset, schema, version):
     required=False,
     help="A flag that determines if the tag/key_value will be removed",
 )
+@cl.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Force overwrite on property",
+)
 @handle_errors
-def tag_schema(name, version, tag, key_value, add, remove):
+def tag_schema(name, version, tag, remove, force):
     db = MonetDB.from_config(get_db_config())
-    TagSchema(db).execute(name, version, tag, key_value, add, remove)
+    if "=" in tag:
+        key, value = tag.split("=")
+        if remove:
+            RemovePropertyFromSchema(db).execute(name, version, key, value)
+        else:
+            AddPropertyToSchema(db).execute(name, version, key, value, force)
+    else:
+        if remove:
+            UntagSchema(db).execute(name, version, tag)
+        else:
+            TagSchema(db).execute(name, version, tag)
 
 
 @entry.command()
@@ -191,23 +197,8 @@ def tag_schema(name, version, tag, key_value, add, remove):
     "-t",
     "--tag",
     default=None,
-    required=False,
-    help="A tag to be added/removed at the properties",
-)
-@cl.option(
-    "-kv",
-    "--key-value",
-    default=None,
-    nargs=2,
-    required=False,
-    help="A key value to be added/removed at the properties",
-)
-@cl.option(
-    "-a",
-    "--add",
-    is_flag=True,
-    required=False,
-    help="A flag that determines if the tag/key_value will be added",
+    required=True,
+    help="A tag to be added/removed",
 )
 @cl.option(
     "-r",
@@ -216,10 +207,26 @@ def tag_schema(name, version, tag, key_value, add, remove):
     required=False,
     help="A flag that determines if the tag/key_value will be removed",
 )
+@cl.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Force overwrite on property",
+)
 @handle_errors
-def tag_dataset(dataset, schema, version, tag, key_value, add, remove):
+def tag_dataset(dataset, schema, version, tag, remove, force):
     db = MonetDB.from_config(get_db_config())
-    TagDataset(db).execute(dataset, schema, version, tag, key_value, add, remove)
+    if "=" in tag:
+        key, value = tag.split("=")
+        if remove:
+            RemovePropertyFromDataset(db).execute(dataset, schema, version, key, value)
+        else:
+            AddPropertyToDataset(db).execute(dataset, schema, version, key, value, force)
+    else:
+        if remove:
+            UntagDataset(db).execute(dataset, schema, version, tag)
+        else:
+            TagDataset(db).execute(dataset, schema, version, tag)
 
 
 @entry.command("list")
