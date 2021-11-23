@@ -2,9 +2,11 @@ import click as cl
 
 from mipdb.database import MonetDB, get_db_config
 from mipdb.reader import CSVFileReader, JsonFileReader
-from mipdb.usecases import DeleteDataset
-from mipdb.usecases import DeleteDataModel
 from mipdb.usecases import AddDataModel
+from mipdb.usecases import AddPropertyToDataModel
+from mipdb.usecases import AddPropertyToDataset
+from mipdb.usecases import DeleteDataModel
+from mipdb.usecases import DeleteDataset
 from mipdb.usecases import AddDataset
 from mipdb.usecases import InitDB
 from mipdb.exceptions import handle_errors
@@ -12,8 +14,12 @@ from mipdb.usecases import DisableDataset
 from mipdb.usecases import DisableDataModel
 from mipdb.usecases import EnableDataset
 from mipdb.usecases import EnableDataModel
+from mipdb.usecases import RemovePropertyFromDataModel
+from mipdb.usecases import RemovePropertyFromDataset
+from mipdb.usecases import UntagDataModel
 from mipdb.usecases import TagDataModel
 from mipdb.usecases import TagDataset
+from mipdb.usecases import UntagDataset
 
 
 @cl.group()
@@ -32,14 +38,15 @@ def init():
 @entry.command()
 @cl.argument("file", required=True)
 @cl.option("-v", "--version", required=True, help="The data model version")
+# @cl.option("--dry-run", is_flag=True)
 @handle_errors
 def add_data_model(file, version):
     reader = JsonFileReader(file)
     dbconfig = get_db_config()
     db = MonetDB.from_config(dbconfig)
-    schema_data = reader.read()
-    schema_data["version"] = version  # schema_data should contain version
-    AddDataModel(db).execute(schema_data)
+    data_model_data = reader.read()
+    data_model_data["version"] = version
+    AddDataModel(db).execute(data_model_data)
 
 
 @entry.command()
@@ -148,23 +155,8 @@ def disable_dataset(dataset, data_model, version):
     "-t",
     "--tag",
     default=None,
-    required=False,
-    help="A tag to be added/removed at the properties",
-)
-@cl.option(
-    "-kv",
-    "--key-value",
-    default=None,
-    nargs=2,
-    required=False,
-    help="A key value to be added/removed at the properties",
-)
-@cl.option(
-    "-a",
-    "--add",
-    is_flag=True,
-    required=False,
-    help="A flag that determines if the tag/key_value will be added",
+    required=True,
+    help="A tag to be added/removed",
 )
 @cl.option(
     "-r",
@@ -173,10 +165,26 @@ def disable_dataset(dataset, data_model, version):
     required=False,
     help="A flag that determines if the tag/key_value will be removed",
 )
+@cl.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Force overwrite on property",
+)
 @handle_errors
-def tag_data_model(name, version, tag, key_value, add, remove):
+def tag_data_model(name, version, tag, remove, force):
     db = MonetDB.from_config(get_db_config())
-    TagDataModel(db).execute(name, version, tag, key_value, add, remove)
+    if "=" in tag:
+        key, value = tag.split("=")
+        if remove:
+            RemovePropertyFromDataModel(db).execute(name, version, key, value)
+        else:
+            AddPropertyToDataModel(db).execute(name, version, key, value, force)
+    else:
+        if remove:
+            UntagDataModel(db).execute(name, version, tag)
+        else:
+            TagDataModel(db).execute(name, version, tag)
 
 
 @entry.command()
@@ -189,23 +197,8 @@ def tag_data_model(name, version, tag, key_value, add, remove):
     "-t",
     "--tag",
     default=None,
-    required=False,
-    help="A tag to be added/removed at the properties",
-)
-@cl.option(
-    "-kv",
-    "--key-value",
-    default=None,
-    nargs=2,
-    required=False,
-    help="A key value to be added/removed at the properties",
-)
-@cl.option(
-    "-a",
-    "--add",
-    is_flag=True,
-    required=False,
-    help="A flag that determines if the tag/key_value will be added",
+    required=True,
+    help="A tag to be added/removed",
 )
 @cl.option(
     "-r",
@@ -214,10 +207,26 @@ def tag_data_model(name, version, tag, key_value, add, remove):
     required=False,
     help="A flag that determines if the tag/key_value will be removed",
 )
+@cl.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Force overwrite on property",
+)
 @handle_errors
-def tag_dataset(dataset, data_model, version, tag, key_value, add, remove):
+def tag_dataset(dataset, data_model, version, tag, remove, force):
     db = MonetDB.from_config(get_db_config())
-    TagDataset(db).execute(dataset, data_model, version, tag, key_value, add, remove)
+    if "=" in tag:
+        key, value = tag.split("=")
+        if remove:
+            RemovePropertyFromDataset(db).execute(dataset, data_model, version, key, value)
+        else:
+            AddPropertyToDataset(db).execute(dataset, data_model, version, key, value, force)
+    else:
+        if remove:
+            UntagDataset(db).execute(dataset, data_model, version, tag)
+        else:
+            TagDataset(db).execute(dataset, data_model, version, tag)
 
 
 @entry.command("list")

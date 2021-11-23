@@ -7,6 +7,7 @@ from mipdb.database import METADATA_SCHEMA
 from mipdb.database import Status
 from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
+from mipdb.properties import Properties
 from mipdb.schema import Schema
 from mipdb.dataelements import make_cdes
 from mipdb.tables import (
@@ -18,11 +19,6 @@ from mipdb.tables import (
 )
 from mipdb.dataset import Dataset
 from mipdb.event import EventEmitter
-
-
-class Action:
-    ADD = "ADD"
-    REMOVE = "REMOVE"
 
 
 class UseCase(ABC):
@@ -55,13 +51,15 @@ class AddDataModel(UseCase):
         self.db = db
 
     def execute(self, data_model_data) -> None:
-        data_model_id = self._get_next_data_model_id()
         code = data_model_data["code"]
         version = data_model_data["version"]
         name = get_data_model_fullname(code, version)
         cdes = make_cdes(data_model_data)
+        metadata = Schema(METADATA_SCHEMA)
+        data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
+            data_model_id = data_model_table.get_next_data_model_id(conn)
             schema = self._create_schema(name, conn)
             self._create_primary_data_table(schema, cdes, conn)
             self._create_metadata_table(schema, conn, cdes)
@@ -73,12 +71,6 @@ class AddDataModel(UseCase):
                 data_model_id=data_model_id,
             )
             emitter.emit("add_data_model", record, conn)
-
-    def _get_next_data_model_id(self):
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        data_model_id = data_model_table.get_next_data_model_id(self.db)
-        return data_model_id
 
     def _create_schema(self, name, conn):
         schema = Schema(name)
@@ -123,10 +115,11 @@ class DeleteDataModel(UseCase):
         schema = Schema(name)
         metadata = Schema(METADATA_SCHEMA)
         datasets_table = DatasetsTable(schema=metadata)
+        data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
             schema.drop(conn)
-            data_model_id = self._get_data_model_id(code, version, conn)
+            data_model_id = data_model_table.get_data_model_id(code, version, conn)
             if not force:
                 self._validate_data_model_deletion(name, data_model_id, conn)
             datasets = datasets_table.get_datasets(conn)
@@ -139,19 +132,13 @@ class DeleteDataModel(UseCase):
             )
             emitter.emit("delete_data_model", record, conn)
 
-    def _get_data_model_id(self, code, version, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        data_model_id = data_model_table.get_data_model_id(code, version, conn)
-        return data_model_id
-
-    def _validate_data_model_deletion(self, schema_name, data_model_id, conn):
+    def _validate_data_model_deletion(self, data_model_name, data_model_id, conn):
         metadata = Schema(METADATA_SCHEMA)
         datasets_table = DatasetsTable(schema=metadata)
         datasets = datasets_table.get_datasets(conn, data_model_id)
         if not len(datasets) == 0:
             raise ForeignKeyError(
-                f"The Schema:{schema_name} cannot be deleted because it contains Datasets: {datasets}"
+                f"The Schema:{data_model_name} cannot be deleted because it contains Datasets: {datasets}"
                 f"\nIf you want to force delete everything, please use the  '-- force' flag"
             )
 
@@ -189,30 +176,31 @@ class AddDataset(UseCase):
         self.db = db
 
     def execute(self, dataset_data, code, version) -> None:
-        dataset_id = self._get_next_dataset_id()
         dataset = Dataset(dataset_data)
 
-        schema_name = get_data_model_fullname(code=code, version=version)
-        schema = Schema(schema_name)
+        data_model_name = get_data_model_fullname(code=code, version=version)
+        data_model = Schema(data_model_name)
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
-        schemas_id = data_model_table.get_data_model_id(code, version, self.db)
 
         with self.db.begin() as conn:
-            primary_data_table = PrimaryDataTable.from_db(schema, conn)
+            dataset_id = self._get_next_dataset_id(conn)
+            data_model_id = data_model_table.get_data_model_id(code, version, conn)
+
+            primary_data_table = PrimaryDataTable.from_db(data_model, conn)
             self._verify_dataset_does_not_exist(dataset, conn)
             primary_data_table.insert_dataset(dataset, conn)
             record = dict(
-                data_model_id=schemas_id,
+                data_model_id=data_model_id,
                 dataset_id=dataset_id,
                 code=dataset.name,
             )
             emitter.emit("add_dataset", record, conn)
 
-    def _get_next_dataset_id(self):
+    def _get_next_dataset_id(self, conn):
         metadata = Schema(METADATA_SCHEMA)
         datasets_table = DatasetsTable(schema=metadata)
-        dataset_id = datasets_table.get_next_dataset_id(self.db)
+        dataset_id = datasets_table.get_next_dataset_id(conn)
         return dataset_id
 
     def _verify_dataset_does_not_exist(self, dataset, conn):
@@ -241,14 +229,18 @@ class DeleteDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, dataset, schema_code, version) -> None:
-        schema_name = get_data_model_fullname(code=schema_code, version=version)
-        schema = Schema(schema_name)
+    def execute(self, dataset, data_model_code, version) -> None:
+        data_model_name = get_data_model_fullname(code=data_model_code, version=version)
+        data_model = Schema(data_model_name)
+        metadata = Schema(METADATA_SCHEMA)
+        data_model_table = DataModelTable(schema=metadata)
+        datasets_table = DatasetsTable(schema=metadata)
+
         with self.db.begin() as conn:
-            primary_data_table = PrimaryDataTable.from_db(schema, conn)
-            primary_data_table.remove_dataset(dataset, schema_name, conn)
-            data_model_id = self._get_data_model_id(schema_code, version, conn)
-            dataset_id = self._get_dataset_id(dataset, data_model_id, conn)
+            primary_data_table = PrimaryDataTable.from_db(data_model, conn)
+            primary_data_table.remove_dataset(dataset, data_model_name, conn)
+            data_model_id = data_model_table.get_data_model_id(data_model_code, version, conn)
+            dataset_id = datasets_table.get_dataset_id(dataset, data_model_id, conn)
 
             record = dict(
                 dataset_id=dataset_id,
@@ -257,18 +249,6 @@ class DeleteDataset(UseCase):
             )
 
             emitter.emit("delete_dataset", record, conn)
-
-    def _get_data_model_id(self, code, version, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        data_model_id = data_model_table.get_data_model_id(code, version, conn)
-        return data_model_id
-
-    def _get_dataset_id(self, code, data_model_id, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
-        dataset_id = datasets_table.get_dataset_id(code, data_model_id, conn)
-        return dataset_id
 
 
 @emitter.handle("delete_dataset")
@@ -289,29 +269,23 @@ class EnableDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, name, version) -> None:
+    def execute(self, code, version) -> None:
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
-            data_model_id = self._get_data_model_id(name, version, conn)
+            data_model_id = data_model_table.get_data_model_id(code, version, conn)
             current_status = data_model_table.get_data_model_status(data_model_id, conn)
             if current_status != "ENABLED":
                 data_model_table.set_data_model_status("ENABLED", data_model_id, conn)
                 record = dict(
-                    code=name,
+                    code=code,
                     version=version,
                     data_model_id=data_model_id,
                 )
                 emitter.emit("enable_data_model", record, conn)
             else:
-                raise UserInputError("The schema was already enabled")
-
-    def _get_data_model_id(self, code, version, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        data_model_id = data_model_table.get_data_model_id(code, version, conn)
-        return data_model_id
+                raise UserInputError("The data model was already enabled")
 
 
 @emitter.handle("enable_data_model")
@@ -323,30 +297,24 @@ class DisableDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, name, version) -> None:
+    def execute(self, code, version) -> None:
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
-            data_model_id = self._get_data_model_id(name, version, conn)
+            data_model_id = data_model_table.get_data_model_id(code, version, conn)
             current_status = data_model_table.get_data_model_status(data_model_id, conn)
 
             if current_status != "DISABLED":
                 data_model_table.set_data_model_status("DISABLED", data_model_id, conn)
                 record = dict(
-                    code=name,
+                    code=code,
                     version=version,
                     data_model_id=data_model_id,
                 )
                 emitter.emit("disable_data_model", record, conn)
             else:
-                raise UserInputError("The schema was already disabled")
-
-    def _get_data_model_id(self, code, version, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        data_model_id = data_model_table.get_data_model_id(code, version, conn)
-        return data_model_id
+                raise UserInputError("The data model was already disabled")
 
 
 @emitter.handle("disable_data_model")
@@ -358,13 +326,15 @@ class EnableDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, dataset, schema_code, version) -> None:
+    def execute(self, dataset, data_model_code, version) -> None:
         metadata = Schema(METADATA_SCHEMA)
         datasets_table = DatasetsTable(schema=metadata)
+        data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
-            data_model_id = self._get_data_model_id(schema_code, version, conn)
-            dataset_id = self._get_dataset_id(dataset, data_model_id, conn)
+
+            data_model_id = data_model_table.get_data_model_id(data_model_code, version, conn)
+            dataset_id = datasets_table.get_dataset_id(dataset, data_model_id, conn)
             current_status = datasets_table.get_dataset_status(dataset_id, conn)
             if current_status != "ENABLED":
                 datasets_table.set_dataset_status("ENABLED", dataset_id, conn)
@@ -378,18 +348,6 @@ class EnableDataset(UseCase):
             else:
                 raise UserInputError("The dataset was already enabled")
 
-    def _get_data_model_id(self, code, version, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        data_model_id = data_model_table.get_data_model_id(code, version, conn)
-        return data_model_id
-
-    def _get_dataset_id(self, code, data_model_id, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
-        dataset_id = datasets_table.get_dataset_id(code, data_model_id, conn)
-        return dataset_id
-
 
 @emitter.handle("enable_dataset")
 def update_actions_on_dataset_enablement(record, conn):
@@ -400,13 +358,14 @@ class DisableDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, dataset, schema_code, version) -> None:
+    def execute(self, dataset, data_model_code, version) -> None:
         metadata = Schema(METADATA_SCHEMA)
         datasets_table = DatasetsTable(schema=metadata)
-
+        data_model_table = DataModelTable(schema=metadata)
         with self.db.begin() as conn:
-            data_model_id = self._get_data_model_id(schema_code, version, conn)
-            dataset_id = self._get_dataset_id(dataset, data_model_id, conn)
+
+            data_model_id = data_model_table.get_data_model_id(data_model_code, version, conn)
+            dataset_id = datasets_table.get_dataset_id(dataset, data_model_id, conn)
             current_status = datasets_table.get_dataset_status(dataset_id, conn)
             if current_status != "DISABLED":
                 datasets_table.set_dataset_status("DISABLED", dataset_id, conn)
@@ -420,18 +379,6 @@ class DisableDataset(UseCase):
             else:
                 raise UserInputError("The dataset was already disabled")
 
-    def _get_data_model_id(self, code, version, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        data_model_id = data_model_table.get_data_model_id(code, version, conn)
-        return data_model_id
-
-    def _get_dataset_id(self, code, data_model_id, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
-        dataset_id = datasets_table.get_dataset_id(code, data_model_id, conn)
-        return dataset_id
-
 
 @emitter.handle("disable_dataset")
 def update_actions_on_dataset_disablement(record, conn):
@@ -442,24 +389,18 @@ class TagDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, code, version, tag, key_value, add, remove) -> None:
-        if not tag and not key_value:
-            raise UserInputError("You need to provide a tag or/and a key value pair")
-        if add == remove:
-            raise UserInputError("You need to add or remove")
-
-        action = Action.ADD if add else Action.REMOVE
+    def execute(self, code, version, tag) -> None:
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
-            data_model_id = self._get_data_model_id(code, version, conn)
+            data_model_id = data_model_table.get_data_model_id(code, version, conn)
             properties = Properties(
                 data_model_table.get_data_model_properties(data_model_id, conn)
             )
-            properties.update_properties(tag, key_value, action)
+            properties.add_tag(tag)
             data_model_table.set_data_model_properties(properties.properties, data_model_id, conn)
-            action = "REMOVE DATA MODEL TAG" if action == Action.REMOVE else "ADD DATA MODEL TAG"
+            action = "ADD DATA MODEL TAG"
 
             record = dict(
                 code=code,
@@ -469,11 +410,84 @@ class TagDataModel(UseCase):
             )
             emitter.emit("tag_data_model", record, conn)
 
-    def _get_data_model_id(self, code, version, conn):
+
+class UntagDataModel(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, code, version, tag) -> None:
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
-        data_model_id = data_model_table.get_data_model_id(code, version, conn)
-        return data_model_id
+
+        with self.db.begin() as conn:
+            data_model_id = data_model_table.get_data_model_id(code, version, conn)
+            properties = Properties(
+                data_model_table.get_data_model_properties(data_model_id, conn)
+            )
+            properties.remove_tag(tag)
+            data_model_table.set_data_model_properties(properties.properties, data_model_id, conn)
+            action = "REMOVE DATA MODEL TAG"
+
+            record = dict(
+                code=code,
+                version=version,
+                data_model_id=data_model_id,
+                action=action,
+            )
+            emitter.emit("tag_data_model", record, conn)
+
+
+class AddPropertyToDataModel(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, code, version, key, value, force) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        data_model_table = DataModelTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            data_model_id = data_model_table.get_data_model_id(code, version, conn)
+            properties = Properties(
+                data_model_table.get_data_model_properties(data_model_id, conn)
+            )
+            properties.add_property(key, value, force)
+            data_model_table.set_data_model_properties(properties.properties, data_model_id, conn)
+            action = "ADD DATA MODEL TAG"
+
+            record = dict(
+                code=code,
+                version=version,
+                data_model_id=data_model_id,
+                action=action,
+            )
+            emitter.emit("tag_data_model", record, conn)
+
+
+class RemovePropertyFromDataModel(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, code, version, key, value) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        data_model_table = DataModelTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            data_model_id = data_model_table.get_data_model_id(code, version, conn)
+
+            properties = Properties(
+                data_model_table.get_data_model_properties(data_model_id, conn)
+            )
+            properties.remove_property(key, value)
+            data_model_table.set_data_model_properties(properties.properties, data_model_id, conn)
+            action = "REMOVE DATA MODEL TAG"
+
+            record = dict(
+                code=code,
+                version=version,
+                data_model_id=data_model_id,
+                action=action,
+            )
+            emitter.emit("tag_data_model", record, conn)
 
 
 @emitter.handle("tag_data_model")
@@ -486,27 +500,23 @@ class TagDataset(UseCase):
         self.db = db
 
     def execute(
-        self, dataset, schema_code, version, tag, key_value, add, remove
+            self, dataset, data_model_code, version, tag
     ) -> None:
-        if not tag and not key_value:
-            raise UserInputError("You need to provide a tag or/and a key value pair")
-        if add == remove:
-            raise UserInputError("You need to add or remove")
-
-        action = Action.ADD if add else Action.REMOVE
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
+        data_model_table = DataModelTable(schema=metadata)
+
         with self.db.begin() as conn:
-            data_model_id = self._get_data_model_id(schema_code, version, conn)
-            dataset_id = self._get_dataset_id(dataset, data_model_id, conn)
+            data_model_id = data_model_table.get_data_model_id(data_model_code, version, conn)
+            dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, conn)
             properties = Properties(
-                dataset_table.get_dataset_properties(dataset_id, conn)
+                dataset_table.get_dataset_properties(data_model_id, conn)
             )
-            properties.update_properties(tag, key_value, action)
+            properties.add_tag(tag)
             dataset_table.set_dataset_properties(
                 properties.properties, dataset_id, conn
             )
-            action = "REMOVE DATASET TAG" if action == Action.REMOVE else "ADD DATASET TAG"
+            action = "ADD DATASET TAG"
 
             record = dict(
                 dataset_id=dataset_id,
@@ -517,17 +527,102 @@ class TagDataset(UseCase):
 
             emitter.emit("tag_dataset", record, conn)
 
-    def _get_data_model_id(self, code, version, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        data_model_id = data_model_table.get_data_model_id(code, version, conn)
-        return data_model_id
 
-    def _get_dataset_id(self, code, data_model_id, conn):
+class UntagDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(
+            self, dataset, data_model_code, version, tag
+    ) -> None:
         metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
-        dataset_id = datasets_table.get_dataset_id(code, data_model_id, conn)
-        return dataset_id
+        dataset_table = DatasetsTable(schema=metadata)
+        data_model_table = DataModelTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            data_model_id = data_model_table.get_data_model_id(data_model_code, version, conn)
+            dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, conn)
+            properties = Properties(
+                dataset_table.get_dataset_properties(data_model_id, conn)
+            )
+            properties.remove_tag(tag)
+            dataset_table.set_dataset_properties(
+                properties.properties, dataset_id, conn
+            )
+            action = "ADD DATASET TAG"
+
+            record = dict(
+                dataset_id=dataset_id,
+                data_model_id=data_model_id,
+                version=version,
+                action=action,
+            )
+
+            emitter.emit("tag_dataset", record, conn)
+
+
+class AddPropertyToDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(
+            self, dataset, data_model_code, version, key, value, force
+    ) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        dataset_table = DatasetsTable(schema=metadata)
+        data_model_table = DataModelTable(schema=metadata)
+        with self.db.begin() as conn:
+            data_model_id = data_model_table.get_data_model_id(data_model_code, version, conn)
+            dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, conn)
+            properties = Properties(
+                dataset_table.get_dataset_properties(data_model_id, conn)
+            )
+            properties.add_property(key, value, force)
+            dataset_table.set_dataset_properties(
+                properties.properties, dataset_id, conn
+            )
+            action = "ADD DATASET TAG"
+
+            record = dict(
+                dataset_id=dataset_id,
+                data_model_id=data_model_id,
+                version=version,
+                action=action,
+            )
+
+            emitter.emit("tag_dataset", record, conn)
+
+
+class RemovePropertyFromDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(
+            self, dataset, data_model_code, version, key, value
+    ) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        dataset_table = DatasetsTable(schema=metadata)
+        data_model_table = DataModelTable(schema=metadata)
+        with self.db.begin() as conn:
+            data_model_id = data_model_table.get_data_model_id(data_model_code, version, conn)
+            dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, conn)
+            properties = Properties(
+                dataset_table.get_dataset_properties(data_model_id, conn)
+            )
+            properties.remove_property(key, value)
+            dataset_table.set_dataset_properties(
+                properties.properties, dataset_id, conn
+            )
+            action = "REMOVE DATASET TAG"
+
+            record = dict(
+                dataset_id=dataset_id,
+                data_model_id=data_model_id,
+                version=version,
+                action=action,
+            )
+
+            emitter.emit("tag_dataset", record, conn)
 
 
 @emitter.handle("tag_dataset")
@@ -548,52 +643,3 @@ def update_actions(record, action, conn):
     action_record["action_id"] = actions_table.get_next_id(conn)
     action_record["action"] = json.dumps(record)
     actions_table.insert_values(action_record, conn)
-
-
-class Properties:
-    def __init__(self, properties) -> None:
-        self.properties = properties
-
-    def update_properties(self, tag, key_value, action):
-        if not self.properties:
-            self.properties = json.dumps({"tags": []})
-
-        if tag:
-            self.update_properties_tag(tag, action)
-
-        if key_value:
-            self.update_properties_key_value(key_value, action)
-
-    def update_properties_tag(self, tag, action):
-        if action == Action.REMOVE:
-            properties_dict = json.loads(self.properties)
-            if tag in properties_dict["tags"]:
-                properties_dict["tags"].remove(tag)
-                self.properties = json.dumps(properties_dict)
-            else:
-                raise UserInputError("Tag does not exist")
-        else:
-            properties_dict = json.loads(self.properties)
-            if tag not in properties_dict["tags"]:
-                properties_dict["tags"].append(tag)
-                self.properties = json.dumps(properties_dict)
-            else:
-                raise UserInputError("Tag already exists")
-
-    def update_properties_key_value(self, key_value, action):
-        if action == Action.REMOVE:
-            properties_dict = json.loads(self.properties)
-            if key_value in properties_dict.items():
-                key, _ = key_value
-                properties_dict.pop(key)
-                self.properties = json.dumps(properties_dict)
-            else:
-                raise UserInputError("Key value does not exist")
-        else:
-            properties_dict = json.loads(self.properties)
-            if key_value not in properties_dict.items():
-                key, value = key_value
-                properties_dict[key] = value
-                self.properties = json.dumps(properties_dict)
-            else:
-                raise UserInputError("Key value already exists")
