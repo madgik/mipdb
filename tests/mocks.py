@@ -36,27 +36,26 @@ class MonetDBMock(MonetDB):
     def get_current_user(self):
         return "test_user"
 
-    def get_schema_id(self, code, version):
+    def get_data_model_id(self, code, version):
         return 1
 
-    def get_dataset_id(self, code, schema_id):
+    def get_dataset_id(self, code, data_model_id):
         return 1
 
     def get_executor(self):
         return None
 
-    def get_datasets(self, schema_id=None):
+    def get_datasets(self, data_model_id=None):
         return [1, 2]
 
     def get_dataset_status(self, dataset_id):
         return "WrongStatus"
 
-    def get_schema_status(self, schema_id):
+    def get_data_model_status(self, data_model_id):
         return "WrongStatus"
 
     def get_dataset_properties(self, dataset_id):
         return '{"tags":["tag1"], "properties": {"key1": "value1"}}'
 
-    def get_schema_properties(self, schema_id):
+    def get_data_model_properties(self, dataset_id):
         return '{"tags":["tag1"], "properties": {"key1": "value1"}}'
-

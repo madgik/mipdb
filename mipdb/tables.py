@@ -51,16 +51,16 @@ class Table(ABC):
         db.drop_table(self._table)
 
 
-class SchemasTable(Table):
+class DataModelTable(Table):
     def __init__(self, schema):
-        self.schema_id_seq = sql.Sequence("schema_id_seq", metadata=schema.schema)
+        self.data_model_id_seq = sql.Sequence("data_model_id_seq", metadata=schema.schema)
         self._table = sql.Table(
-            "schemas",
+            "data_models",
             schema.schema,
             sql.Column(
-                "schema_id",
+                "data_model_id",
                 SQLTYPES.INTEGER,
-                self.schema_id_seq,
+                self.data_model_id_seq,
                 primary_key=True,
             ),
             sql.Column("code", SQLTYPES.STRING, nullable=False),
@@ -70,31 +70,31 @@ class SchemasTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
-    def get_schema_id(self, code, version, db):
-        return db.get_schema_id(code, version)
+    def get_data_model_id(self, code, version, db):
+        return db.get_data_model_id(code, version)
 
-    def get_schema_properties(self, schema_id, db):
-        return db.get_schema_properties(schema_id)
+    def get_data_model_properties(self, data_model_id, db):
+        return db.get_data_model_properties(data_model_id)
 
-    def set_schema_properties(self, properties, schema_id, db):
-        db.set_schema_properties(properties, schema_id)
+    def set_data_model_properties(self, properties, data_model_id, db):
+        db.set_data_model_properties(properties, data_model_id)
 
-    def get_schema_status(self, schema_id, db):
-        return db.get_schema_status(schema_id)
+    def get_data_model_status(self, data_model_id, db):
+        return db.get_data_model_status(data_model_id)
 
-    def set_schema_status(self, status, schema_id, db):
-        db.update_schema_status(status, schema_id)
+    def set_data_model_status(self, status, data_model_id, db):
+        db.update_data_model_status(status, data_model_id)
 
-    def delete_schema(self, code, version, db):
+    def delete_data_model(self, code, version, db):
         delete = sql.text(
-            f"DELETE FROM {METADATA_SCHEMA}.schemas "
+            f"DELETE FROM {METADATA_SCHEMA}.data_models "
             "WHERE code = :code "
             "AND version = :version "
         )
         db.execute(delete, code=code, version=version)
 
-    def get_next_schema_id(self, db):
-        return db.execute(self.schema_id_seq)
+    def get_next_data_model_id(self, db):
+        return db.execute(self.data_model_id_seq)
 
 
 class DatasetsTable(Table):
@@ -110,9 +110,9 @@ class DatasetsTable(Table):
                 primary_key=True,
             ),
             sql.Column(
-                "schema_id",
+                "data_model_id",
                 SQLTYPES.INTEGER,
-                ForeignKey("schemas.schema_id"),
+                ForeignKey("data_models.data_model_id"),
                 nullable=False,
             ),
             sql.Column("code", SQLTYPES.STRING, nullable=False),
@@ -121,8 +121,8 @@ class DatasetsTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
-    def get_datasets(self, db, schema_id=None):
-        return db.get_datasets(schema_id)
+    def get_datasets(self, db, data_model_id=None):
+        return db.get_datasets(data_model_id)
 
     def get_dataset_properties(self, dataset_id, db):
         return db.get_dataset_properties(dataset_id)
@@ -130,25 +130,25 @@ class DatasetsTable(Table):
     def set_dataset_properties(self, properties, dataset_id, db):
         db.set_dataset_properties(properties, dataset_id)
 
-    def delete_dataset(self, dataset_id, schema_id, db):
+    def delete_dataset(self, dataset_id, data_model_id, db):
         delete = sql.text(
             f"DELETE FROM {METADATA_SCHEMA}.datasets "
             "WHERE dataset_id = :dataset_id "
-            "AND schema_id = :schema_id "
+            "AND data_model_id = :data_model_id "
         )
-        db.execute(delete, dataset_id=dataset_id, schema_id=schema_id)
+        db.execute(delete, dataset_id=dataset_id, data_model_id=data_model_id)
 
     def get_next_dataset_id(self, db):
         return db.execute(self.dataset_id_seq)
 
-    def get_dataset_status(self, schema_id, db):
-        return db.get_dataset_status(schema_id)
+    def get_dataset_status(self, data_model_id, db):
+        return db.get_dataset_status(data_model_id)
 
     def set_dataset_status(self, status, dataset_id, db):
         db.update_dataset_status(status, dataset_id)
 
-    def get_dataset_id(self, code, schema_id, db):
-        return db.get_dataset_id(code, schema_id)
+    def get_dataset_id(self, code, data_model_id, db):
+        return db.get_dataset_id(code, data_model_id)
 
 
 class ActionsTable(Table):
