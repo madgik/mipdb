@@ -135,7 +135,7 @@ def test_delete_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_data_model_addition(db):
+def test_tag_data_model(db):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/data_model.json"
@@ -161,34 +161,7 @@ def test_tag_data_model_addition(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_property_data_model_addition(db):
-    # Setup
-    runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-
-    # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-
-    # Test
-    result = runner.invoke(
-        tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"]
-    )
-    assert result.exit_code == ExitCode.OK
-    (properties, *_), *_ = db.execute(
-        f"select properties from mipdb_metadata.data_models"
-    ).fetchall()
-    assert '{"tags": ["tag"], "properties": {}}' == properties
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[1]
-    assert action_id == 2
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATA MODEL TAG"
-
-
-@pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_data_model_deletion(db):
+def test_untag_data_model(db):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/data_model.json"
@@ -219,7 +192,64 @@ def test_tag_data_model_deletion(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_addition(db):
+def test_property_data_model_addition(db):
+    # Setup
+    runner = CliRunner()
+    data_model_file = "tests/data/data_model.json"
+
+    runner.invoke(init, [])
+    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+
+    # Test
+    result = runner.invoke(
+        tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0"]
+    )
+    assert result.exit_code == ExitCode.OK
+    (properties, *_), *_ = db.execute(
+        f"select properties from mipdb_metadata.data_models"
+    ).fetchall()
+    assert '{"tags": [], "properties": {"key": "value"}}' == properties
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+    action_id, action = action_record[1]
+    assert action_id == 2
+    assert action != ""
+    assert json.loads(action)["action"] == "ADD DATA MODEL TAG"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_property_data_model_deletion(db):
+    # Setup
+    runner = CliRunner()
+    data_model_file = "tests/data/data_model.json"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(
+        tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0"]
+    )
+
+    # Test
+    result = runner.invoke(
+        tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0", "-r"]
+    )
+    assert result.exit_code == ExitCode.OK
+    (properties, *_), *_ = db.execute(
+        f"select properties from mipdb_metadata.data_models"
+    ).fetchall()
+    assert '{"tags": [], "properties": {}}' == properties
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+
+    action_id, action = action_record[2]
+    assert action_id == 3
+    assert action != ""
+    assert json.loads(action)["action"] == "REMOVE DATA MODEL TAG"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_tag_dataset(db):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/data_model.json"
@@ -249,7 +279,7 @@ def test_tag_dataset_addition(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_deletion(db):
+def test_untag_dataset(db):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/data_model.json"
@@ -272,6 +302,74 @@ def test_tag_dataset_deletion(db):
     result = runner.invoke(
         tag_dataset,
         ["a_dataset", "-t", "tag", "-d", "data_model", "-v", "1.0", "-r"],
+    )
+    assert result.exit_code == ExitCode.OK
+    (properties, *_), *_ = db.execute(
+        f"select properties from mipdb_metadata.datasets"
+    ).fetchall()
+    assert '{"tags": [], "properties": {}}' == properties
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+    action_id, action = action_record[2]
+    assert action_id == 3
+    assert action != ""
+    assert json.loads(action)["action"] == "ADD DATASET TAG"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_property_dataset_addition(db):
+    # Setup
+    runner = CliRunner()
+    data_model_file = "tests/data/data_model.json"
+    dataset_file = "tests/data/dataset.csv"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+
+    # Test
+    result = runner.invoke(
+        tag_dataset,
+        ["a_dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
+    )
+    assert result.exit_code == ExitCode.OK
+    (properties, *_), *_ = db.execute(
+        f"select properties from mipdb_metadata.datasets"
+    ).fetchall()
+    assert '{"tags": [], "properties": {"key": "value"}}' == properties
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+    action_id, action = action_record[2]
+    assert action_id == 3
+    assert action != ""
+    assert json.loads(action)["action"] == "ADD DATASET TAG"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_property_dataset_deletion(db):
+    # Setup
+    runner = CliRunner()
+    data_model_file = "tests/data/data_model.json"
+    dataset_file = "tests/data/dataset.csv"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    result = runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    assert result.exit_code == ExitCode.OK
+
+    result = runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    assert result.exit_code == ExitCode.OK
+    result = runner.invoke(
+        tag_dataset,
+        ["a_dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
+    )
+    assert result.exit_code == ExitCode.OK
+
+    # Test
+    result = runner.invoke(
+        tag_dataset,
+        ["a_dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0", "-r"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
