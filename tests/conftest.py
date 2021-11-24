@@ -9,9 +9,9 @@ from mipdb.reader import JsonFileReader
 
 
 @pytest.fixture
-def schema_data():
-    schema_file = "tests/data/schema.json"
-    reader = JsonFileReader(schema_file)
+def data_model_data():
+    data_model_file = "tests/data/data_model.json"
+    reader = JsonFileReader(data_model_file)
     return reader.read()
 
 

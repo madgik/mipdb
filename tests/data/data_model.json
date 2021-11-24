@@ -1,6 +1,6 @@
 {
-        "code": "schema",
-        "label": "The Schema",
+        "code": "data_model",
+        "label": "The Data Model",
         "version": "1.0",
         "variables": [
             {

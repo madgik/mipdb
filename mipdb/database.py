@@ -38,11 +38,11 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def get_schema_status(self, schema_id):
+    def get_data_model_status(self, data_model_id):
         pass
 
     @abstractmethod
-    def update_schema_status(self, status, schema_id):
+    def update_data_model_status(self, status, data_model_id):
         pass
 
     @abstractmethod
@@ -54,7 +54,7 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def get_datasets(self, schema_id):
+    def get_datasets(self, data_model_id):
         pass
 
     @abstractmethod
@@ -62,11 +62,27 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def get_dataset_properties(self, dataset_id):
+        pass
+
+    @abstractmethod
+    def get_data_model_properties(self, data_model_id):
+        pass
+
+    @abstractmethod
+    def set_data_model_properties(self, properties, data_model_id):
+        pass
+
+    @abstractmethod
+    def set_dataset_properties(self, properties, dataset_id):
+        pass
+
+    @abstractmethod
     def get_schemas(self):
         pass
 
     @abstractmethod
-    def get_schema_id(self, code, version):
+    def get_data_model_id(self, code, version):
         pass
 
     @abstractmethod
@@ -78,7 +94,7 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def get_dataset_id(self, code, schema_id):
+    def get_dataset_id(self, code, data_model_id):
         pass
 
     @abstractmethod
@@ -102,11 +118,11 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
-    def get_schema_status(self, schema_id):
+    def get_data_model_status(self, data_model_id):
         pass
 
     @abstractmethod
-    def update_schema_status(self, status, schema_id):
+    def update_data_model_status(self, status, data_model_id):
         pass
 
     @abstractmethod
@@ -122,7 +138,23 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
-    def get_dataset_id(self, code, schema_id):
+    def get_dataset_properties(self, dataset_id):
+        pass
+
+    @abstractmethod
+    def get_data_model_properties(self, data_model_id):
+        pass
+
+    @abstractmethod
+    def set_data_model_properties(self, properties, data_model_id):
+        pass
+
+    @abstractmethod
+    def set_dataset_properties(self, properties, dataset_id):
+        pass
+
+    @abstractmethod
+    def get_dataset_id(self, code, data_model_id):
         pass
 
     @abstractmethod
@@ -130,7 +162,7 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
-    def get_datasets(self, schema_id):
+    def get_datasets(self, data_model_id):
         pass
 
     @abstractmethod
@@ -207,30 +239,30 @@ class DBExecutorMixin(ABC):
     def drop_schema(self, schema_name):
         self.execute(f'DROP SCHEMA "{schema_name}" CASCADE')
 
-    def get_schema_status(self, schema_id):
+    def get_data_model_status(self, data_model_id):
         select = sql.text(
-            f"SELECT status FROM {METADATA_SCHEMA}.schemas "
-            "WHERE schema_id = :schema_id "
+            f"SELECT status FROM {METADATA_SCHEMA}.data_models "
+            "WHERE data_model_id = :data_model_id "
         )
-        res = self.execute(select, schema_id=schema_id)
-        return list(res)
+        (status, *_), *_ = self.execute(select, data_model_id=data_model_id)
+        return status
 
-    def update_schema_status(self, status, schema_id):
+    def update_data_model_status(self, status, data_model_id):
         update = sql.text(
-            f"UPDATE {METADATA_SCHEMA}.schemas "
+            f"UPDATE {METADATA_SCHEMA}.data_models "
             "SET status = :status "
-            "WHERE schema_id = :schema_id "
+            "WHERE data_model_id = :data_model_id "
             "AND status <> :status"
         )
-        self.execute(update, status=status, schema_id=schema_id)
+        self.execute(update, status=status, data_model_id=data_model_id)
 
     def get_dataset_status(self, dataset_id):
         select = sql.text(
             f"SELECT status FROM {METADATA_SCHEMA}.datasets "
             "WHERE dataset_id = :dataset_id "
         )
-        res = self.execute(select, dataset_id=dataset_id)
-        return list(res)
+        (status, *_), *_ = self.execute(select, dataset_id=dataset_id)
+        return status
 
     def update_dataset_status(self, status, dataset_id):
         update = sql.text(
@@ -242,47 +274,47 @@ class DBExecutorMixin(ABC):
         self.execute(update, status=status, dataset_id=dataset_id)
 
     @handle_errors
-    def get_schema_id(self, code, version):
+    def get_data_model_id(self, code, version):
         # I am forced to use textual SQL instead of SQLAlchemy objects because
         # of two bugs. The first one is in sqlalchemy_monetdb which translates
         # the 'not equal' operator as != instead of the correct <>. The second
         # bug is in Monet DB where column names of level >= 3 are not yet
         # implemented.
         select = sql.text(
-            "SELECT schemas.schema_id "
-            f"FROM {METADATA_SCHEMA}.schemas "
-            "WHERE schemas.code = :code "
-            "AND schemas.version = :version "
-            "AND schemas.status <> 'DELETED'"
+            "SELECT data_model_id "
+            f"FROM {METADATA_SCHEMA}.data_models "
+            "WHERE code = :code "
+            "AND version = :version "
+            "AND status <> 'DELETED'"
         )
         res = list(self.execute(select, code=code, version=version))
         if len(res) > 1:
             raise DataBaseError(
-                f"Got more than one schema ids for {code=} and {version=}."
+                f"Got more than one data_model ids for {code=} and {version=}."
             )
         if len(res) == 0:
             raise DataBaseError(
-                f"Schemas table doesn't have a record with {code=}, {version=}"
+                f"Data_models table doesn't have a record with {code=}, {version=}"
             )
         return res[0][0]
 
     @handle_errors
-    def get_dataset_id(self, code, schema_id):
+    def get_dataset_id(self, code, data_model_id):
         select = sql.text(
-            "SELECT datasets.dataset_id "
+            "SELECT dataset_id "
             f"FROM {METADATA_SCHEMA}.datasets "
-            "WHERE datasets.code = :code "
-            "AND datasets.schema_id = :schema_id "
-            "AND datasets.status <> 'DELETED'"
+            "WHERE code = :code "
+            "AND data_model_id = :data_model_id "
+            "AND status <> 'DELETED'"
         )
-        res = list(self.execute(select, code=code, schema_id=schema_id))
+        res = list(self.execute(select, code=code, data_model_id=data_model_id))
         if len(res) > 1:
             raise DataBaseError(
-                f"Got more than one dataset ids for {code=} and {schema_id=}."
+                f"Got more than one dataset ids for {code=} and {data_model_id=}."
             )
         if len(res) == 0:
             raise DataBaseError(
-                f"Datasets table doesn't have a record with {code=}, {schema_id=}"
+                f"Datasets table doesn't have a record with {code=}, {data_model_id=}"
             )
         return res[0][0]
 
@@ -290,17 +322,41 @@ class DBExecutorMixin(ABC):
         res = self.execute("SELECT name FROM sys.schemas WHERE system=FALSE")
         return [schema for schema, *_ in res]
 
-    def get_datasets(self, schema_id=None):
-        schema_id_clause = "" if schema_id is None else f"WHERE schema_id=schema_id"
+    def get_datasets(self, data_model_id=None):
+        data_model_id_clause = "" if data_model_id is None else f"WHERE data_model_id=data_model_id"
         res = self.execute(
-            "SELECT datasets.code "
-            f"FROM {METADATA_SCHEMA}.datasets {schema_id_clause}"
+            "SELECT code "
+            f"FROM {METADATA_SCHEMA}.datasets {data_model_id_clause}"
         )
         return [dataset for dataset, *_ in res]
 
     @handle_errors
     def create_table(self, table):
         table.create(bind=self._executor)
+
+    def get_dataset_properties(self, dataset_id):
+        (properties, *_), *_ = self.execute(
+            f"SELECT properties FROM {METADATA_SCHEMA}.datasets WHERE dataset_id = {dataset_id}"
+        )
+        return properties
+
+    def get_data_model_properties(self, data_model_id):
+        (properties, *_), *_ = self.execute(
+            f"SELECT properties FROM {METADATA_SCHEMA}.data_models WHERE data_model_id = {data_model_id}"
+        )
+        return properties
+
+    def set_data_model_properties(self, properties, data_model_id):
+        self.execute(
+            f"UPDATE {METADATA_SCHEMA}.data_models SET properties = '{properties}'"
+            f" WHERE data_model_id = {data_model_id}"
+        )
+
+    def set_dataset_properties(self, properties, dataset_id):
+        self.execute(
+            f"UPDATE {METADATA_SCHEMA}.datasets SET properties = '{properties}'"
+            f" WHERE dataset_id = {dataset_id}"
+        )
 
     @handle_errors
     def drop_table(self, table):

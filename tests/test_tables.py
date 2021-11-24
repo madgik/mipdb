@@ -8,7 +8,7 @@ import pytest
 from mipdb.schema import Schema
 from mipdb.tables import (
     ActionsTable,
-    SchemasTable,
+    DataModelTable,
     DatasetsTable,
     MetadataTable,
     PrimaryDataTable,
@@ -24,25 +24,25 @@ def metadata():
 
 
 @pytest.fixture
-def cdes(schema_data):
-    return make_cdes(schema_data)
+def cdes(data_model_data):
+    return make_cdes(data_model_data)
 
 
-def test_schemas_table_mockdb(metadata):
+def test_data_models_table_mockdb(metadata):
     # Setup
     db = MonetDBMock()
     # Test
-    SchemasTable(schema=metadata).create(db)
-    assert f"CREATE SEQUENCE mipdb_metadata.schema_id_seq" == db.captured_queries[0]
+    DataModelTable(schema=metadata).create(db)
+    assert f"CREATE SEQUENCE mipdb_metadata.data_model_id_seq" == db.captured_queries[0]
     expected_create = (
-        f"\nCREATE TABLE mipdb_metadata.schemas ("
-        "\n\tschema_id INTEGER NOT NULL, "
+        f"\nCREATE TABLE mipdb_metadata.data_models ("
+        "\n\tdata_model_id INTEGER NOT NULL, "
         "\n\tcode VARCHAR(255) NOT NULL, "
         "\n\tversion VARCHAR(255) NOT NULL, "
         "\n\tlabel VARCHAR(255), "
         "\n\tstatus VARCHAR(255) NOT NULL, "
         "\n\tproperties JSON, "
-        "\n\tPRIMARY KEY (schema_id)"
+        "\n\tPRIMARY KEY (data_model_id)"
         "\n)\n\n"
     )
     assert expected_create == db.captured_queries[1]
@@ -50,16 +50,16 @@ def test_schemas_table_mockdb(metadata):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_schemas_table_realdb(db):
+def test_data_models_table_realdb(db):
     # Setup
     schema = Schema("schema")
     schema.create(db)
     # Test
-    SchemasTable(schema=schema).create(db)
+    DataModelTable(schema=schema).create(db)
     res = db.execute(
         "SELECT name, type FROM sys.columns WHERE "
         "table_id=(SELECT id FROM sys.tables "
-        "WHERE name='schemas' AND system=FALSE)"
+        "WHERE name='data_models' AND system=FALSE)"
     )
     assert res.fetchall() != []
 
@@ -76,11 +76,11 @@ def test_actions_table(metadata):
 def test_delete_schema(metadata):
     # Setup
     db = MonetDBMock()
-    schemas_table = SchemasTable(schema=metadata)
+    data_models_table = DataModelTable(schema=metadata)
     # Test
-    schemas_table.delete_schema(code="schema", version="1.0", db=db)
+    data_models_table.delete_data_model(code="schema", version="1.0", db=db)
     expected = (
-        f"DELETE FROM mipdb_metadata.schemas WHERE code = :code AND version = :version "
+        f"DELETE FROM mipdb_metadata.data_models WHERE code = :code AND version = :version "
     )
     assert expected in db.captured_queries[0]
 
@@ -108,14 +108,14 @@ class TestVariablesMetadataTable:
 
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-    def test_insert_values_with_db(self, db, schema_data):
+    def test_insert_values_with_db(self, db, data_model_data):
         # Setup
         schema = Schema("schema:1.0")
         schema.create(db)
         metadata_table = MetadataTable(schema)
         metadata_table.create(db)
         # Test
-        values = metadata_table.get_values_from_cdes(make_cdes(schema_data))
+        values = metadata_table.get_values_from_cdes(make_cdes(data_model_data))
         metadata_table.insert_values(values, db)
         res = db.execute(
             "SELECT code, json.filter(metadata, '$.isCategorical') "
@@ -130,23 +130,23 @@ class TestVariablesMetadataTable:
             ("var4", [False]),
         ]
 
-    def test_get_values_from_cdes_full_schema_data(self, schema_data):
+    def test_get_values_from_cdes_full_schema_data(self, data_model_data):
         # Setup
         metadata_table = MetadataTable(Schema("schema:1.0"))
-        cdes = make_cdes(schema_data)
+        cdes = make_cdes(data_model_data)
         # Test
         result = metadata_table.get_values_from_cdes(cdes)
         assert len(result) == 5
 
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-    def test_load_from_db(self, schema_data, db):
+    def test_load_from_db(self, data_model_data, db):
         # Setup
         schema = Schema("schema:1.0")
         schema.create(db)
         metadata_table = MetadataTable(schema)
         metadata_table.create(db)
-        values = metadata_table.get_values_from_cdes(make_cdes(schema_data))
+        values = metadata_table.get_values_from_cdes(make_cdes(data_model_data))
         metadata_table.insert_values(values, db)
         # Test
         schema = Schema("schema:1.0")

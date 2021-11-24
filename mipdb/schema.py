@@ -1,5 +1,3 @@
-from abc import abstractmethod, ABC
-
 import sqlalchemy as sql
 
 from mipdb.database import DataBase
