@@ -89,14 +89,14 @@ def test_add_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    assert 'a_dataset' not in db.get_datasets()
+    assert 'dataset1' not in db.get_datasets()
 
     # Test
     result = runner.invoke(
-        add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
+        add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"]
     )
-    assert "a_dataset" in db.get_datasets()
     assert result.exit_code == ExitCode.OK
+    assert "dataset1" in db.get_datasets()
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[1]
     assert action_id == 2
@@ -117,14 +117,14 @@ def test_delete_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
-    assert "a_dataset" in db.get_datasets()
+    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
+    assert "dataset1" in db.get_datasets()
 
     # Test
     result = runner.invoke(
-        delete_dataset, ["a_dataset", "--data-model", "data_model", "-v", "1.0"]
+        delete_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"]
     )
-    assert "a_dataset" not in db.get_datasets()
+    assert "dataset1" not in db.get_datasets()
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[2]
@@ -258,12 +258,12 @@ def test_tag_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-d", "data_model", "-v", "1.0"],
+        ["dataset1", "-t", "tag", "-d", "data_model", "-v", "1.0"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -290,18 +290,18 @@ def test_untag_dataset(db):
     result = runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
 
-    result = runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    result = runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-d", "data_model", "-v", "1.0"],
+        ["dataset1", "-t", "tag", "-d", "data_model", "-v", "1.0"],
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-d", "data_model", "-v", "1.0", "-r"],
+        ["dataset1", "-t", "tag", "-d", "data_model", "-v", "1.0", "-r"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -326,12 +326,12 @@ def test_property_dataset_addition(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
+        ["dataset1", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -358,18 +358,18 @@ def test_property_dataset_deletion(db):
     result = runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
 
-    result = runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    result = runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
+        ["dataset1", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0", "-r"],
+        ["dataset1", "-t", "key=value", "-d", "data_model", "-v", "1.0", "-r"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -439,12 +439,12 @@ def test_enable_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     assert _get_status(db, "datasets") == "DISABLED"
 
     # Test
     result = runner.invoke(
-        enable_dataset, ["a_dataset", "--data-model", "data_model", "-v", "1.0"]
+        enable_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"]
     )
     assert result.exit_code == ExitCode.OK
     assert _get_status(db, "datasets") == "ENABLED"
@@ -466,15 +466,15 @@ def test_disable_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     runner.invoke(
-        enable_dataset, ["a_dataset", "--data-model", "data_model", "-v", "1.0"]
+        enable_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"]
     )
     assert _get_status(db, "datasets") == "ENABLED"
 
     # Test
     result = runner.invoke(
-        disable_dataset, ["a_dataset", "--data-model", "data_model", "-v", "1.0"]
+        disable_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"]
     )
     assert _get_status(db, "datasets") == "DISABLED"
     assert result.exit_code == ExitCode.OK

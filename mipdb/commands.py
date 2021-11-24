@@ -20,6 +20,7 @@ from mipdb.usecases import UntagDataModel
 from mipdb.usecases import TagDataModel
 from mipdb.usecases import TagDataset
 from mipdb.usecases import UntagDataset
+from mipdb.usecases import ValidateDataset
 
 
 @cl.group()
@@ -64,13 +65,25 @@ def add_dataset(file, data_model, version):
     dbconfig = get_db_config()
     db = MonetDB.from_config(dbconfig)
     dataset_data = reader.read()
+    ValidateDataset(db).execute(dataset_data, data_model, version)
     AddDataset(db).execute(dataset_data, data_model, version)
 
-
 @entry.command()
+@cl.argument("file", required=True)
+@cl.option(
+    "-d",
+    "--data-model",
+    required=True,
+    help="The data model to which the dataset is added",
+)
+@cl.option("-v", "--version", required=True, help="The data model version")
 @handle_errors
-def validate_dataset():
-    pass
+def validate_dataset(file, data_model, version):
+    reader = CSVFileReader(file)
+    dbconfig = get_db_config()
+    db = MonetDB.from_config(dbconfig)
+    dataset_data = reader.read()
+    ValidateDataset(db).execute(dataset_data, data_model, version)
 
 
 @entry.command()

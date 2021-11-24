@@ -167,7 +167,7 @@ def update_data_models_on_data_model_deletion(record, conn):
 def update_actions_on_data_model_deletion(record, conn):
     update_actions(record, "DELETE DATA MODEL", conn)
 
-    if len(record["dataset_ids"]) > 0:
+    if record["dataset_ids"]:
         update_actions(record, "DELETE DATASETS", conn)
 
 
@@ -223,6 +223,20 @@ def update_datasets_on_dataset_addition(record: dict, conn: Connection):
 @emitter.handle("add_dataset")
 def update_actions_on_dataset_addition(record: dict, conn: Connection):
     update_actions(record, "ADD DATASET", conn)
+
+
+class ValidateDataset(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self, dataset_data, code, version) -> None:
+        dataset = Dataset(dataset_data)
+        data_model_name = get_data_model_fullname(code=code, version=version)
+        data_model = Schema(data_model_name)
+
+        with self.db.begin() as conn:
+            metadata_table = MetadataTable.from_db(data_model, conn)
+            dataset.validate_dataset(metadata_table.table)
 
 
 class DeleteDataset(UseCase):
