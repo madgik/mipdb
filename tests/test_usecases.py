@@ -27,6 +27,7 @@ from mipdb.usecases import TagDataset
 from mipdb.usecases import UntagDataset
 from mipdb.usecases import TagDataModel
 from mipdb.usecases import UntagDataModel
+from mipdb.usecases import ValidateDataset
 from mipdb.usecases import update_datasets_on_data_model_deletion
 from tests.mocks import MonetDBMock
 
@@ -286,6 +287,66 @@ def test_update_datasets_on_dataset_addition():
     assert f"INSERT INTO mipdb_metadata.datasets" in db.captured_queries[0]
     datasets_record = db.captured_multiparams[0][0]
     assert datasets_record["status"] == "DISABLED"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_validate_dataset(db, data_model_data, dataset_data):
+    # Setup
+    InitDB(db).execute()
+    AddDataModel(db).execute(data_model_data)
+    data = pd.DataFrame(
+        {
+            "subjectcode": [1, 2, 3, 4, 5],
+            "var1": [1, 2, 3, 4, 5],
+            "var2": ["l1", "l2", "l1", "l1", "l2"],
+            "var3": [11, 12, 13, 14, 15],
+            "var4": [21, 22, 23, 24, 25],
+            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+        }
+    )
+    # Test success
+    ValidateDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_validate_dataset_without_subjectcode(db, data_model_data, dataset_data):
+    # Setup
+    InitDB(db).execute()
+    AddDataModel(db).execute(data_model_data)
+    data = pd.DataFrame(
+        {
+            "var1": [1, 2, 3, 4, 5],
+            "var2": ["l1", "l2", "l1", "l1", "l2"],
+            "var3": [11, 12, 13, 14, 15],
+            "var4": [21, 22, 23, 24, 25],
+            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+        }
+    )
+
+    with pytest.raises(ValueError):
+        ValidateDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_validate_dataset_non_existing_column(db, data_model_data, dataset_data):
+    # Setup
+    InitDB(db).execute()
+    AddDataModel(db).execute(data_model_data)
+    data = pd.DataFrame(
+        {
+            "invalid_column": [1, 2, 3, 4, 5],
+            "var2": ["l1", "l2", "l1", "l1", "l2"],
+            "var3": [11, 12, 13, 14, 15],
+            "var4": [21, 22, 23, 24, 25],
+            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+        }
+    )
+
+    with pytest.raises(ValueError):
+        ValidateDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
 
 
 def test_delete_dataset():

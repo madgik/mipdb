@@ -14,6 +14,7 @@ from mipdb import enable_dataset
 from mipdb import enable_data_model
 from mipdb import tag_dataset
 from mipdb import tag_data_model
+from mipdb import validate_dataset
 from mipdb.exceptions import ExitCode
 
 
@@ -104,6 +105,26 @@ def test_add_dataset(db):
     assert json.loads(action)["action"] == "ADD DATASET"
     data = db.execute(f'select * from "data_model:1.0".primary_data').fetchall()
     assert len(data) == 5
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_validate_dataset(db):
+    # Setup
+    runner = CliRunner()
+    data_model_file = "tests/data/data_model.json"
+    dataset_file = "tests/data/dataset.csv"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    assert 'dataset1' not in db.get_datasets()
+
+    # Test
+    result = runner.invoke(
+        validate_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"]
+    )
+    assert result.exit_code == ExitCode.OK
 
 
 @pytest.mark.database
