@@ -70,6 +70,9 @@ class DataModelTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
+    def list_with_percentage(self, db):
+        return db.list_data_models()
+
     def get_data_model_id(self, code, version, db):
         return db.get_data_model_id(code, version)
 
@@ -120,6 +123,9 @@ class DatasetsTable(Table):
             sql.Column("status", SQLTYPES.STRING, nullable=False),
             sql.Column("properties", SQLTYPES.JSON),
         )
+
+    def list_with_percentage(self, db):
+        return db.list_datasets()
 
     def get_datasets(self, db, data_model_id=None):
         return db.get_datasets(data_model_id)

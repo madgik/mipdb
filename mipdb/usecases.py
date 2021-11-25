@@ -2,6 +2,8 @@ import datetime
 import json
 from abc import ABC, abstractmethod
 
+import pandas as pa
+
 from mipdb.database import DataBase, Connection
 from mipdb.database import METADATA_SCHEMA
 from mipdb.database import Status
@@ -188,7 +190,7 @@ class AddDataset(UseCase):
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
 
             primary_data_table = PrimaryDataTable.from_db(data_model, conn)
-            self._verify_dataset_does_not_exist(dataset, conn)
+            self._verify_dataset_does_not_exist(data_model_id, dataset, conn)
             primary_data_table.insert_dataset(dataset, conn)
             record = dict(
                 data_model_id=data_model_id,
@@ -203,10 +205,10 @@ class AddDataset(UseCase):
         dataset_id = datasets_table.get_next_dataset_id(conn)
         return dataset_id
 
-    def _verify_dataset_does_not_exist(self, dataset, conn):
+    def _verify_dataset_does_not_exist(self, data_model_id, dataset, conn):
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
-        datasets = dataset_table.get_datasets(conn)
+        datasets = dataset_table.get_datasets(conn, data_model_id)
         if datasets is not None and dataset.name in datasets:
             raise UserInputError("Dataset already exists!")
 
@@ -643,3 +645,43 @@ def update_actions(record, action, conn):
     action_record["action_id"] = actions_table.get_next_id(conn)
     action_record["action"] = json.dumps(record)
     actions_table.insert_values(action_record, conn)
+
+
+class ListDataModels(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        data_model_table = DataModelTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            table_data = data_model_table.list_with_percentage(conn)
+            if table_data:
+                column_names = data_model_table.table.columns.keys()
+                column_names.remove("properties")
+                column_names.append("percentage")
+                df = pa.DataFrame(table_data, columns=column_names)
+                print(df)
+            else:
+                print("There is no data models")
+
+
+class ListDatasets(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+
+        with self.db.begin() as conn:
+            table_data = datasets_table.list_with_percentage(conn)
+            if table_data:
+                column_names = datasets_table.table.columns.keys()
+                column_names.remove("properties")
+                column_names.append("percentage")
+                df = pa.DataFrame(table_data, columns=column_names)
+                print(df)
+            else:
+                print("There is no datasets")

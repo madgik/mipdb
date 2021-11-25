@@ -14,6 +14,8 @@ from mipdb import enable_dataset
 from mipdb import enable_data_model
 from mipdb import tag_dataset
 from mipdb import tag_data_model
+from mipdb.commands import list_data_models
+from mipdb.commands import list_datasets
 from mipdb.exceptions import ExitCode
 
 
@@ -483,6 +485,58 @@ def test_disable_dataset(db):
     assert action_id == 4
     assert action != ""
     assert json.loads(action)["action"] == "DISABLE DATASET"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_list_data_models(db):
+    # Setup
+    runner = CliRunner()
+    data_model_file = "tests/data/data_model.json"
+    dataset_file = "tests/data/dataset.csv"
+
+    # Check data_model not present already
+    assert "data_model:1.0" not in db.get_schemas()
+    runner.invoke(init, [])
+    result = runner.invoke(list_data_models)
+    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    result_with_data_model = runner.invoke(list_data_models)
+    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    result_with_data_model_and_dataset = runner.invoke(list_data_models)
+
+    # Test
+    assert result.exit_code == ExitCode.OK
+    assert result.stdout == "There is no data models\n"
+    assert result_with_data_model.exit_code == ExitCode.OK
+    assert "data_model_id        code version           label    status  percentage" in result_with_data_model.stdout
+    assert "0              1  data_model     1.0  The Data Model  DISABLED           0" in result_with_data_model.stdout
+    assert result_with_data_model_and_dataset.exit_code == ExitCode.OK
+    assert "data_model_id        code version           label    status  percentage" in result_with_data_model_and_dataset.stdout
+    assert "0              1  data_model     1.0  The Data Model  DISABLED         100" in result_with_data_model_and_dataset.stdout
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_list_datasets(db):
+    # Setup
+    runner = CliRunner()
+    data_model_file = "tests/data/data_model.json"
+    dataset_file = "tests/data/dataset.csv"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    result = runner.invoke(list_datasets)
+    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    assert "a_dataset" in db.get_datasets()
+    result_with_dataset = runner.invoke(list_datasets)
+
+    # Test
+    assert result.exit_code == ExitCode.OK
+    assert result.stdout == "There is no datasets\n"
+    assert result_with_dataset.exit_code == ExitCode.OK
+    assert "dataset_id  data_model_id       code label    status  percentage" in result_with_dataset.stdout
+    assert "0           1              1  a_dataset  None  DISABLED         100" in result_with_dataset.stdout
 
 
 def _get_status(db, schema_name):

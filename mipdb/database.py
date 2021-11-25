@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from typing import Union
 
 import sqlalchemy as sql
+from typing import List
 
 from mipdb.exceptions import DataBaseError
 
@@ -90,6 +91,14 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def list_data_models(self):
+        pass
+
+    @abstractmethod
+    def list_datasets(self):
+        pass
+
+    @abstractmethod
     def insert_values_to_table(self, values, table):
         pass
 
@@ -163,6 +172,14 @@ class DataBase(ABC):
 
     @abstractmethod
     def get_datasets(self, data_model_id):
+        pass
+
+    @abstractmethod
+    def list_data_models(self):
+        pass
+
+    @abstractmethod
+    def list_datasets(self):
         pass
 
     @abstractmethod
@@ -285,7 +302,6 @@ class DBExecutorMixin(ABC):
             f"FROM {METADATA_SCHEMA}.data_models "
             "WHERE code = :code "
             "AND version = :version "
-            "AND status <> 'DELETED'"
         )
         res = list(self.execute(select, code=code, version=version))
         if len(res) > 1:
@@ -305,7 +321,6 @@ class DBExecutorMixin(ABC):
             f"FROM {METADATA_SCHEMA}.datasets "
             "WHERE code = :code "
             "AND data_model_id = :data_model_id "
-            "AND status <> 'DELETED'"
         )
         res = list(self.execute(select, code=code, data_model_id=data_model_id))
         if len(res) > 1:
@@ -323,7 +338,7 @@ class DBExecutorMixin(ABC):
         return [schema for schema, *_ in res]
 
     def get_datasets(self, data_model_id=None):
-        data_model_id_clause = "" if data_model_id is None else f"WHERE data_model_id=data_model_id"
+        data_model_id_clause = "" if data_model_id is None else f"WHERE data_model_id={data_model_id}"
         res = self.execute(
             "SELECT code "
             f"FROM {METADATA_SCHEMA}.datasets {data_model_id_clause}"
@@ -333,6 +348,65 @@ class DBExecutorMixin(ABC):
     @handle_errors
     def create_table(self, table):
         table.create(bind=self._executor)
+        
+    def list_data_models(self):
+
+        percentage_query = (
+            f""" 
+            SELECT COUNT(data_model_id)* 100 / (SELECT COUNT(data_model_id) FROM "mipdb_metadata".datasets)
+            FROM "mipdb_metadata".datasets  where data_model_id = data_models.data_model_id
+            """
+        )
+
+        # This query returns the percentage of the table datasets
+        # and in case the dataset is empty it will return 0.
+        handle_division_by_0_query = (
+            f"""
+            SELECT 
+            CASE WHEN EXISTS(SELECT 1 FROM "mipdb_metadata".datasets) 
+            THEN ({percentage_query}) ELSE 0 END
+            """
+        )
+
+        data_models = self.execute(
+            f"""
+            SELECT data_model_id, 
+            code, 
+            version, 
+            label, 
+            status,
+            ({handle_division_by_0_query}) as percentage
+            FROM "mipdb_metadata".data_models as data_models
+            """
+        )
+
+        return list(data_models)
+
+    def list_datasets(self):
+        datasets: List[list] = self.execute(
+            f"""
+            SELECT dataset_id, data_model_id, code, label, status
+            FROM "mipdb_metadata".datasets
+            """
+        )
+        datasets_with_percentage = []
+        for dataset in datasets:
+            (primary_data_name, *_), *_ = self.execute(
+                f"""
+                SELECT '"' ||code || ':' || version ||'"' || '."primary_data"'
+                FROM mipdb_metadata.data_models
+                WHERE data_model_id = {dataset[1]}
+                """
+            )
+            (percentage_query, *_), *_ = self.execute(
+                f"""
+                SELECT COUNT(dataset)* 100 / (SELECT COUNT(dataset) FROM {primary_data_name})
+                FROM {primary_data_name}  WHERE dataset = '{dataset[2]}'
+                """
+            )
+            datasets_with_percentage.append(list(dataset) + [percentage_query])
+
+        return datasets_with_percentage
 
     def get_dataset_properties(self, dataset_id):
         (properties, *_), *_ = self.execute(

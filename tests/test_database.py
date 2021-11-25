@@ -238,3 +238,16 @@ def test_insert_values_to_table():
     db.insert_values_to_table(table, values)
     assert "INSERT INTO a_table" in db.captured_queries[0]
     assert values == db.captured_multiparams[0][0]
+
+
+def test_list_data_models():
+    db = MonetDBMock()
+    db.list_data_models()
+    assert "SELECT data_model_id," in db.captured_queries[0]
+
+
+def test_list_datasets():
+    db = MonetDBMock()
+    db.list_data_models()
+    assert "SELECT data_model_id," in db.captured_queries[0]
+
