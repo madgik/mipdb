@@ -15,7 +15,6 @@ class Dataset:
         self._verify_dataset_field()
         self._name = self._data["dataset"][0]
 
-
     @property
     def data(self):
         return self._data
