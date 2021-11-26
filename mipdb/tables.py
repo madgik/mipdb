@@ -53,7 +53,9 @@ class Table(ABC):
 
 class DataModelTable(Table):
     def __init__(self, schema):
-        self.data_model_id_seq = sql.Sequence("data_model_id_seq", metadata=schema.schema)
+        self.data_model_id_seq = sql.Sequence(
+            "data_model_id_seq", metadata=schema.schema
+        )
         self._table = sql.Table(
             "data_models",
             schema.schema,

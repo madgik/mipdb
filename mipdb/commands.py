@@ -68,6 +68,7 @@ def add_dataset(file, data_model, version):
     ValidateDataset(db).execute(dataset_data, data_model, version)
     AddDataset(db).execute(dataset_data, data_model, version)
 
+
 @entry.command()
 @cl.argument("file", required=True)
 @cl.option(
@@ -104,7 +105,10 @@ def delete_data_model(name, version, force):
 @entry.command()
 @cl.argument("dataset", required=True)
 @cl.option(
-    "-d", "--data-model", required=True, help="The data model to which the dataset is added"
+    "-d",
+    "--data-model",
+    required=True,
+    help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
 @handle_errors
@@ -203,7 +207,10 @@ def tag_data_model(name, version, tag, remove, force):
 @entry.command()
 @cl.argument("dataset", required=True)
 @cl.option(
-    "-d", "--data-model", required=True, help="The data model to which the dataset is added"
+    "-d",
+    "--data-model",
+    required=True,
+    help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
 @cl.option(
@@ -232,9 +239,13 @@ def tag_dataset(dataset, data_model, version, tag, remove, force):
     if "=" in tag:
         key, value = tag.split("=")
         if remove:
-            RemovePropertyFromDataset(db).execute(dataset, data_model, version, key, value)
+            RemovePropertyFromDataset(db).execute(
+                dataset, data_model, version, key, value
+            )
         else:
-            AddPropertyToDataset(db).execute(dataset, data_model, version, key, value, force)
+            AddPropertyToDataset(db).execute(
+                dataset, data_model, version, key, value, force
+            )
     else:
         if remove:
             UntagDataset(db).execute(dataset, data_model, version, tag)

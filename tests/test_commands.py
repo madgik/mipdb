@@ -53,7 +53,9 @@ def test_add_data_model(db):
     assert action_id == 1
     assert action != ""
     assert json.loads(action)["action"] == "ADD DATA MODEL"
-    metadata = db.execute(f'select * from "data_model:1.0".variables_metadata').fetchall()
+    metadata = db.execute(
+        f'select * from "data_model:1.0".variables_metadata'
+    ).fetchall()
     # TODO better test
     assert len(metadata) == 5
 
@@ -90,12 +92,10 @@ def test_add_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    assert 'dataset1' not in db.get_datasets()
+    assert "dataset1" not in db.get_datasets()
 
     # Test
-    result = runner.invoke(
-        add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"]
-    )
+    result = runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     assert "dataset1" in db.get_datasets()
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
@@ -118,7 +118,7 @@ def test_validate_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    assert 'dataset1' not in db.get_datasets()
+    assert "dataset1" not in db.get_datasets()
 
     # Test
     result = runner.invoke(
@@ -165,9 +165,7 @@ def test_tag_data_model(db):
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
 
     # Test
-    result = runner.invoke(
-        tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"]
-    )
+    result = runner.invoke(tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.data_models"
@@ -190,9 +188,7 @@ def test_untag_data_model(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(
-        tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"]
-    )
+    runner.invoke(tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"])
 
     # Test
     result = runner.invoke(
@@ -247,9 +243,7 @@ def test_property_data_model_deletion(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(
-        tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0"]
-    )
+    runner.invoke(tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0"])
 
     # Test
     result = runner.invoke(
@@ -488,9 +482,7 @@ def test_disable_dataset(db):
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
-    runner.invoke(
-        enable_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"]
-    )
+    runner.invoke(enable_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"])
     assert _get_status(db, "datasets") == "ENABLED"
 
     # Test
@@ -507,5 +499,7 @@ def test_disable_dataset(db):
 
 
 def _get_status(db, schema_name):
-    (status, *_), *_ = db.execute(f'SELECT status FROM "mipdb_metadata".{schema_name}').fetchall()
+    (status, *_), *_ = db.execute(
+        f'SELECT status FROM "mipdb_metadata".{schema_name}'
+    ).fetchall()
     return status

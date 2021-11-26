@@ -48,26 +48,24 @@ class Dataset:
             metadata_column_dict = json.loads(metadata_column)
             checks = self._get_pa_checks(metadata_column_dict)
             pa_type = self.pa_type_from_sql_type(metadata_column_dict["sql_type"])
-            pa_columns[column] = pa.Column(
-                dtype=pa_type, checks=checks, nullable=True
-            )
+            pa_columns[column] = pa.Column(dtype=pa_type, checks=checks, nullable=True)
 
-        schema = pa.DataFrameSchema(columns=pa_columns, index=pa.Index(
-            pa.String,
-            checks=[
-                # id is unique
-                pa.Check(lambda s: s.duplicated().sum() == 0),
-            ],
-        ), coerce=True)
+        schema = pa.DataFrameSchema(
+            columns=pa_columns,
+            index=pa.Index(
+                pa.String,
+                checks=[
+                    # id is unique
+                    pa.Check(lambda s: s.duplicated().sum() == 0),
+                ],
+            ),
+            coerce=True,
+        )
         schema.validate(self._data)
         print("This dataset has the proper format and data")
 
     def pa_type_from_sql_type(self, sql_type):
-        return {
-            "text": pa.String,
-            "int": pa.Int,
-            "real": pa.Float
-        }.get(sql_type)
+        return {"text": pa.String, "int": pa.Int, "real": pa.Float}.get(sql_type)
 
     def to_dict(self):
         return self._data.to_dict("records")
@@ -82,10 +80,11 @@ class Dataset:
             checks.append(
                 pa.Check(
                     lambda s: s.isin(
-                        [enumeration["code"] for enumeration in _metadata["enumerations"]
+                        [
+                            enumeration["code"]
+                            for enumeration in _metadata["enumerations"]
                         ]
                     )
                 )
             )
         return checks
-

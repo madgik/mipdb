@@ -1,4 +1,3 @@
-
 import pandas as pd
 import pytest
 
@@ -165,13 +164,17 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_data, dataset_da
     # Test with force False
     with pytest.raises(ForeignKeyError):
         DeleteDataModel(db).execute(
-            code=data_model_data["code"], version=data_model_data["version"], force=False
+            code=data_model_data["code"],
+            version=data_model_data["version"],
+            force=False,
         )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_datasets_with_db_with_force(db, data_model_data, dataset_data):
+def test_delete_data_model_with_datasets_with_db_with_force(
+    db, data_model_data, dataset_data
+):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
@@ -202,9 +205,7 @@ def test_update_data_models_on_data_model_deletion():
     db = MonetDBMock()
     record = {"code": "code", "version": "1.0"}
     update_data_models_on_data_model_deletion(record, db)
-    expected = (
-        f"DELETE FROM mipdb_metadata.data_models WHERE code = :code AND version = :version "
-    )
+    expected = f"DELETE FROM mipdb_metadata.data_models WHERE code = :code AND version = :version "
     assert expected in db.captured_queries[0]
     assert db.captured_params[0] == record
 
@@ -373,7 +374,11 @@ def test_delete_dataset_with_db(db, data_model_data, dataset_data):
     assert "dataset1" in datasets
 
     # Test
-    DeleteDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
+    DeleteDataset(db).execute(
+        dataset=datasets[0],
+        data_model_code=data_model_data["code"],
+        version=data_model_data["version"],
+    )
     datasets = db.get_datasets()
     assert len(datasets) == 0
     assert "dataset1" not in datasets
@@ -408,7 +413,9 @@ def test_enable_data_model_with_db(db, data_model_data):
     AddDataModel(db).execute(data_model_data=data_model_data)
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
-    EnableDataModel(db).execute(code=data_model_data["code"], version=data_model_data["version"])
+    EnableDataModel(db).execute(
+        code=data_model_data["code"], version=data_model_data["version"]
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
 
@@ -418,12 +425,16 @@ def test_enable_data_model_with_db(db, data_model_data):
 def test_enable_data_model_already_enabled_with_db(db, data_model_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
-    EnableDataModel(db).execute(code=data_model_data["code"], version=data_model_data["version"])
+    EnableDataModel(db).execute(
+        code=data_model_data["code"], version=data_model_data["version"]
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
-        EnableDataModel(db).execute(code=data_model_data["code"], version=data_model_data["version"])
+        EnableDataModel(db).execute(
+            code=data_model_data["code"], version=data_model_data["version"]
+        )
 
 
 def test_disable_data_model():
@@ -441,10 +452,14 @@ def test_disable_data_model():
 def test_disable_data_model_with_db(db, data_model_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
-    EnableDataModel(db).execute(code=data_model_data["code"], version=data_model_data["version"])
+    EnableDataModel(db).execute(
+        code=data_model_data["code"], version=data_model_data["version"]
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
-    DisableDataModel(db).execute(code=data_model_data["code"], version=data_model_data["version"])
+    DisableDataModel(db).execute(
+        code=data_model_data["code"], version=data_model_data["version"]
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
 
@@ -458,7 +473,9 @@ def test_disable_data_model_already_disabled_with_db(db, data_model_data):
     assert status[0] == "DISABLED"
 
     with pytest.raises(UserInputError):
-        DisableDataModel(db).execute(code=data_model_data["code"], version=data_model_data["version"])
+        DisableDataModel(db).execute(
+            code=data_model_data["code"], version=data_model_data["version"]
+        )
 
 
 def test_enable_dataset():
@@ -481,7 +498,11 @@ def test_enable_dataset_with_db(db, data_model_data, dataset_data):
     datasets = db.get_datasets()
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
-    EnableDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
+    EnableDataset(db).execute(
+        dataset=datasets[0],
+        data_model_code=data_model_data["code"],
+        version=data_model_data["version"],
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
 
@@ -493,13 +514,19 @@ def test_enable_dataset_already_enabled_with_db(db, data_model_data, dataset_dat
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
     datasets = db.get_datasets()
-    EnableDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
+    EnableDataset(db).execute(
+        dataset=datasets[0],
+        data_model_code=data_model_data["code"],
+        version=data_model_data["version"],
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
         EnableDataset(db).execute(
-            dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"]
+            dataset=datasets[0],
+            data_model_code=data_model_data["code"],
+            version=data_model_data["version"],
         )
 
 
@@ -521,10 +548,18 @@ def test_disable_dataset_with_db(db, data_model_data, dataset_data):
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
     datasets = db.get_datasets()
-    EnableDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
+    EnableDataset(db).execute(
+        dataset=datasets[0],
+        data_model_code=data_model_data["code"],
+        version=data_model_data["version"],
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
-    DisableDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
+    DisableDataset(db).execute(
+        dataset=datasets[0],
+        data_model_code=data_model_data["code"],
+        version=data_model_data["version"],
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
 
@@ -541,7 +576,9 @@ def test_disable_dataset_already_disabled_with_db(db, data_model_data, dataset_d
 
     with pytest.raises(UserInputError):
         DisableDataset(db).execute(
-            dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"]
+            dataset=datasets[0],
+            data_model_code=data_model_data["code"],
+            version=data_model_data["version"],
         )
 
 
@@ -563,7 +600,9 @@ def test_untag_data_model():
 
 def test_add_property2data_model():
     db = MonetDBMock()
-    AddPropertyToDataModel(db).execute(code="data_model", version="1.0", key="key", value="value", force=False)
+    AddPropertyToDataModel(db).execute(
+        code="data_model", version="1.0", key="key", value="value", force=False
+    )
     assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
@@ -571,7 +610,9 @@ def test_add_property2data_model():
 
 def test_remove_property_from_data_model():
     db = MonetDBMock()
-    RemovePropertyFromDataModel(db).execute(code="data_model", version="1.0", key="key1", value="value1")
+    RemovePropertyFromDataModel(db).execute(
+        code="data_model", version="1.0", key="key1", value="value1"
+    )
     assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
@@ -626,7 +667,11 @@ def test_add_property2data_model_with_db(db, data_model_data):
 
     # Test
     AddPropertyToDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], key="key", value="value", force=False
+        code=data_model_data["code"],
+        version=data_model_data["version"],
+        key="key",
+        value="value",
+        force=False,
     )
 
     properties = db.get_data_model_properties(1)
@@ -640,12 +685,20 @@ def test_add_property2data_model_with_force_and_db(db, data_model_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddPropertyToDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], key="key", value="value", force=False
+        code=data_model_data["code"],
+        version=data_model_data["version"],
+        key="key",
+        value="value",
+        force=False,
     )
 
     # Test
     AddPropertyToDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], key="key", value="value1", force=True
+        code=data_model_data["code"],
+        version=data_model_data["version"],
+        key="key",
+        value="value1",
+        force=True,
     )
 
     properties = db.get_data_model_properties(1)
@@ -663,19 +716,22 @@ def test_remove_property_from_data_model_with_db(db, data_model_data):
         version=data_model_data["version"],
         key="key1",
         value="value1",
-        force=False
+        force=False,
     )
     AddPropertyToDataModel(db).execute(
         code=data_model_data["code"],
         version=data_model_data["version"],
         key="key2",
         value="value2",
-        force=False
+        force=False,
     )
 
     # Test
     RemovePropertyFromDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], key="key1", value="value1"
+        code=data_model_data["code"],
+        version=data_model_data["version"],
+        key="key1",
+        value="value1",
     )
     properties = db.get_data_model_properties(1)
     assert properties == '{"tags": [], "properties": {"key2": "value2"}}'
@@ -683,7 +739,9 @@ def test_remove_property_from_data_model_with_db(db, data_model_data):
 
 def test_tag_dataset():
     db = MonetDBMock()
-    TagDataset(db).execute(dataset="dataset1", data_model_code="data_model", version="1.0", tag="tag")
+    TagDataset(db).execute(
+        dataset="dataset1", data_model_code="data_model", version="1.0", tag="tag"
+    )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
@@ -691,7 +749,9 @@ def test_tag_dataset():
 
 def test_untag_dataset():
     db = MonetDBMock()
-    UntagDataset(db).execute(dataset="dataset1", data_model_code="data_model", version="1.0", tag="tag1")
+    UntagDataset(db).execute(
+        dataset="dataset1", data_model_code="data_model", version="1.0", tag="tag1"
+    )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
@@ -699,7 +759,14 @@ def test_untag_dataset():
 
 def test_add_property2dataset():
     db = MonetDBMock()
-    AddPropertyToDataset(db).execute(dataset="dataset1", data_model_code="data_model", version="1.0", key="key", value="value", force=False)
+    AddPropertyToDataset(db).execute(
+        dataset="dataset1",
+        data_model_code="data_model",
+        version="1.0",
+        key="key",
+        value="value",
+        force=False,
+    )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
@@ -712,7 +779,8 @@ def test_remove_property_from_dataset():
         data_model_code="data_model",
         version="1.0",
         key="key1",
-        value="value1")
+        value="value1",
+    )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
@@ -791,7 +859,7 @@ def test_add_property2dataset_with_db(db, data_model_data, dataset_data):
         version=data_model_data["version"],
         key="key",
         value="value",
-        force=False
+        force=False,
     )
 
     properties = db.get_dataset_properties(1)
@@ -811,23 +879,23 @@ def test_remove_property_from_dataset_with_db(db, data_model_data, dataset_data)
         version=data_model_data["version"],
         key="key",
         value="value",
-        force=False
+        force=False,
     )
     AddPropertyToDataset(db).execute(
-            dataset="dataset1",
-            data_model_code=data_model_data["code"],
-            version=data_model_data["version"],
-            key="key1",
-            value="value1",
-            force=False
+        dataset="dataset1",
+        data_model_code=data_model_data["code"],
+        version=data_model_data["version"],
+        key="key1",
+        value="value1",
+        force=False,
     )
     AddPropertyToDataset(db).execute(
-            dataset="dataset1",
-            data_model_code=data_model_data["code"],
-            version=data_model_data["version"],
-            key="key2",
-            value="value2",
-            force=False
+        dataset="dataset1",
+        data_model_code=data_model_data["code"],
+        version=data_model_data["version"],
+        key="key2",
+        value="value2",
+        force=False,
     )
 
     # Test
@@ -836,7 +904,9 @@ def test_remove_property_from_dataset_with_db(db, data_model_data, dataset_data)
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         key="key2",
-        value="value2"
+        value="value2",
     )
     properties = db.get_dataset_properties(1)
-    assert properties == '{"tags": [], "properties": {"key": "value", "key1": "value1"}}'
+    assert (
+        properties == '{"tags": [], "properties": {"key": "value", "key1": "value1"}}'
+    )

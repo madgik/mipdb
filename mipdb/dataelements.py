@@ -1,6 +1,8 @@
 import json
 from dataclasses import dataclass
 
+from mipdb.exceptions import UserInputError
+
 
 @dataclass
 class CommonDataElement:
@@ -10,6 +12,15 @@ class CommonDataElement:
     @classmethod
     def from_cde_data(cls, cde_data):
         code = cde_data["code"]
+        for element in ["isCategorical", "code", "sql_type", "label"]:
+            if element not in cde_data:
+                raise UserInputError(
+                    f"Element: {element} is missing from the CDE {code}"
+                )
+        if cde_data["isCategorical"] and "enumerations" not in cde_data:
+            raise UserInputError(
+                f"The CDE {code} has 'isCategorical' set to True but there are no enumerations."
+            )
 
         metadata = json.dumps(cde_data)
         return cls(

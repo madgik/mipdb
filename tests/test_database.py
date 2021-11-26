@@ -33,14 +33,18 @@ def update_schema_status(db):
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     # Check the status of schema is disabled
     res = db.execute(
-        sql.text('SELECT status from  "mipdb_metadata".data_models where data_model_id = 1')
+        sql.text(
+            'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
+        )
     )
     assert list(res)[0] == "DISABLED"
 
     # Test
     db.update_metadata_schema_status("ENABLED", "schema", 1)
     res = db.execute(
-        sql.text('SELECT status from  "mipdb_metadata".data_models where data_model_id = 1')
+        sql.text(
+            'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
+        )
     )
     assert list(res)[0] == "ENABLED"
 
