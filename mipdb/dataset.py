@@ -11,10 +11,11 @@ class Dataset:
     _name: str
 
     def __init__(self, data: pd.DataFrame) -> None:
+        # Pandas will insert nan values where there is a empty value in the csv.
+        # In order to be able to insert the values through the sqlalchemy we need to replace nan with None.
         self._data = data.astype(object).where(pd.notnull(data), None)
         self._verify_dataset_field()
         self._name = self._data["dataset"][0]
-
 
     @property
     def data(self):
@@ -59,11 +60,12 @@ class Dataset:
             ],
         ), coerce=True)
         schema.validate(self._data)
+        print("This dataset has the proper format and data")
 
     def pa_type_from_sql_type(self, sql_type):
         return {
             "text": pa.String,
-            "int": 'Int64',
+            "int": pa.Int,
             "real": pa.Float
         }.get(sql_type)
 

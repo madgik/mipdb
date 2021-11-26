@@ -337,8 +337,8 @@ def test_validate_dataset_non_existing_column(db, data_model_data, dataset_data)
     AddDataModel(db).execute(data_model_data)
     data = pd.DataFrame(
         {
-            "invalid_column": [1, 2, 3, 4, 5],
-            "var2": ["l1", "l2", "l1", "l1", "l2"],
+            "subjectcode": [1, 2, 3, 4, 5],
+            "invalid_column": ["l1", "l2", "l1", "l1", "l2"],
             "var3": [11, 12, 13, 14, 15],
             "var4": [21, 22, 23, 24, 25],
             "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
