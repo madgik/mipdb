@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass
 
+from mipdb.exceptions import InvalidDatasetError
 from mipdb.exceptions import UserInputError
 
 
@@ -14,11 +15,11 @@ class CommonDataElement:
         code = cde_data["code"]
         for element in ["isCategorical", "code", "sql_type", "label"]:
             if element not in cde_data:
-                raise UserInputError(
+                raise InvalidDatasetError(
                     f"Element: {element} is missing from the CDE {code}"
                 )
         if cde_data["isCategorical"] and "enumerations" not in cde_data:
-            raise UserInputError(
+            raise InvalidDatasetError(
                 f"The CDE {code} has 'isCategorical' set to True but there are no enumerations."
             )
 

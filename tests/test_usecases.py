@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from mipdb.exceptions import ForeignKeyError
+from mipdb.exceptions import InvalidDatasetError
 from mipdb.exceptions import UserInputError
 from mipdb.usecases import AddPropertyToDataset
 from mipdb.usecases import AddPropertyToDataModel
@@ -326,7 +327,7 @@ def test_validate_dataset_without_subjectcode(db, data_model_data, dataset_data)
         }
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidDatasetError):
         ValidateDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
 
 
@@ -346,7 +347,26 @@ def test_validate_dataset_non_existing_column(db, data_model_data, dataset_data)
         }
     )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(InvalidDatasetError):
+        ValidateDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_validate_dataset_with_invalid_column(db, data_model_data, dataset_data):
+    # Setup
+    InitDB(db).execute()
+    AddDataModel(db).execute(data_model_data)
+    data = pd.DataFrame(
+        {
+            "subjectcode": [1, 2, 3, 4, 5],
+            "var3": [11, 12, 13, 14, 15],
+            "var4": ["invalid_type", 22, 23, 24, 25],
+            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+        }
+    )
+
+    with pytest.raises(InvalidDatasetError):
         ValidateDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
 
 

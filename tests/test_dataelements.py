@@ -1,6 +1,7 @@
 import pytest
 
 from mipdb.dataelements import make_cdes, CommonDataElement
+from mipdb.exceptions import InvalidDatasetError
 from mipdb.exceptions import UserInputError
 
 
@@ -43,7 +44,7 @@ def test_missing_nessesary_variables():
         "description": "",
         "methodology": "",
     }
-    with pytest.raises(UserInputError):
+    with pytest.raises(InvalidDatasetError):
         CommonDataElement.from_cde_data(cde_data)
 
 
@@ -56,5 +57,5 @@ def test_is_categorical_without_enumerations():
         "label": "label",
         "methodology": "",
     }
-    with pytest.raises(UserInputError):
+    with pytest.raises(InvalidDatasetError):
         CommonDataElement.from_cde_data(cde_data)
