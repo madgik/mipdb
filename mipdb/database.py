@@ -324,10 +324,10 @@ class DBExecutorMixin(ABC):
 
     def get_datasets(self, data_model_id=None):
         data_model_id_clause = (
-            "" if data_model_id is None else f"WHERE data_model_id=data_model_id"
+            f"WHERE data_model_id={data_model_id}" if data_model_id else ""
         )
         res = self.execute(
-            "SELECT code " f"FROM {METADATA_SCHEMA}.datasets {data_model_id_clause}"
+            f"SELECT code FROM {METADATA_SCHEMA}.datasets {data_model_id_clause}"
         )
         return [dataset for dataset, *_ in res]
 
