@@ -38,7 +38,7 @@ class Properties:
         if key in properties_dict["properties"] and not force:
             raise UserInputError(
                 "Property already exists.\n"
-                "If you want to force override the property, please use the  '-- force' flag"
+                "If you want to force override the property, please use the  '--force' flag"
             )
         else:
             properties_dict["properties"][key] = value

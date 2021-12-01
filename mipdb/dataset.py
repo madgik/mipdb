@@ -34,39 +34,36 @@ class Dataset:
 
     def validate_dataset(self, metadata_table):
         pa_columns = {}
-        # Validating that the dataset always has subjectcode as the first column.
+        # Validating that the dataset always contains column subjectcode.
         # This is according to the data requirements
         # https://github.com/HBPMedical/mip-deployment/blob/master/documentation/NewDataRequirements.md
-        if "subjectcode" != self.data.keys()[0]:
+        if "subjectcode" not in self.data.keys():
             raise InvalidDatasetError(
-                f"""Error inserting dataset into the database,
-                    subjectcode should be the first column.
-                """
+                "Error inserting dataset without the column subjectcode into the database"
             )
 
-        columns = [column for column in self.data if column != "subjectcode"]
+        if self.data.duplicated(subset=["subjectcode"]).any():
+            raise InvalidDatasetError(
+                "There are duplicated values in the column subjectcode"
+            )
+
+        columns = self.data.loc[:, self.data.columns != "subjectcode"]
+
         # There is a need to construct a DataFrameSchema with all the constrains that the metadata is imposing
         # For each column a pandera Column is created that will contain the constrains for the specific column
         for column in columns:
             if column not in metadata_table:
-                raise InvalidDatasetError(f"The column: '{column}' does not exist in the metadata")
+                raise InvalidDatasetError(
+                    f"The column: '{column}' does not exist in the metadata"
+                )
             metadata_column = metadata_table[column].metadata
             metadata_column_dict = json.loads(metadata_column)
             checks = self._get_pa_checks(metadata_column_dict)
             pa_type = self.pa_type_from_sql_type(metadata_column_dict["sql_type"])
             pa_columns[column] = pa.Column(dtype=pa_type, checks=checks, nullable=True)
 
-        index = pa.Index(
-            pa.String,
-            checks=[
-                # id is unique
-                pa.Check(lambda s: s.duplicated().sum() == 0),
-            ],
-        )
-
         schema = pa.DataFrameSchema(
             columns=pa_columns,
-            index=index,
             coerce=True,
         )
 
@@ -74,8 +71,10 @@ class Dataset:
             schema.validate(self._data)
             print("This dataset has the proper format and data")
         except SchemaError as exc:
-            raise InvalidDatasetError(f"The column: '{exc.schema.name}' in the dataset "
-                                      f"violates the constraints imposed by the schema")
+            raise InvalidDatasetError(
+                f"The column: '{exc.schema.name}' in the dataset "
+                f"violates the constraints imposed by the schema"
+            )
         except Exception as exc:
             raise exc
 
