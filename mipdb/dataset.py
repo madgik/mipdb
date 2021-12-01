@@ -75,8 +75,6 @@ class Dataset:
                 f"The column: '{exc.schema.name}' in the dataset "
                 f"violates the constraints imposed by the schema"
             )
-        except Exception as exc:
-            raise exc
 
     def pa_type_from_sql_type(self, sql_type):
         return {"text": pa.String, "int": pa.Int, "real": pa.Float}.get(sql_type)

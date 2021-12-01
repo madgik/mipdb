@@ -370,6 +370,27 @@ def test_validate_dataset_with_invalid_column(db, data_model_data, dataset_data)
         ValidateDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
 
 
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_validate_dataset_with_duplicate_in_subjectcode(
+    db, data_model_data, dataset_data
+):
+    # Setup
+    InitDB(db).execute()
+    AddDataModel(db).execute(data_model_data)
+    data = pd.DataFrame(
+        {
+            "subjectcode": [1, 1, 3, 4, 5],
+            "var3": [11, 12, 13, 14, 15],
+            "var4": [11, 22, 23, 24, 25],
+            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+        }
+    )
+
+    with pytest.raises(InvalidDatasetError):
+        ValidateDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
+
+
 def test_delete_dataset():
     db = MonetDBMock()
     dataset = "dataset1"
