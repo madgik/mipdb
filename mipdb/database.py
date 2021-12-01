@@ -3,7 +3,6 @@ from contextlib import contextmanager
 from typing import Union
 
 import sqlalchemy as sql
-from typing import List
 
 from mipdb.exceptions import DataBaseError
 
@@ -55,7 +54,19 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def get_datasets(self, data_model_id):
+    def get_datasets(self, data_model_id, columns):
+        pass
+
+    @abstractmethod
+    def get_data_models(self, columns):
+        pass
+
+    @abstractmethod
+    def get_dataset_count_by_data_model_id(self):
+        pass
+
+    @abstractmethod
+    def get_data_count_by_dataset(self, schema_fullname, dataset):
         pass
 
     @abstractmethod
@@ -88,14 +99,6 @@ class Connection(ABC):
 
     @abstractmethod
     def create_table(self, table):
-        pass
-
-    @abstractmethod
-    def list_data_models(self):
-        pass
-
-    @abstractmethod
-    def list_datasets(self):
         pass
 
     @abstractmethod
@@ -171,15 +174,19 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
-    def get_datasets(self, data_model_id):
+    def get_datasets(self, data_model_id, columns):
         pass
 
     @abstractmethod
-    def list_data_models(self):
+    def get_data_models(self, columns):
         pass
 
     @abstractmethod
-    def list_datasets(self):
+    def get_dataset_count_by_data_model_id(self):
+        pass
+
+    @abstractmethod
+    def get_data_count_by_dataset(self, schema_fullname, dataset):
         pass
 
     @abstractmethod
@@ -337,76 +344,51 @@ class DBExecutorMixin(ABC):
         res = self.execute("SELECT name FROM sys.schemas WHERE system=FALSE")
         return [schema for schema, *_ in res]
 
-    def get_datasets(self, data_model_id=None):
-        data_model_id_clause = "" if data_model_id is None else f"WHERE data_model_id={data_model_id}"
-        res = self.execute(
-            "SELECT code "
-            f"FROM {METADATA_SCHEMA}.datasets {data_model_id_clause}"
-        )
-        return [dataset for dataset, *_ in res]
-
-    @handle_errors
-    def create_table(self, table):
-        table.create(bind=self._executor)
-        
-    def list_data_models(self):
-
-        percentage_query = (
+    def get_dataset_count_by_data_model_id(self, data_model_id):
+        (count, *_), *_ = self.execute(
             f""" 
-            SELECT COUNT(data_model_id)* 100 / (SELECT COUNT(data_model_id) FROM "mipdb_metadata".datasets)
-            FROM "mipdb_metadata".datasets  where data_model_id = data_models.data_model_id
+            SELECT COUNT(data_model_id)
+            FROM {METADATA_SCHEMA}.datasets
+            WHERE data_model_id = {data_model_id}
             """
         )
+        return count
 
-        # This query returns the percentage of the table datasets
-        # and in case the dataset is empty it will return 0.
-        handle_division_by_0_query = (
-            f"""
-            SELECT 
-            CASE WHEN EXISTS(SELECT 1 FROM "mipdb_metadata".datasets) 
-            THEN ({percentage_query}) ELSE 0 END
+    def get_data_count_by_dataset(self, schema_fullname, dataset):
+        (count, *_), *_ = self.execute(
+            f""" 
+            SELECT COUNT(dataset)
+            FROM "{schema_fullname}"."primary_data"
+            WHERE dataset = '{dataset}';
             """
         )
+        return count
 
+    def get_data_models(self, columns=None):
+        columns_query = ", ".join(columns) if columns else "*"
         data_models = self.execute(
             f"""
-            SELECT data_model_id, 
-            code, 
-            version, 
-            label, 
-            status,
-            ({handle_division_by_0_query}) as percentage
-            FROM "mipdb_metadata".data_models as data_models
+            SELECT {columns_query}
+            FROM {METADATA_SCHEMA}.data_models as data_models
             """
         )
 
         return list(data_models)
 
-    def list_datasets(self):
-        datasets: List[list] = self.execute(
+    def get_datasets(self, data_model_id=None, columns=None):
+        columns_query = ", ".join(columns) if columns else "*"
+        data_model_id_clause = "" if data_model_id is None else f"WHERE data_model_id={data_model_id}"
+        datasets = self.execute(
             f"""
-            SELECT dataset_id, data_model_id, code, label, status
-            FROM "mipdb_metadata".datasets
+            SELECT {columns_query}
+            FROM {METADATA_SCHEMA}.datasets {data_model_id_clause}
             """
         )
-        datasets_with_percentage = []
-        for dataset in datasets:
-            (primary_data_name, *_), *_ = self.execute(
-                f"""
-                SELECT '"' ||code || ':' || version ||'"' || '."primary_data"'
-                FROM mipdb_metadata.data_models
-                WHERE data_model_id = {dataset[1]}
-                """
-            )
-            (percentage_query, *_), *_ = self.execute(
-                f"""
-                SELECT COUNT(dataset)* 100 / (SELECT COUNT(dataset) FROM {primary_data_name})
-                FROM {primary_data_name}  WHERE dataset = '{dataset[2]}'
-                """
-            )
-            datasets_with_percentage.append(list(dataset) + [percentage_query])
+        return list(datasets)
 
-        return datasets_with_percentage
+    @handle_errors
+    def create_table(self, table):
+        table.create(bind=self._executor)
 
     def get_dataset_properties(self, dataset_id):
         (properties, *_), *_ = self.execute(

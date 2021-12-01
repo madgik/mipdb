@@ -70,8 +70,14 @@ class DataModelTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
-    def list_with_percentage(self, db):
-        return db.list_data_models()
+    def get_data_models(self, db, columns: list = None):
+        if not set(columns).issubset(self.table.columns.keys()):
+            non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
+            raise ValueError(f"The columns: {non_existing_columns} do not exist in the data models schema")
+        return db.get_data_models(columns)
+
+    def get_dataset_count_by_data_model_id(self, data_model_id, db):
+        return db.get_dataset_count_by_data_model_id(data_model_id)
 
     def get_data_model_id(self, code, version, db):
         return db.get_data_model_id(code, version)
@@ -124,11 +130,11 @@ class DatasetsTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
-    def list_with_percentage(self, db):
-        return db.list_datasets()
+    def get_datasets(self, db, data_model_id=None, columns=None):
+        return db.get_datasets(data_model_id, columns)
 
-    def get_datasets(self, db, data_model_id=None):
-        return db.get_datasets(data_model_id)
+    def get_data_count_by_dataset(self, schema_fullname, dataset, db):
+        return db.get_data_count_by_dataset(schema_fullname, dataset)
 
     def get_dataset_properties(self, dataset_id, db):
         return db.get_dataset_properties(dataset_id)

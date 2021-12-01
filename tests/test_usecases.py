@@ -99,8 +99,7 @@ def test_delete_data_model():
     DeleteDataModel(db).execute(code=code, version=version, force=force)
     assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[0]
     assert "DELETE FROM mipdb_metadata.datasets" in db.captured_queries[1]
-    assert "DELETE FROM mipdb_metadata.datasets" in db.captured_queries[2]
-    assert "DELETE FROM mipdb_metadata.data_models" in db.captured_queries[3]
+    assert "DELETE FROM mipdb_metadata.data_models" in db.captured_queries[2]
 
 
 @pytest.mark.database
@@ -186,7 +185,7 @@ def test_delete_data_model_with_datasets_with_db_with_force(db, data_model_data,
             "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
         }
     )
-    AddDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
+    AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
 
     # Test with force True
     DeleteDataModel(db).execute(
@@ -270,9 +269,9 @@ def test_add_dataset_with_db(db, data_model_data, dataset_data):
 
     # Test
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    datasets = db.get_datasets()
+    datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 1
-    assert datasets[0] == "a_dataset"
+    assert "a_dataset" == "a_dataset"
 
 
 def test_update_datasets_on_dataset_addition():
@@ -307,13 +306,13 @@ def test_delete_dataset_with_db(db, data_model_data, dataset_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    datasets = db.get_datasets()
+    datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 1
-    assert "a_dataset" in datasets
+    assert "a_dataset" == datasets[0][0]
 
     # Test
-    DeleteDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
-    datasets = db.get_datasets()
+    DeleteDataset(db).execute(dataset="a_dataset", data_model_code=data_model_data["code"], version=data_model_data["version"])
+    datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 0
     assert "a_dataset" not in datasets
 
@@ -417,10 +416,9 @@ def test_enable_dataset_with_db(db, data_model_data, dataset_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    datasets = db.get_datasets()
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
-    EnableDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
+    EnableDataset(db).execute(dataset="a_dataset", data_model_code=data_model_data["code"], version=data_model_data["version"])
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
 
@@ -431,14 +429,13 @@ def test_enable_dataset_already_enabled_with_db(db, data_model_data, dataset_dat
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    datasets = db.get_datasets()
-    EnableDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
+    EnableDataset(db).execute(dataset="a_dataset", data_model_code=data_model_data["code"], version=data_model_data["version"])
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
         EnableDataset(db).execute(
-            dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"]
+            dataset="a_dataset", data_model_code=data_model_data["code"], version=data_model_data["version"]
         )
 
 
@@ -459,11 +456,10 @@ def test_disable_dataset_with_db(db, data_model_data, dataset_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    datasets = db.get_datasets()
-    EnableDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
+    EnableDataset(db).execute(dataset="a_dataset", data_model_code=data_model_data["code"], version=data_model_data["version"])
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
-    DisableDataset(db).execute(dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"])
+    DisableDataset(db).execute(dataset="a_dataset", data_model_code=data_model_data["code"], version=data_model_data["version"])
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
 
@@ -474,13 +470,12 @@ def test_disable_dataset_already_disabled_with_db(db, data_model_data, dataset_d
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    datasets = db.get_datasets()
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
 
     with pytest.raises(UserInputError):
         DisableDataset(db).execute(
-            dataset=datasets[0], data_model_code=data_model_data["code"], version=data_model_data["version"]
+            dataset="a_dataset", data_model_code=data_model_data["code"], version=data_model_data["version"]
         )
 
 

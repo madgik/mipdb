@@ -90,7 +90,7 @@ def test_get_schemas_with_db(db):
 def test_get_datasets():
     db = MonetDBMock()
     datasets = db.get_datasets()
-    assert datasets == [1, 2]
+    assert datasets == [[1, 2]]
 
 
 @pytest.mark.database
@@ -107,8 +107,8 @@ def test_get_datasets_with_db(db):
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Check dataset present
-    datasets = db.get_datasets()
-    assert "a_dataset" in datasets
+    datasets = db.get_datasets(columns=["code"])
+    assert ("a_dataset",) in datasets
     assert len(datasets) == 1
 
 
@@ -242,12 +242,12 @@ def test_insert_values_to_table():
 
 def test_list_data_models():
     db = MonetDBMock()
-    db.list_data_models()
+    db.get_data_models(columns=["data_model_id", "code"])
     assert "SELECT data_model_id," in db.captured_queries[0]
 
 
 def test_list_datasets():
     db = MonetDBMock()
-    db.list_data_models()
+    db.get_data_models(columns=["data_model_id", "code"])
     assert "SELECT data_model_id," in db.captured_queries[0]
 

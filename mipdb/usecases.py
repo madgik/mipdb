@@ -124,11 +124,8 @@ class DeleteDataModel(UseCase):
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
             if not force:
                 self._validate_data_model_deletion(name, data_model_id, conn)
-            datasets = datasets_table.get_datasets(conn)
-            dataset_ids = [
-                datasets_table.get_dataset_id(dataset, data_model_id, conn)
-                for dataset in datasets
-            ]
+            datasets = datasets_table.get_datasets(data_model_id=data_model_id, columns=["dataset_id"], db=conn)
+            dataset_ids = [dataset[0] for dataset in datasets]
             record = dict(
                 code=code, version=version, data_model_id=data_model_id, dataset_ids=dataset_ids
             )
@@ -140,7 +137,7 @@ class DeleteDataModel(UseCase):
         datasets = datasets_table.get_datasets(conn, data_model_id)
         if not len(datasets) == 0:
             raise ForeignKeyError(
-                f"The Schema:{data_model_name} cannot be deleted because it contains Datasets: {datasets}"
+                f"The Data Model:{data_model_name} cannot be deleted because it contains Datasets: {datasets}"
                 f"\nIf you want to force delete everything, please use the  '-- force' flag"
             )
 
@@ -208,8 +205,8 @@ class AddDataset(UseCase):
     def _verify_dataset_does_not_exist(self, data_model_id, dataset, conn):
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
-        datasets = dataset_table.get_datasets(conn, data_model_id)
-        if datasets is not None and dataset.name in datasets:
+        datasets = dataset_table.get_datasets(db=conn, data_model_id=data_model_id, columns=["code"])
+        if datasets is not None and (dataset.name,) in datasets:
             raise UserInputError("Dataset already exists!")
 
 
@@ -656,12 +653,20 @@ class ListDataModels(UseCase):
         data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
-            table_data = data_model_table.list_with_percentage(conn)
-            if table_data:
-                column_names = data_model_table.table.columns.keys()
-                column_names.remove("properties")
-                column_names.append("percentage")
-                df = pa.DataFrame(table_data, columns=column_names)
+            columns = ["data_model_id", "code", "version", "label", "status"]
+            data_models = data_model_table.get_data_models(db=conn, columns=columns)
+
+            data_models_with_count = []
+            for data_model in data_models:
+                data_model_id = data_model[0]
+                dataset_count = data_model_table.get_dataset_count_by_data_model_id(data_model_id, conn)
+                current_data_model = list(data_model)
+                current_data_model.append(dataset_count)
+                data_models_with_count.append(current_data_model)
+
+            if data_models_with_count:
+                columns.append("count")
+                df = pa.DataFrame(data_models_with_count, columns=columns)
                 print(df)
             else:
                 print("There is no data models")
@@ -673,15 +678,26 @@ class ListDatasets(UseCase):
 
     def execute(self) -> None:
         metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
+        data_model_table = DataModelTable(schema=metadata)
+        dataset_table = DatasetsTable(schema=metadata)
 
         with self.db.begin() as conn:
-            table_data = datasets_table.list_with_percentage(conn)
-            if table_data:
-                column_names = datasets_table.table.columns.keys()
-                column_names.remove("properties")
-                column_names.append("percentage")
-                df = pa.DataFrame(table_data, columns=column_names)
+            columns = ["dataset_id", "data_model_id", "code", "label", "status"]
+            datasets = dataset_table.get_datasets(conn, columns=columns)
+
+            datasets_with_count = []
+            for dataset in datasets:
+                dataset_code = dataset[2]
+                data_models = data_model_table.get_data_models(conn, ["data_model_id", "code", "version"])
+                data_model_fullnames = [get_data_model_fullname(code, version) for data_model_id, code, version in data_models if data_model_id == dataset[1]]
+                dataset_count = dataset_table.get_data_count_by_dataset(data_model_fullnames[0], dataset_code, conn)
+                current_dataset = list(dataset)
+                current_dataset.append(dataset_count)
+                datasets_with_count.append(current_dataset)
+
+            if datasets_with_count:
+                columns.append("count")
+                df = pa.DataFrame(datasets_with_count, columns=columns)
                 print(df)
             else:
                 print("There is no datasets")

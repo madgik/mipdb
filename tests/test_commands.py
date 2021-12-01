@@ -91,13 +91,13 @@ def test_add_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    assert 'a_dataset' not in db.get_datasets()
+    assert ('a_dataset',) not in db.get_datasets(columns=["code"])
 
     # Test
     result = runner.invoke(
         add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
     )
-    assert "a_dataset" in db.get_datasets()
+    assert ('a_dataset',) in db.get_datasets(columns=["code"])
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[1]
@@ -120,13 +120,13 @@ def test_delete_dataset(db):
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
-    assert "a_dataset" in db.get_datasets()
+    assert ('a_dataset',) in db.get_datasets(columns=["code"])
 
     # Test
     result = runner.invoke(
         delete_dataset, ["a_dataset", "--data-model", "data_model", "-v", "1.0"]
     )
-    assert "a_dataset" not in db.get_datasets()
+    assert ('a_dataset',) not in db.get_datasets(columns=["code"])
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[2]
@@ -508,11 +508,11 @@ def test_list_data_models(db):
     assert result.exit_code == ExitCode.OK
     assert result.stdout == "There is no data models\n"
     assert result_with_data_model.exit_code == ExitCode.OK
-    assert "data_model_id        code version           label    status  percentage" in result_with_data_model.stdout
-    assert "0              1  data_model     1.0  The Data Model  DISABLED           0" in result_with_data_model.stdout
+    assert "data_model_id        code version           label    status  count" in result_with_data_model.stdout
+    assert "0              1  data_model     1.0  The Data Model  DISABLED      0" in result_with_data_model.stdout
     assert result_with_data_model_and_dataset.exit_code == ExitCode.OK
-    assert "data_model_id        code version           label    status  percentage" in result_with_data_model_and_dataset.stdout
-    assert "0              1  data_model     1.0  The Data Model  DISABLED         100" in result_with_data_model_and_dataset.stdout
+    assert "data_model_id        code version           label    status  count" in result_with_data_model_and_dataset.stdout
+    assert "0              1  data_model     1.0  The Data Model  DISABLED      1" in result_with_data_model_and_dataset.stdout
 
 
 @pytest.mark.database
@@ -528,15 +528,14 @@ def test_list_datasets(db):
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     result = runner.invoke(list_datasets)
     runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
-    assert "a_dataset" in db.get_datasets()
     result_with_dataset = runner.invoke(list_datasets)
 
     # Test
     assert result.exit_code == ExitCode.OK
     assert result.stdout == "There is no datasets\n"
     assert result_with_dataset.exit_code == ExitCode.OK
-    assert "dataset_id  data_model_id       code label    status  percentage" in result_with_dataset.stdout
-    assert "0           1              1  a_dataset  None  DISABLED         100" in result_with_dataset.stdout
+    assert "dataset_id  data_model_id       code label    status  count" in result_with_dataset.stdout
+    assert "0           1              1  a_dataset  None  DISABLED      5" in result_with_dataset.stdout
 
 
 def _get_status(db, schema_name):
