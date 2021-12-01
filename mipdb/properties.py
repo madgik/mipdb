@@ -36,10 +36,10 @@ class Properties:
     def add_property(self, key, value, force):
         properties_dict = json.loads(self.properties)
         if key in properties_dict["properties"] and not force:
-            raise UserInputError("Property already exists.\n"
-                                 "If you want to force override the property, please use the  '-- force' flag")
+            raise UserInputError(
+                "Property already exists.\n"
+                "If you want to force override the property, please use the  '--force' flag"
+            )
         else:
             properties_dict["properties"][key] = value
             self.properties = json.dumps(properties_dict)
-
-

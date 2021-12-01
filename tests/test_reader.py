@@ -25,4 +25,4 @@ def test_csv_reader():
     dataset_file = "tests/data/dataset.csv"
     reader = CSVFileReader(dataset_file)
     content = reader.read()
-    assert content.values.shape == (5, 5)
+    assert content.values.shape == (5, 6)
