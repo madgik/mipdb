@@ -14,8 +14,9 @@ from mipdb import enable_dataset
 from mipdb import enable_data_model
 from mipdb import tag_dataset
 from mipdb import tag_data_model
-from mipdb.commands import list_data_models
-from mipdb.commands import list_datasets
+from mipdb import list_data_models
+from mipdb import list_datasets
+from mipdb import validate_dataset
 from mipdb.exceptions import ExitCode
 
 
@@ -54,7 +55,9 @@ def test_add_data_model(db):
     assert action_id == 1
     assert action != ""
     assert json.loads(action)["action"] == "ADD DATA MODEL"
-    metadata = db.execute(f'select * from "data_model:1.0".variables_metadata').fetchall()
+    metadata = db.execute(
+        f'select * from "data_model:1.0".variables_metadata'
+    ).fetchall()
     # TODO better test
     assert len(metadata) == 5
 
@@ -91,13 +94,13 @@ def test_add_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    assert ('a_dataset',) not in db.get_datasets(columns=["code"])
+    assert ("dataset1",) not in db.get_datasets(columns=["code"])
 
     # Test
     result = runner.invoke(
         add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
     )
-    assert ('a_dataset',) in db.get_datasets(columns=["code"])
+    assert ("dataset1",) in db.get_datasets(columns=["code"])
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[1]
@@ -106,6 +109,26 @@ def test_add_dataset(db):
     assert json.loads(action)["action"] == "ADD DATASET"
     data = db.execute(f'select * from "data_model:1.0".primary_data').fetchall()
     assert len(data) == 5
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_validate_dataset(db):
+    # Setup
+    runner = CliRunner()
+    data_model_file = "tests/data/data_model.json"
+    dataset_file = "tests/data/dataset.csv"
+
+    # Check dataset not present already
+    runner.invoke(init, [])
+    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    assert "dataset1" not in db.get_datasets()
+
+    # Test
+    result = runner.invoke(
+        validate_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"]
+    )
+    assert result.exit_code == ExitCode.OK
 
 
 @pytest.mark.database
@@ -119,14 +142,16 @@ def test_delete_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
-    assert ('a_dataset',) in db.get_datasets(columns=["code"])
+    runner.invoke(
+        add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
+    )
+    assert ("dataset1",) in db.get_datasets(columns=["code"])
 
     # Test
     result = runner.invoke(
-        delete_dataset, ["a_dataset", "--data-model", "data_model", "-v", "1.0"]
+        delete_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"]
     )
-    assert ('a_dataset',) not in db.get_datasets(columns=["code"])
+    assert ("dataset1",) not in db.get_datasets(columns=["code"])
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[2]
@@ -146,9 +171,7 @@ def test_tag_data_model(db):
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
 
     # Test
-    result = runner.invoke(
-        tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"]
-    )
+    result = runner.invoke(tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.data_models"
@@ -171,9 +194,7 @@ def test_untag_data_model(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(
-        tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"]
-    )
+    runner.invoke(tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"])
 
     # Test
     result = runner.invoke(
@@ -228,9 +249,7 @@ def test_property_data_model_deletion(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(
-        tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0"]
-    )
+    runner.invoke(tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0"])
 
     # Test
     result = runner.invoke(
@@ -260,12 +279,14 @@ def test_tag_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    runner.invoke(
+        add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
+    )
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-d", "data_model", "-v", "1.0"],
+        ["dataset1", "-t", "tag", "-d", "data_model", "-v", "1.0"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -292,18 +313,18 @@ def test_untag_dataset(db):
     result = runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
 
-    result = runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    result = runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-d", "data_model", "-v", "1.0"],
+        ["dataset1", "-t", "tag", "-d", "data_model", "-v", "1.0"],
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "tag", "-d", "data_model", "-v", "1.0", "-r"],
+        ["dataset1", "-t", "tag", "-d", "data_model", "-v", "1.0", "-r"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -328,12 +349,12 @@ def test_property_dataset_addition(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
+        ["dataset1", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -360,18 +381,18 @@ def test_property_dataset_deletion(db):
     result = runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
 
-    result = runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    result = runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
+        ["dataset1", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["a_dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0", "-r"],
+        ["dataset1", "-t", "key=value", "-d", "data_model", "-v", "1.0", "-r"],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -441,12 +462,12 @@ def test_enable_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     assert _get_status(db, "datasets") == "DISABLED"
 
     # Test
     result = runner.invoke(
-        enable_dataset, ["a_dataset", "--data-model", "data_model", "-v", "1.0"]
+        enable_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"]
     )
     assert result.exit_code == ExitCode.OK
     assert _get_status(db, "datasets") == "ENABLED"
@@ -468,15 +489,13 @@ def test_disable_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
-    runner.invoke(
-        enable_dataset, ["a_dataset", "--data-model", "data_model", "-v", "1.0"]
-    )
+    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
+    runner.invoke(enable_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"])
     assert _get_status(db, "datasets") == "ENABLED"
 
     # Test
     result = runner.invoke(
-        disable_dataset, ["a_dataset", "--data-model", "data_model", "-v", "1.0"]
+        disable_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"]
     )
     assert _get_status(db, "datasets") == "DISABLED"
     assert result.exit_code == ExitCode.OK
@@ -501,18 +520,32 @@ def test_list_data_models(db):
     result = runner.invoke(list_data_models)
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     result_with_data_model = runner.invoke(list_data_models)
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    runner.invoke(
+        add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
+    )
     result_with_data_model_and_dataset = runner.invoke(list_data_models)
 
     # Test
     assert result.exit_code == ExitCode.OK
     assert result.stdout == "There is no data models\n"
     assert result_with_data_model.exit_code == ExitCode.OK
-    assert "data_model_id        code version           label    status  count" in result_with_data_model.stdout
-    assert "0              1  data_model     1.0  The Data Model  DISABLED      0" in result_with_data_model.stdout
+    assert (
+        "data_model_id        code version           label    status  count"
+        in result_with_data_model.stdout
+    )
+    assert (
+        "0              1  data_model     1.0  The Data Model  DISABLED      0"
+        in result_with_data_model.stdout
+    )
     assert result_with_data_model_and_dataset.exit_code == ExitCode.OK
-    assert "data_model_id        code version           label    status  count" in result_with_data_model_and_dataset.stdout
-    assert "0              1  data_model     1.0  The Data Model  DISABLED      1" in result_with_data_model_and_dataset.stdout
+    assert (
+        "data_model_id        code version           label    status  count"
+        in result_with_data_model_and_dataset.stdout
+    )
+    assert (
+        "0              1  data_model     1.0  The Data Model  DISABLED      1"
+        in result_with_data_model_and_dataset.stdout
+    )
 
 
 @pytest.mark.database
@@ -527,17 +560,28 @@ def test_list_datasets(db):
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     result = runner.invoke(list_datasets)
-    runner.invoke(add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"])
+    runner.invoke(
+        add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
+    )
     result_with_dataset = runner.invoke(list_datasets)
 
     # Test
     assert result.exit_code == ExitCode.OK
     assert result.stdout == "There is no datasets\n"
     assert result_with_dataset.exit_code == ExitCode.OK
-    assert "dataset_id  data_model_id       code label    status  count" in result_with_dataset.stdout
-    assert "0           1              1  a_dataset  None  DISABLED      5" in result_with_dataset.stdout
+    print(result_with_dataset.stdout)
+    assert (
+        "dataset_id  data_model_id      code label    status  count"
+        in result_with_dataset.stdout
+    )
+    assert (
+        "0           1              1  dataset1  None  DISABLED      5"
+        in result_with_dataset.stdout
+    )
 
 
 def _get_status(db, schema_name):
-    (status, *_), *_ = db.execute(f'SELECT status FROM "mipdb_metadata".{schema_name}').fetchall()
+    (status, *_), *_ = db.execute(
+        f'SELECT status FROM "mipdb_metadata".{schema_name}'
+    ).fetchall()
     return status

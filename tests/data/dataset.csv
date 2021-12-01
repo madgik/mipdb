@@ -1,6 +1,6 @@
-var1,var2,var3,var4,dataset
-1,l1,11,21,a_dataset
-2,l2,12,22,a_dataset
-3,l1,13,23,a_dataset
-4,l1,14,24,a_dataset
-5,l2,15,25,a_dataset
+subjectcode,var1,var2,var3,var4,dataset
+1,1,l1,11,,dataset1
+2,1,l2,12,22,dataset1
+3,1,l1,13,23,dataset1
+4,1,l1,14,24,dataset1
+5,1,l2,15,25,dataset1

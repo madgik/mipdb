@@ -346,7 +346,7 @@ class DBExecutorMixin(ABC):
 
     def get_dataset_count_by_data_model_id(self, data_model_id):
         (count, *_), *_ = self.execute(
-            f""" 
+            f"""
             SELECT COUNT(data_model_id)
             FROM {METADATA_SCHEMA}.datasets
             WHERE data_model_id = {data_model_id}
@@ -356,7 +356,7 @@ class DBExecutorMixin(ABC):
 
     def get_data_count_by_dataset(self, schema_fullname, dataset):
         (count, *_), *_ = self.execute(
-            f""" 
+            f"""
             SELECT COUNT(dataset)
             FROM "{schema_fullname}"."primary_data"
             WHERE dataset = '{dataset}';
@@ -377,7 +377,9 @@ class DBExecutorMixin(ABC):
 
     def get_datasets(self, data_model_id=None, columns=None):
         columns_query = ", ".join(columns) if columns else "*"
-        data_model_id_clause = "" if data_model_id is None else f"WHERE data_model_id={data_model_id}"
+        data_model_id_clause = (
+            "" if data_model_id is None else f"WHERE data_model_id={data_model_id}"
+        )
         datasets = self.execute(
             f"""
             SELECT {columns_query}

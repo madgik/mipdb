@@ -33,14 +33,14 @@ def update_schema_status(db):
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     # Check the status of schema is disabled
     res = db.execute(
-        sql.text('SELECT status from  "mipdb_metadata".data_models where data_model_id = 1')
+        'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
     )
     assert list(res)[0] == "DISABLED"
 
     # Test
     db.update_metadata_schema_status("ENABLED", "schema", 1)
     res = db.execute(
-        sql.text('SELECT status from  "mipdb_metadata".data_models where data_model_id = 1')
+        'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
     )
     assert list(res)[0] == "ENABLED"
 
@@ -108,7 +108,7 @@ def test_get_datasets_with_db(db):
 
     # Check dataset present
     datasets = db.get_datasets(columns=["code"])
-    assert ("a_dataset",) in datasets
+    assert ("dataset1",) in datasets
     assert len(datasets) == 1
 
 
@@ -170,7 +170,7 @@ def test_get_dataset_id_with_db(db):
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Test
-    dataset_id = db.get_dataset_id("a_dataset", 1)
+    dataset_id = db.get_dataset_id("dataset1", 1)
     assert dataset_id == 1
 
 
@@ -188,13 +188,13 @@ def test_get_dataset_id_duplication_error(db):
     db.execute(
         sql.text(
             'INSERT INTO "mipdb_metadata".datasets (dataset_id, data_model_id, code, status)'
-            "VALUES (2, 1, 'a_dataset', 'DISABLED')"
+            "VALUES (2, 1, 'dataset1', 'DISABLED')"
         )
     )
 
     # Test when there more than one dataset ids with the specific code and data_model_id
     with pytest.raises(DataBaseError):
-        dataset_id = db.get_dataset_id("a_dataset", 1)
+        dataset_id = db.get_dataset_id("dataset1", 1)
 
 
 @pytest.mark.database
@@ -208,7 +208,7 @@ def test_get_dataset_id_not_found_error(db):
 
     # Test when there is no dataset in the database with the specific code and data_model_id
     with pytest.raises(DataBaseError):
-        dataset_id = db.get_dataset_id("a_dataset", 1)
+        dataset_id = db.get_dataset_id("dataset1", 1)
 
 
 def test_drop_schema():
@@ -250,4 +250,3 @@ def test_list_datasets():
     db = MonetDBMock()
     db.get_data_models(columns=["data_model_id", "code"])
     assert "SELECT data_model_id," in db.captured_queries[0]
-

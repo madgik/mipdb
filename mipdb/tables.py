@@ -53,7 +53,9 @@ class Table(ABC):
 
 class DataModelTable(Table):
     def __init__(self, schema):
-        self.data_model_id_seq = sql.Sequence("data_model_id_seq", metadata=schema.schema)
+        self.data_model_id_seq = sql.Sequence(
+            "data_model_id_seq", metadata=schema.schema
+        )
         self._table = sql.Table(
             "data_models",
             schema.schema,
@@ -73,7 +75,9 @@ class DataModelTable(Table):
     def get_data_models(self, db, columns: list = None):
         if not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
-            raise ValueError(f"The columns: {non_existing_columns} do not exist in the data models schema")
+            raise ValueError(
+                f"The columns: {non_existing_columns} do not exist in the data models schema"
+            )
         return db.get_data_models(columns)
 
     def get_dataset_count_by_data_model_id(self, data_model_id, db):
