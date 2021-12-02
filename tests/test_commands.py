@@ -94,13 +94,14 @@ def test_add_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    assert ("dataset1",) not in db.get_datasets(columns=["code"])
+    assert not db.get_datasets(columns=["code"])
 
     # Test
     result = runner.invoke(
         add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
     )
-    assert ("dataset1",) in db.get_datasets(columns=["code"])
+    assert "dataset1" == db.get_datasets(columns=["code"])[0][0]
+
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[1]
@@ -122,7 +123,7 @@ def test_validate_dataset(db):
     # Check dataset not present already
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
-    assert "dataset1" not in db.get_datasets()
+    assert not db.get_datasets(columns=["code"])
 
     # Test
     result = runner.invoke(
@@ -145,14 +146,15 @@ def test_delete_dataset(db):
     runner.invoke(
         add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
     )
-    assert ("dataset1",) in db.get_datasets(columns=["code"])
+    assert "dataset1" == db.get_datasets(columns=["code"])[0][0]
 
     # Test
     result = runner.invoke(
         delete_dataset, ["dataset1", "-d", "data_model", "-v", "1.0"]
     )
-    assert ("dataset1",) not in db.get_datasets(columns=["code"])
     assert result.exit_code == ExitCode.OK
+
+    assert not db.get_datasets(columns=["code"])
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[2]
     assert action_id == 3
@@ -527,7 +529,7 @@ def test_list_data_models(db):
 
     # Test
     assert result.exit_code == ExitCode.OK
-    assert result.stdout == "There is no data models\n"
+    assert result.stdout == "There are no data models.\n"
     assert result_with_data_model.exit_code == ExitCode.OK
     assert (
         "data_model_id        code version           label    status  count"
@@ -567,7 +569,7 @@ def test_list_datasets(db):
 
     # Test
     assert result.exit_code == ExitCode.OK
-    assert result.stdout == "There is no datasets\n"
+    assert result.stdout == "There are no datasets.\n"
     assert result_with_dataset.exit_code == ExitCode.OK
     print(result_with_dataset.stdout)
     assert (

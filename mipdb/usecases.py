@@ -143,7 +143,7 @@ class DeleteDataModel(UseCase):
         if not len(datasets) == 0:
             raise ForeignKeyError(
                 f"The Data Model:{data_model_name} cannot be deleted because it contains Datasets: {datasets}"
-                f"\nIf you want to force delete everything, please use the  '-- force' flag"
+                f"\nIf you want to force delete everything, please use the  '--force' flag"
             )
 
 
@@ -688,25 +688,43 @@ class ListDataModels(UseCase):
         data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
-            columns = ["data_model_id", "code", "version", "label", "status"]
-            data_models = data_model_table.get_data_models(db=conn, columns=columns)
+            data_model_row_columns = [
+                "data_model_id",
+                "code",
+                "version",
+                "label",
+                "status",
+            ]
+            data_model_rows = data_model_table.get_data_models(
+                db=conn, columns=data_model_row_columns
+            )
 
-            data_models_with_count = []
-            for data_model in data_models:
-                data_model_id = data_model[0]
-                dataset_count = data_model_table.get_dataset_count_by_data_model_id(
-                    data_model_id, conn
+            dataset_count_by_data_model_id = {
+                data_model_id: dataset_count
+                for data_model_id, dataset_count in data_model_table.get_dataset_count_by_data_model_id(
+                    conn
                 )
-                current_data_model = list(data_model)
-                current_data_model.append(dataset_count)
-                data_models_with_count.append(current_data_model)
+            }
 
-            if data_models_with_count:
-                columns.append("count")
-                df = pa.DataFrame(data_models_with_count, columns=columns)
-                print(df)
-            else:
-                print("There is no data models")
+            data_models_info = []
+
+            for row in data_model_rows:
+                data_model_id, *_ = row
+                dataset_count = (
+                    dataset_count_by_data_model_id[data_model_id]
+                    if data_model_id in dataset_count_by_data_model_id
+                    else 0
+                )
+                data_model_info = list(row) + [dataset_count]
+                data_models_info.append(data_model_info)
+
+            if not data_models_info:
+                print("There are no data models.")
+                return
+
+            data_model_info_columns = data_model_row_columns + ["count"]
+            df = pa.DataFrame(data_models_info, columns=data_model_info_columns)
+            print(df)
 
 
 class ListDatasets(UseCase):
@@ -719,30 +737,43 @@ class ListDatasets(UseCase):
         dataset_table = DatasetsTable(schema=metadata)
 
         with self.db.begin() as conn:
-            columns = ["dataset_id", "data_model_id", "code", "label", "status"]
-            datasets = dataset_table.get_datasets(conn, columns=columns)
+            dataset_row_columns = [
+                "dataset_id",
+                "data_model_id",
+                "code",
+                "label",
+                "status",
+            ]
+            dataset_rows = dataset_table.get_datasets(conn, columns=dataset_row_columns)
 
-            datasets_with_count = []
-            for dataset in datasets:
-                dataset_code = dataset[2]
-                data_models = data_model_table.get_data_models(
+            data_model_fullname_by_data_model_id = {
+                data_model_id: get_data_model_fullname(code, version)
+                for data_model_id, code, version in data_model_table.get_data_models(
                     conn, ["data_model_id", "code", "version"]
                 )
-                data_model_fullnames = [
-                    get_data_model_fullname(code, version)
-                    for data_model_id, code, version in data_models
-                    if data_model_id == dataset[1]
-                ]
-                dataset_count = dataset_table.get_data_count_by_dataset(
-                    data_model_fullnames[0], dataset_code, conn
-                )
-                current_dataset = list(dataset)
-                current_dataset.append(dataset_count)
-                datasets_with_count.append(current_dataset)
+            }
 
-            if datasets_with_count:
-                columns.append("count")
-                df = pa.DataFrame(datasets_with_count, columns=columns)
-                print(df)
-            else:
-                print("There is no datasets")
+            datasets_info = []
+            for row in dataset_rows:
+                _, data_model_id, dataset_code, *_ = row
+                data_model_fullname = data_model_fullname_by_data_model_id[
+                    data_model_id
+                ]
+
+                dataset_count = {
+                    dataset: dataset_count
+                    for dataset, dataset_count in dataset_table.get_data_count_by_dataset(
+                        data_model_fullname, conn
+                    )
+                }[dataset_code]
+
+                dataset_info = list(row) + [dataset_count]
+                datasets_info.append(dataset_info)
+
+            if not datasets_info:
+                print("There are no datasets.")
+                return
+
+            dataset_info_columns = dataset_row_columns + ["count"]
+            df = pa.DataFrame(datasets_info, columns=dataset_info_columns)
+            print(df)

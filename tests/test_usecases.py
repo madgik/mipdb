@@ -411,7 +411,7 @@ def test_delete_dataset_with_db(db, data_model_data, dataset_data):
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
     datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 1
-    assert "dataset1" == datasets[0][0]
+    assert ("dataset1",) in datasets
 
     # Test
     DeleteDataset(db).execute(
@@ -421,7 +421,7 @@ def test_delete_dataset_with_db(db, data_model_data, dataset_data):
     )
     datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 0
-    assert "dataset1" not in datasets
+    assert ("dataset1",) not in datasets
 
 
 def test_update_datasets_on_dataset_deletion():

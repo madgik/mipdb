@@ -66,7 +66,7 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def get_data_count_by_dataset(self, schema_fullname, dataset):
+    def get_data_count_by_dataset(self, schema_fullname):
         pass
 
     @abstractmethod
@@ -186,7 +186,7 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
-    def get_data_count_by_dataset(self, schema_fullname, dataset):
+    def get_data_count_by_dataset(self, schema_fullname):
         pass
 
     @abstractmethod
@@ -344,25 +344,25 @@ class DBExecutorMixin(ABC):
         res = self.execute("SELECT name FROM sys.schemas WHERE system=FALSE")
         return [schema for schema, *_ in res]
 
-    def get_dataset_count_by_data_model_id(self, data_model_id):
-        (count, *_), *_ = self.execute(
+    def get_dataset_count_by_data_model_id(self):
+        res = self.execute(
             f"""
-            SELECT COUNT(data_model_id)
+            SELECT data_model_id, COUNT(data_model_id) as count
             FROM {METADATA_SCHEMA}.datasets
-            WHERE data_model_id = {data_model_id}
+            GROUP BY data_model_id
             """
         )
-        return count
+        return list(res)
 
-    def get_data_count_by_dataset(self, schema_fullname, dataset):
-        (count, *_), *_ = self.execute(
+    def get_data_count_by_dataset(self, schema_fullname):
+        res = self.execute(
             f"""
-            SELECT COUNT(dataset)
+            SELECT dataset, COUNT(dataset) as count
             FROM "{schema_fullname}"."primary_data"
-            WHERE dataset = '{dataset}';
+            GROUP BY dataset
             """
         )
-        return count
+        return list(res)
 
     def get_data_models(self, columns=None):
         columns_query = ", ".join(columns) if columns else "*"
@@ -378,7 +378,7 @@ class DBExecutorMixin(ABC):
     def get_datasets(self, data_model_id=None, columns=None):
         columns_query = ", ".join(columns) if columns else "*"
         data_model_id_clause = (
-            "" if data_model_id is None else f"WHERE data_model_id={data_model_id}"
+            f"WHERE data_model_id={data_model_id}" if data_model_id else ""
         )
         datasets = self.execute(
             f"""
