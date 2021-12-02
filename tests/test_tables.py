@@ -28,6 +28,42 @@ def cdes(data_model_data):
     return make_cdes(data_model_data)
 
 
+def test_get_data_models(metadata):
+    # Setup
+    db = MonetDBMock()
+    # Test
+    data_models = DataModelTable(schema=metadata)
+    data_models.get_data_models(db=db, columns=["data_model_id", "code"])
+
+
+def test_get_data_models_without_valid_columns(metadata):
+    # Setup
+    db = MonetDBMock()
+    # Test
+    data_models = DataModelTable(schema=metadata)
+    with pytest.raises(ValueError):
+        data_models.get_data_models(
+            db=db, columns=["data_model_id", "non-existing column"]
+        )
+
+
+def test_get_datasets(metadata):
+    # Setup
+    db = MonetDBMock()
+    # Test
+    datasets = DatasetsTable(schema=metadata)
+    datasets.get_datasets(db=db, columns=["dataset_id", "data_model_id"])
+
+
+def test_get_datasets_without_valid_columns(metadata):
+    # Setup
+    db = MonetDBMock()
+    # Test
+    datasets = DatasetsTable(schema=metadata)
+    with pytest.raises(ValueError):
+        datasets.get_datasets(db=db, columns=["dataset_id", "non-existing column"])
+
+
 def test_data_models_table_mockdb(metadata):
     # Setup
     db = MonetDBMock()
