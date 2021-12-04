@@ -54,7 +54,19 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def get_datasets(self, data_model_id):
+    def get_datasets(self, data_model_id, columns):
+        pass
+
+    @abstractmethod
+    def get_data_models(self, columns):
+        pass
+
+    @abstractmethod
+    def get_dataset_count_by_data_model_id(self):
+        pass
+
+    @abstractmethod
+    def get_data_count_by_dataset(self, schema_fullname):
         pass
 
     @abstractmethod
@@ -162,7 +174,19 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
-    def get_datasets(self, data_model_id):
+    def get_datasets(self, data_model_id, columns):
+        pass
+
+    @abstractmethod
+    def get_data_models(self, columns):
+        pass
+
+    @abstractmethod
+    def get_dataset_count_by_data_model_id(self):
+        pass
+
+    @abstractmethod
+    def get_data_count_by_dataset(self, schema_fullname):
         pass
 
     @abstractmethod
@@ -285,7 +309,6 @@ class DBExecutorMixin(ABC):
             f"FROM {METADATA_SCHEMA}.data_models "
             "WHERE code = :code "
             "AND version = :version "
-            "AND status <> 'DELETED'"
         )
         res = list(self.execute(select, code=code, version=version))
         if len(res) > 1:
@@ -305,7 +328,6 @@ class DBExecutorMixin(ABC):
             f"FROM {METADATA_SCHEMA}.datasets "
             "WHERE code = :code "
             "AND data_model_id = :data_model_id "
-            "AND status <> 'DELETED'"
         )
         res = list(self.execute(select, code=code, data_model_id=data_model_id))
         if len(res) > 1:
@@ -322,14 +344,49 @@ class DBExecutorMixin(ABC):
         res = self.execute("SELECT name FROM sys.schemas WHERE system=FALSE")
         return [schema for schema, *_ in res]
 
-    def get_datasets(self, data_model_id=None):
+    def get_dataset_count_by_data_model_id(self):
+        res = self.execute(
+            f"""
+            SELECT data_model_id, COUNT(data_model_id) as count
+            FROM {METADATA_SCHEMA}.datasets
+            GROUP BY data_model_id
+            """
+        )
+        return list(res)
+
+    def get_data_count_by_dataset(self, schema_fullname):
+        res = self.execute(
+            f"""
+            SELECT dataset, COUNT(dataset) as count
+            FROM "{schema_fullname}"."primary_data"
+            GROUP BY dataset
+            """
+        )
+        return list(res)
+
+    def get_data_models(self, columns=None):
+        columns_query = ", ".join(columns) if columns else "*"
+        data_models = self.execute(
+            f"""
+            SELECT {columns_query}
+            FROM {METADATA_SCHEMA}.data_models as data_models
+            """
+        )
+
+        return list(data_models)
+
+    def get_datasets(self, data_model_id=None, columns=None):
+        columns_query = ", ".join(columns) if columns else "*"
         data_model_id_clause = (
             f"WHERE data_model_id={data_model_id}" if data_model_id else ""
         )
-        res = self.execute(
-            f"SELECT code FROM {METADATA_SCHEMA}.datasets {data_model_id_clause}"
+        datasets = self.execute(
+            f"""
+            SELECT {columns_query}
+            FROM {METADATA_SCHEMA}.datasets {data_model_id_clause}
+            """
         )
-        return [dataset for dataset, *_ in res]
+        return list(datasets)
 
     @handle_errors
     def create_table(self, table):

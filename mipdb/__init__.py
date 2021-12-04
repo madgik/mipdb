@@ -6,6 +6,8 @@ from mipdb.commands import init
 from mipdb.commands import add_data_model
 from mipdb.commands import delete_data_model
 from mipdb.commands import add_dataset
+from mipdb.commands import list_data_models
+from mipdb.commands import list_datasets
 from mipdb.commands import validate_dataset
 from mipdb.commands import delete_dataset
 from mipdb.commands import tag_dataset
@@ -24,4 +26,6 @@ __all__ = [
     "disable_dataset",
     "tag_data_model",
     "tag_dataset",
+    "list_data_models",
+    "list_datasets",
 ]

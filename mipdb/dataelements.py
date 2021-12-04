@@ -2,7 +2,6 @@ import json
 from dataclasses import dataclass
 
 from mipdb.exceptions import InvalidDatasetError
-from mipdb.exceptions import UserInputError
 
 
 @dataclass

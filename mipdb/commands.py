@@ -14,6 +14,8 @@ from mipdb.usecases import DisableDataset
 from mipdb.usecases import DisableDataModel
 from mipdb.usecases import EnableDataset
 from mipdb.usecases import EnableDataModel
+from mipdb.usecases import ListDataModels
+from mipdb.usecases import ListDatasets
 from mipdb.usecases import RemovePropertyFromDataModel
 from mipdb.usecases import RemovePropertyFromDataset
 from mipdb.usecases import UntagDataModel
@@ -253,7 +255,15 @@ def tag_dataset(dataset, data_model, version, tag, remove, force):
             TagDataset(db).execute(dataset, data_model, version, tag)
 
 
-@entry.command("list")
+@entry.command()
 @handle_errors
-def list_():
-    pass
+def list_data_models():
+    db = MonetDB.from_config(get_db_config())
+    ListDataModels(db).execute()
+
+
+@entry.command()
+@handle_errors
+def list_datasets():
+    db = MonetDB.from_config(get_db_config())
+    ListDatasets(db).execute()
