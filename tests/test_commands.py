@@ -40,7 +40,7 @@ def test_init(db):
 def test_add_data_model(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, [])
@@ -67,7 +67,7 @@ def test_add_data_model(db):
 def test_delete_data_model(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, [])
@@ -88,8 +88,8 @@ def test_delete_data_model(db):
 def test_add_dataset(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -117,8 +117,8 @@ def test_add_dataset(db):
 def test_validate_dataset(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -137,8 +137,8 @@ def test_validate_dataset(db):
 def test_delete_dataset(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -167,7 +167,7 @@ def test_delete_dataset(db):
 def test_tag_data_model(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
@@ -191,7 +191,7 @@ def test_tag_data_model(db):
 def test_untag_data_model(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -220,7 +220,7 @@ def test_untag_data_model(db):
 def test_property_data_model_addition(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
@@ -246,7 +246,7 @@ def test_property_data_model_addition(db):
 def test_property_data_model_deletion(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -275,8 +275,8 @@ def test_property_data_model_deletion(db):
 def test_tag_dataset(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -307,8 +307,8 @@ def test_tag_dataset(db):
 def test_untag_dataset(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -345,8 +345,8 @@ def test_untag_dataset(db):
 def test_property_dataset_addition(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -375,8 +375,8 @@ def test_property_dataset_addition(db):
 def test_property_dataset_deletion(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -413,7 +413,7 @@ def test_property_dataset_deletion(db):
 def test_enable_data_model(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check status is disabled
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
@@ -435,7 +435,7 @@ def test_enable_data_model(db):
 def test_disable_data_model(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check status is enabled
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
@@ -458,8 +458,8 @@ def test_disable_data_model(db):
 def test_enable_dataset(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -485,8 +485,8 @@ def test_enable_dataset(db):
 def test_disable_dataset(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -513,8 +513,8 @@ def test_disable_dataset(db):
 def test_list_data_models(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
@@ -555,8 +555,8 @@ def test_list_data_models(db):
 def test_list_datasets(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])

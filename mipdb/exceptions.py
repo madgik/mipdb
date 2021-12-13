@@ -3,6 +3,8 @@ from enum import IntEnum
 from functools import wraps
 from contextlib import contextmanager
 
+sys.tracebacklimit = 0
+
 
 class DataBaseError(Exception):
     """Is raised when the DB raises an OperationalError."""
@@ -67,6 +69,12 @@ def handle_errors(func):
         except FileContentError as exc:
             print("File error:\n")
             print(f"\t{exc.message}")
+            sys.exit(ExitCode.FILE_ERROR)
+        except ForeignKeyError as exc:
+            print("Foreign key error:\n")
+            print(f"\t{exc.message}")
+        except InvalidDatasetError as exc:
+            print(f"\nDataset error: {exc.message}")
             sys.exit(ExitCode.FILE_ERROR)
         # except Exception as exc:
         #     print("Something went wrong:\n")

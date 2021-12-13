@@ -29,8 +29,8 @@
                 "sql_type": "text",
                 "description": "",
                 "enumerations": [
-                    {"code": "dataset1", "label": "Dataset 1"},
-                    {"code": "dataset2", "label": "Dataset 2"}
+                    {"code": "valid_dataset", "label": "Valid dataset"},
+                    {"code": "dataset_is_not_unique", "label": "Dataset with more one value"}
                 ],
                 "label": "Dataset",
                 "methodology": ""
@@ -45,8 +45,8 @@
                         "isCategorical": false,
                         "code": "var3",
                         "sql_type": "real",
-                        "minValue": 0,
-                        "maxValue": 100,
+                        "minValue": 5,
+                        "maxValue": 60,
                         "description": "",
                         "label": "Variable 3",
                         "methodology": ""
@@ -60,7 +60,7 @@
                             {
                                 "isCategorical": false,
                                 "code": "var4",
-                                "sql_type": "real",
+                                "sql_type": "int",
                                 "units": "years",
                                 "description": "",
                                 "label": "Variable 4",

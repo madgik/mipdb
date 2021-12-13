@@ -205,7 +205,7 @@ class TestPrimaryDataTable:
             "\n\tvar2 VARCHAR(255), "
             "\n\tdataset VARCHAR(255), "
             "\n\tvar3 FLOAT, "
-            "\n\tvar4 FLOAT\n)\n\n"
+            "\n\tvar4 INTEGER\n)\n\n"
         )
         assert db.captured_queries[0] == expected
 
@@ -250,7 +250,7 @@ class TestPrimaryDataTable:
     def test_insert_dataset_mockdb(self, cdes):
         # Setup
         db = MonetDBMock()
-        dataset_file = "tests/data/dataset.csv"
+        dataset_file = "tests/data/success/data_model/dataset.csv"
         reader = CSVFileReader(dataset_file)
         dataset = Dataset(reader.read())
         schema = Schema("schema:1.0")
@@ -264,7 +264,7 @@ class TestPrimaryDataTable:
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
     def test_insert_dataset_with_db(self, db, cdes):
         # Setup
-        dataset_file = "tests/data/dataset.csv"
+        dataset_file = "tests/data/success/data_model/dataset.csv"
         reader = CSVFileReader(dataset_file)
         dataset = Dataset(reader.read())
         schema = Schema("schema:1.0")

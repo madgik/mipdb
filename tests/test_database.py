@@ -28,7 +28,7 @@ def test_get_schemas():
 def update_schema_status(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     # Check the status of schema is disabled
@@ -50,8 +50,8 @@ def update_schema_status(db):
 def update_dataset_status(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
@@ -75,7 +75,7 @@ def update_dataset_status(db):
 def test_get_schemas_with_db(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check schema not present already
     assert db.get_schemas() == []
 
@@ -98,8 +98,8 @@ def test_get_datasets():
 def test_get_datasets_with_db(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -117,7 +117,7 @@ def test_get_datasets_with_db(db):
 def test_get_data_model_id_with_db(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
 
@@ -143,7 +143,7 @@ def test_get_data_model_id_not_found_error(db):
 def test_get_data_model_id_duplication_error(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     db.execute(
@@ -163,8 +163,8 @@ def test_get_data_model_id_duplication_error(db):
 def test_get_dataset_id_with_db(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
@@ -179,8 +179,8 @@ def test_get_dataset_id_with_db(db):
 def test_get_dataset_id_duplication_error(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
-    dataset_file = "tests/data/dataset.csv"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    dataset_file = "tests/data/success/data_model/dataset.csv"
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
@@ -202,7 +202,7 @@ def test_get_dataset_id_duplication_error(db):
 def test_get_dataset_id_not_found_error(db):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/data_model.json"
+    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
 

@@ -2,7 +2,6 @@ import json
 
 import pandas as pd
 import pandera as pa
-from pandera.errors import SchemaError
 
 from mipdb.exceptions import InvalidDatasetError
 
@@ -12,9 +11,10 @@ class Dataset:
     _name: str
 
     def __init__(self, data: pd.DataFrame) -> None:
-        # Pandas will insert nan values where there is a empty value in the csv.
+        # Pandas will insert nan values where there is an empty value in the csv.
         # In order to be able to insert the values through the sqlalchemy we need to replace nan with None.
-        self._data = data.astype(object).where(pd.notnull(data), None)
+        self._data = data
+        self._data = self._data.astype(object).where(pd.notnull(self._data), None)
         self._verify_dataset_field()
         self._name = self._data["dataset"][0]
 
@@ -59,7 +59,10 @@ class Dataset:
             metadata_column = metadata_table[column].metadata
             metadata_column_dict = json.loads(metadata_column)
             checks = self._get_pa_checks(metadata_column_dict)
-            pa_type = self.pa_type_from_sql_type(metadata_column_dict["sql_type"])
+            cde_sql_type = metadata_column_dict["sql_type"]
+            pa_type = self._pa_type_from_sql_type(cde_sql_type)
+            if cde_sql_type == "int":
+                self._data[column] = self._data[column].fillna(0)
             pa_columns[column] = pa.Column(dtype=pa_type, checks=checks, nullable=True)
 
         schema = pa.DataFrameSchema(
@@ -68,15 +71,13 @@ class Dataset:
         )
 
         try:
-            schema.validate(self._data)
-            print("This dataset has the proper format and data")
-        except SchemaError as exc:
+            schema(self._data)
+        except pa.errors.SchemaError as exc:
             raise InvalidDatasetError(
-                f"The column: '{exc.schema.name}' in the dataset "
-                f"violates the constraints imposed by the schema"
+                f"On dataset {self._name} and column {exc.schema.name} has error\n{exc.failure_cases}"
             )
 
-    def pa_type_from_sql_type(self, sql_type):
+    def _pa_type_from_sql_type(self, sql_type):
         return {"text": pa.String, "int": pa.Int, "real": pa.Float}.get(sql_type)
 
     def to_dict(self):
@@ -96,6 +97,7 @@ class Dataset:
                             enumeration["code"]
                             for enumeration in _metadata["enumerations"]
                         ]
+                        + ["None"]
                     )
                 )
             )

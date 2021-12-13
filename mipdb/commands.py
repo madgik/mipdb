@@ -1,4 +1,10 @@
+import uuid
+
 import click as cl
+import os
+import glob
+
+import pandas
 
 from mipdb.database import MonetDB, get_db_config
 from mipdb.reader import CSVFileReader, JsonFileReader
@@ -31,6 +37,39 @@ def entry():
 
 
 @entry.command()
+@cl.argument("file", required=True)
+@cl.option("-v", "--version", required=True, help="The data model version")
+@handle_errors
+def load_data(file, version):
+    for subdir, dirs, files in os.walk(file):
+        if dirs:
+            continue
+        print(f"Data model {subdir} is being loaded...")
+        dbconfig = get_db_config()
+        db = MonetDB.from_config(dbconfig)
+        reader = JsonFileReader(subdir + "/CDEsMetadata.json")
+        data_model_data = reader.read()
+        data_model_data["version"] = version
+        AddDataModel(db).execute(data_model_data)
+        print(
+            f"Data model {os.path.basename(os.path.normpath(subdir))} was successfully added."
+        )
+
+        for csv in glob.glob(subdir + "/*.csv"):
+            print(f"Dataset {csv} is being loaded...")
+            dbconfig = get_db_config()
+            db = MonetDB.from_config(dbconfig)
+            reader = CSVFileReader(csv)
+            dataset_data = reader.read()
+            data_model = os.path.basename(os.path.normpath(subdir))
+            ValidateDataset(db).execute(dataset_data, data_model, version)
+            AddDataset(db).execute(dataset_data, data_model, version)
+            print(
+                f"Dataset {os.path.basename(os.path.normpath(csv))} was successfully added."
+            )
+
+
+@entry.command()
 @handle_errors
 def init():
     dbconfig = get_db_config()
@@ -44,12 +83,16 @@ def init():
 # @cl.option("--dry-run", is_flag=True)
 @handle_errors
 def add_data_model(file, version):
-    reader = JsonFileReader(file)
+    print(f"Data model {file} is being loaded...")
     dbconfig = get_db_config()
+    reader = JsonFileReader(file)
     db = MonetDB.from_config(dbconfig)
     data_model_data = reader.read()
     data_model_data["version"] = version
     AddDataModel(db).execute(data_model_data)
+    print(
+        f"Data model {os.path.basename(os.path.normpath(file))} was successfully added."
+    )
 
 
 @entry.command()
@@ -63,12 +106,14 @@ def add_data_model(file, version):
 @cl.option("-v", "--version", required=True, help="The data model version")
 @handle_errors
 def add_dataset(file, data_model, version):
+    print(f"Dataset {file} is being loaded...")
     reader = CSVFileReader(file)
     dbconfig = get_db_config()
     db = MonetDB.from_config(dbconfig)
     dataset_data = reader.read()
     ValidateDataset(db).execute(dataset_data, data_model, version)
     AddDataset(db).execute(dataset_data, data_model, version)
+    print(f"Dataset {os.path.basename(os.path.normpath(file))} was successfully added.")
 
 
 @entry.command()
@@ -87,6 +132,9 @@ def validate_dataset(file, data_model, version):
     db = MonetDB.from_config(dbconfig)
     dataset_data = reader.read()
     ValidateDataset(db).execute(dataset_data, data_model, version)
+    print(
+        f"Dataset {os.path.basename(os.path.normpath(file))} was successfully validated."
+    )
 
 
 @entry.command()
@@ -102,6 +150,7 @@ def validate_dataset(file, data_model, version):
 def delete_data_model(name, version, force):
     db = MonetDB.from_config(get_db_config())
     DeleteDataModel(db).execute(name, version, force)
+    print(f"Data model {name} was successfully removed.")
 
 
 @entry.command()
@@ -117,6 +166,7 @@ def delete_data_model(name, version, force):
 def delete_dataset(dataset, data_model, version):
     db = MonetDB.from_config(get_db_config())
     DeleteDataset(db).execute(dataset, data_model, version)
+    print(f"Dataset {dataset} was successfully removed.")
 
 
 @entry.command()
@@ -126,6 +176,7 @@ def delete_dataset(dataset, data_model, version):
 def enable_data_model(name, version):
     db = MonetDB.from_config(get_db_config())
     EnableDataModel(db).execute(name, version)
+    print(f"Data model {name} was successfully enabled.")
 
 
 @entry.command()
@@ -135,6 +186,7 @@ def enable_data_model(name, version):
 def disable_data_model(name, version):
     db = MonetDB.from_config(get_db_config())
     DisableDataModel(db).execute(name, version)
+    print(f"Data model {name} was successfully disabled.")
 
 
 @entry.command()
@@ -150,6 +202,7 @@ def disable_data_model(name, version):
 def enable_dataset(dataset, data_model, version):
     db = MonetDB.from_config(get_db_config())
     EnableDataset(db).execute(dataset, data_model, version)
+    print(f"Dataset {dataset} was successfully enabled.")
 
 
 @entry.command()
@@ -165,6 +218,7 @@ def enable_dataset(dataset, data_model, version):
 def disable_dataset(dataset, data_model, version):
     db = MonetDB.from_config(get_db_config())
     DisableDataset(db).execute(dataset, data_model, version)
+    print(f"Dataset {dataset} was successfully disabled.")
 
 
 @entry.command()
@@ -197,13 +251,18 @@ def tag_data_model(name, version, tag, remove, force):
         key, value = tag.split("=")
         if remove:
             RemovePropertyFromDataModel(db).execute(name, version, key, value)
+            print(f"Property was successfully removed from data model {name}.")
         else:
             AddPropertyToDataModel(db).execute(name, version, key, value, force)
+            print(f"Property was successfully added to data model {name}.")
+
     else:
         if remove:
             UntagDataModel(db).execute(name, version, tag)
+            print(f"Data model {name} was successfully untagged.")
         else:
             TagDataModel(db).execute(name, version, tag)
+            print(f"Data model {name} was successfully tagged.")
 
 
 @entry.command()
@@ -244,15 +303,19 @@ def tag_dataset(dataset, data_model, version, tag, remove, force):
             RemovePropertyFromDataset(db).execute(
                 dataset, data_model, version, key, value
             )
+            print(f"Property was successfully removed from dataset {dataset}.")
         else:
             AddPropertyToDataset(db).execute(
                 dataset, data_model, version, key, value, force
             )
+            print(f"Property was successfully added to dataset {dataset}.")
     else:
         if remove:
             UntagDataset(db).execute(dataset, data_model, version, tag)
+            print(f"Dataset {dataset} was successfully untagged.")
         else:
             TagDataset(db).execute(dataset, data_model, version, tag)
+            print(f"Dataset {dataset} was successfully tagged.")
 
 
 @entry.command()

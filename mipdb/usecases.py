@@ -242,6 +242,7 @@ class ValidateDataset(UseCase):
 
         with self.db.begin() as conn:
             metadata_table = MetadataTable.from_db(data_model, conn)
+            print(metadata_table.table)
             dataset.validate_dataset(metadata_table.table)
 
 
