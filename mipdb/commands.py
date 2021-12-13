@@ -40,7 +40,7 @@ def entry():
 @cl.argument("file", required=True)
 @cl.option("-v", "--version", required=True, help="The data model version")
 @handle_errors
-def load_data(file, version):
+def load_folder(file, version):
     for subdir, dirs, files in os.walk(file):
         if dirs:
             continue

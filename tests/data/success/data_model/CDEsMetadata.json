@@ -29,6 +29,7 @@
                 "sql_type": "text",
                 "description": "",
                 "enumerations": [
+                    {"code": "dataset", "label": "Dataset"},
                     {"code": "dataset1", "label": "Dataset 1"},
                     {"code": "dataset2", "label": "Dataset 2"}
                 ],

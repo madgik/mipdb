@@ -108,7 +108,7 @@ def test_get_datasets_with_db(db):
 
     # Check dataset present
     datasets = db.get_datasets(columns=["code"])
-    assert ("dataset1",) in datasets
+    assert ("dataset",) in datasets
     assert len(datasets) == 1
 
 
@@ -170,7 +170,7 @@ def test_get_dataset_id_with_db(db):
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Test
-    dataset_id = db.get_dataset_id("dataset1", 1)
+    dataset_id = db.get_dataset_id("dataset", 1)
     assert dataset_id == 1
 
 
@@ -188,13 +188,13 @@ def test_get_dataset_id_duplication_error(db):
     db.execute(
         sql.text(
             'INSERT INTO "mipdb_metadata".datasets (dataset_id, data_model_id, code, status)'
-            "VALUES (2, 1, 'dataset1', 'DISABLED')"
+            "VALUES (2, 1, 'dataset', 'DISABLED')"
         )
     )
 
     # Test when there more than one dataset ids with the specific code and data_model_id
     with pytest.raises(DataBaseError):
-        dataset_id = db.get_dataset_id("dataset1", 1)
+        dataset_id = db.get_dataset_id("dataset", 1)
 
 
 @pytest.mark.database
@@ -208,7 +208,7 @@ def test_get_dataset_id_not_found_error(db):
 
     # Test when there is no dataset in the database with the specific code and data_model_id
     with pytest.raises(DataBaseError):
-        dataset_id = db.get_dataset_id("dataset1", 1)
+        dataset_id = db.get_dataset_id("dataset", 1)
 
 
 def test_drop_schema():

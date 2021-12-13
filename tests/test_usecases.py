@@ -274,7 +274,7 @@ def test_add_dataset_with_db(db, data_model_data, dataset_data):
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
     datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 1
-    assert datasets[0] == ("dataset1",)
+    assert datasets[0] == ("dataset",)
 
 
 def test_update_datasets_on_dataset_addition():
@@ -282,7 +282,7 @@ def test_update_datasets_on_dataset_addition():
     record = dict(
         data_model_id=1,
         dataset_id=1,
-        code="dataset1",
+        code="dataset",
     )
     update_datasets_on_dataset_addition(record, db)
     assert f"INSERT INTO mipdb_metadata.datasets" in db.captured_queries[0]
@@ -303,7 +303,7 @@ def test_validate_dataset(db, data_model_data, dataset_data):
             "var2": ["l1", "l2", "l1", "l1", "l2"],
             "var3": [11, 12, 13, 14, 15],
             "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+            "dataset": ["dataset", "dataset", "dataset", "dataset", "dataset"],
         }
     )
     # Test success
@@ -322,7 +322,7 @@ def test_validate_dataset_without_subjectcode(db, data_model_data, dataset_data)
             "var2": ["l1", "l2", "l1", "l1", "l2"],
             "var3": [11, 12, 13, 14, 15],
             "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+            "dataset": ["dataset", "dataset", "dataset", "dataset", "dataset"],
         }
     )
 
@@ -342,7 +342,7 @@ def test_validate_dataset_non_existing_column(db, data_model_data, dataset_data)
             "invalid_column": ["l1", "l2", "l1", "l1", "l2"],
             "var3": [11, 12, 13, 14, 15],
             "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+            "dataset": ["dataset", "dataset", "dataset", "dataset", "dataset"],
         }
     )
 
@@ -361,7 +361,7 @@ def test_validate_dataset_with_invalid_column(db, data_model_data, dataset_data)
             "subjectcode": [1, 2, 3, 4, 5],
             "var3": [11, 12, 13, 14, 15],
             "var4": ["invalid_type", 22, 23, 24, 25],
-            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+            "dataset": ["dataset", "dataset", "dataset", "dataset", "dataset"],
         }
     )
 
@@ -382,7 +382,7 @@ def test_validate_dataset_with_duplicate_in_subjectcode(
             "subjectcode": [1, 1, 3, 4, 5],
             "var3": [11, 12, 13, 14, 15],
             "var4": [11, 22, 23, 24, 25],
-            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
+            "dataset": ["dataset", "dataset", "dataset", "dataset", "dataset"],
         }
     )
 
@@ -392,7 +392,7 @@ def test_validate_dataset_with_duplicate_in_subjectcode(
 
 def test_delete_dataset():
     db = MonetDBMock()
-    dataset = "dataset1"
+    dataset = "dataset"
     code = "data_model"
     version = "1.0"
     DeleteDataset(db).execute(dataset=dataset, data_model_code=code, version=version)
@@ -411,17 +411,17 @@ def test_delete_dataset_with_db(db, data_model_data, dataset_data):
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
     datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 1
-    assert ("dataset1",) in datasets
+    assert ("dataset",) in datasets
 
     # Test
     DeleteDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
     )
     datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 0
-    assert ("dataset1",) not in datasets
+    assert ("dataset",) not in datasets
 
 
 def test_update_datasets_on_dataset_deletion():
@@ -520,7 +520,7 @@ def test_disable_data_model_already_disabled_with_db(db, data_model_data):
 
 def test_enable_dataset():
     db = MonetDBMock()
-    dataset = "dataset1"
+    dataset = "dataset"
     code = "data_model"
     version = "1.0"
     EnableDataset(db).execute(dataset, code, version)
@@ -538,7 +538,7 @@ def test_enable_dataset_with_db(db, data_model_data, dataset_data):
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
     EnableDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
     )
@@ -553,7 +553,7 @@ def test_enable_dataset_already_enabled_with_db(db, data_model_data, dataset_dat
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
     EnableDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
     )
@@ -562,7 +562,7 @@ def test_enable_dataset_already_enabled_with_db(db, data_model_data, dataset_dat
 
     with pytest.raises(UserInputError):
         EnableDataset(db).execute(
-            dataset="dataset1",
+            dataset="dataset",
             data_model_code=data_model_data["code"],
             version=data_model_data["version"],
         )
@@ -570,7 +570,7 @@ def test_enable_dataset_already_enabled_with_db(db, data_model_data, dataset_dat
 
 def test_disable_dataset():
     db = MonetDBMock()
-    dataset = "dataset1"
+    dataset = "dataset"
     code = "data_model"
     version = "1.0"
     DisableDataset(db).execute(dataset, code, version)
@@ -586,14 +586,14 @@ def test_disable_dataset_with_db(db, data_model_data, dataset_data):
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
     EnableDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
     )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
     DisableDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
     )
@@ -612,7 +612,7 @@ def test_disable_dataset_already_disabled_with_db(db, data_model_data, dataset_d
 
     with pytest.raises(UserInputError):
         DisableDataset(db).execute(
-            dataset="dataset1",
+            dataset="dataset",
             data_model_code=data_model_data["code"],
             version=data_model_data["version"],
         )
@@ -776,7 +776,7 @@ def test_remove_property_from_data_model_with_db(db, data_model_data):
 def test_tag_dataset():
     db = MonetDBMock()
     TagDataset(db).execute(
-        dataset="dataset1", data_model_code="data_model", version="1.0", tag="tag"
+        dataset="dataset", data_model_code="data_model", version="1.0", tag="tag"
     )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
@@ -786,7 +786,7 @@ def test_tag_dataset():
 def test_untag_dataset():
     db = MonetDBMock()
     UntagDataset(db).execute(
-        dataset="dataset1", data_model_code="data_model", version="1.0", tag="tag1"
+        dataset="dataset", data_model_code="data_model", version="1.0", tag="tag1"
     )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
     assert "Sequence('action_id_seq'" in db.captured_queries[1]
@@ -796,7 +796,7 @@ def test_untag_dataset():
 def test_add_property2dataset():
     db = MonetDBMock()
     AddPropertyToDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code="data_model",
         version="1.0",
         key="key",
@@ -811,7 +811,7 @@ def test_add_property2dataset():
 def test_remove_property_from_dataset():
     db = MonetDBMock()
     RemovePropertyFromDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code="data_model",
         version="1.0",
         key="key1",
@@ -832,7 +832,7 @@ def test_tag_dataset_with_db(db, data_model_data, dataset_data):
 
     # Test
     TagDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         tag="tag",
@@ -850,19 +850,19 @@ def test_untag_dataset_with_db(db, data_model_data, dataset_data):
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data, "data_model", "1.0")
     TagDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         tag="tag1",
     )
     TagDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         tag="tag2",
     )
     TagDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         tag="tag3",
@@ -870,7 +870,7 @@ def test_untag_dataset_with_db(db, data_model_data, dataset_data):
 
     # Test
     UntagDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         tag="tag1",
@@ -890,7 +890,7 @@ def test_add_property2dataset_with_db(db, data_model_data, dataset_data):
 
     # Test
     AddPropertyToDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         key="key",
@@ -910,7 +910,7 @@ def test_remove_property_from_dataset_with_db(db, data_model_data, dataset_data)
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data, "data_model", "1.0")
     AddPropertyToDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         key="key",
@@ -918,7 +918,7 @@ def test_remove_property_from_dataset_with_db(db, data_model_data, dataset_data)
         force=False,
     )
     AddPropertyToDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         key="key1",
@@ -926,7 +926,7 @@ def test_remove_property_from_dataset_with_db(db, data_model_data, dataset_data)
         force=False,
     )
     AddPropertyToDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         key="key2",
@@ -936,7 +936,7 @@ def test_remove_property_from_dataset_with_db(db, data_model_data, dataset_data)
 
     # Test
     RemovePropertyFromDataset(db).execute(
-        dataset="dataset1",
+        dataset="dataset",
         data_model_code=data_model_data["code"],
         version=data_model_data["version"],
         key="key2",
