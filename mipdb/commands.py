@@ -38,18 +38,17 @@ def entry():
 
 @entry.command()
 @cl.argument("file", required=True)
-@cl.option("-v", "--version", required=True, help="The data model version")
 @handle_errors
-def load_folder(file, version):
+def load_folder(file):
+    dbconfig = get_db_config()
+    db = MonetDB.from_config(dbconfig)
     for subdir, dirs, files in os.walk(file):
         if dirs:
             continue
         print(f"Data model {subdir} is being loaded...")
-        dbconfig = get_db_config()
-        db = MonetDB.from_config(dbconfig)
         reader = JsonFileReader(subdir + "/CDEsMetadata.json")
         data_model_data = reader.read()
-        data_model_data["version"] = version
+        version = data_model_data["version"]
         AddDataModel(db).execute(data_model_data)
         print(
             f"Data model {os.path.basename(os.path.normpath(subdir))} was successfully added."
@@ -57,8 +56,6 @@ def load_folder(file, version):
 
         for csv in glob.glob(subdir + "/*.csv"):
             print(f"Dataset {csv} is being loaded...")
-            dbconfig = get_db_config()
-            db = MonetDB.from_config(dbconfig)
             reader = CSVFileReader(csv)
             dataset_data = reader.read()
             data_model = os.path.basename(os.path.normpath(subdir))
@@ -79,16 +76,13 @@ def init():
 
 @entry.command()
 @cl.argument("file", required=True)
-@cl.option("-v", "--version", required=True, help="The data model version")
-# @cl.option("--dry-run", is_flag=True)
 @handle_errors
-def add_data_model(file, version):
+def add_data_model(file):
     print(f"Data model {file} is being loaded...")
     dbconfig = get_db_config()
     reader = JsonFileReader(file)
     db = MonetDB.from_config(dbconfig)
     data_model_data = reader.read()
-    data_model_data["version"] = version
     AddDataModel(db).execute(data_model_data)
     print(
         f"Data model {os.path.basename(os.path.normpath(file))} was successfully added."

@@ -30,7 +30,7 @@ def update_schema_status(db):
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     # Check the status of schema is disabled
     res = db.execute(
         'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
@@ -53,7 +53,7 @@ def update_dataset_status(db):
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     dataset_file = "tests/data/success/data_model/dataset.csv"
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Check the status of dataset is disabled
@@ -80,7 +80,7 @@ def test_get_schemas_with_db(db):
     assert db.get_schemas() == []
 
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
 
     # Check schema present
     schemas = db.get_schemas()
@@ -103,7 +103,7 @@ def test_get_datasets_with_db(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Check dataset present
@@ -119,7 +119,7 @@ def test_get_data_model_id_with_db(db):
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
 
     # Test success
     data_model_id = db.get_data_model_id("data_model", "1.0")
@@ -145,7 +145,7 @@ def test_get_data_model_id_duplication_error(db):
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     db.execute(
         sql.text(
             'INSERT INTO "mipdb_metadata".data_models (data_model_id, code, version, status)'
@@ -166,7 +166,7 @@ def test_get_dataset_id_with_db(db):
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     dataset_file = "tests/data/success/data_model/dataset.csv"
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Test
@@ -182,7 +182,7 @@ def test_get_dataset_id_duplication_error(db):
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     dataset_file = "tests/data/success/data_model/dataset.csv"
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     db.execute(
@@ -204,7 +204,7 @@ def test_get_dataset_id_not_found_error(db):
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
 
     # Test when there is no dataset in the database with the specific code and data_model_id
     with pytest.raises(DataBaseError):

@@ -46,7 +46,7 @@ def test_add_data_model(db):
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, [])
     # Test
-    result = runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    result = runner.invoke(add_data_model, [data_model_file])
     assert result.exit_code == ExitCode.OK
     assert "data_model:1.0" in db.get_schemas()
     data_models = db.execute(f"select * from mipdb_metadata.data_models").fetchall()
@@ -72,7 +72,7 @@ def test_delete_data_model(db):
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     # Test
     result = runner.invoke(delete_data_model, ["data_model", "-v", "1.0", "-f"])
     assert result.exit_code == ExitCode.OK
@@ -94,7 +94,7 @@ def test_add_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     assert not db.get_datasets(columns=["code"])
 
     # Test
@@ -123,7 +123,7 @@ def test_validate_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     assert not db.get_datasets(columns=["code"])
 
     # Test
@@ -143,7 +143,7 @@ def test_delete_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(
         add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
     )
@@ -166,14 +166,14 @@ def test_delete_dataset(db):
 def test_load_folder(db):
     # Setup
     runner = CliRunner()
-    folder = "tests/data/success/"
+    folder = "tests/data/success"
 
     # Check dataset not present already
     runner.invoke(init, [])
     assert not db.get_datasets(columns=["code"])
 
     # Test
-    result = runner.invoke(load_folder, [folder, "-v", "1.0"])
+    result = runner.invoke(load_folder, [folder])
     assert result.exit_code == ExitCode.OK
 
     assert ["mipdb_metadata", "data_model:1.0", "data_model1:1.0"] == db.get_schemas()
@@ -198,7 +198,7 @@ def test_tag_data_model(db):
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
 
     # Test
     result = runner.invoke(tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"])
@@ -223,7 +223,7 @@ def test_untag_data_model(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"])
 
     # Test
@@ -251,7 +251,7 @@ def test_property_data_model_addition(db):
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
 
     # Test
     result = runner.invoke(
@@ -278,7 +278,7 @@ def test_property_data_model_deletion(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0"])
 
     # Test
@@ -308,7 +308,7 @@ def test_tag_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(
         add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
     )
@@ -340,7 +340,7 @@ def test_untag_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    result = runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    result = runner.invoke(add_data_model, [data_model_file])
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
@@ -378,7 +378,7 @@ def test_property_dataset_addition(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
 
     # Test
@@ -408,7 +408,7 @@ def test_property_dataset_deletion(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    result = runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    result = runner.invoke(add_data_model, [data_model_file])
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
@@ -444,7 +444,7 @@ def test_enable_data_model(db):
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check status is disabled
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     assert _get_status(db, "data_models") == "DISABLED"
 
     # Test
@@ -466,7 +466,7 @@ def test_disable_data_model(db):
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check status is enabled
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(enable_data_model, ["data_model", "-v", "1.0"])
     assert _get_status(db, "data_models") == "ENABLED"
 
@@ -491,7 +491,7 @@ def test_enable_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     assert _get_status(db, "datasets") == "DISABLED"
 
@@ -516,7 +516,7 @@ def test_disable_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
     runner.invoke(enable_dataset, ["dataset", "-d", "data_model", "-v", "1.0"])
     assert _get_status(db, "datasets") == "ENABLED"
@@ -546,7 +546,7 @@ def test_list_data_models(db):
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, [])
     result = runner.invoke(list_data_models)
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     result_with_data_model = runner.invoke(list_data_models)
     runner.invoke(
         add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
@@ -586,7 +586,7 @@ def test_list_datasets(db):
 
     # Check dataset not present already
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    runner.invoke(add_data_model, [data_model_file])
     result = runner.invoke(list_datasets)
     runner.invoke(
         add_dataset, [dataset_file, "--data-model", "data_model", "-v", "1.0"]
