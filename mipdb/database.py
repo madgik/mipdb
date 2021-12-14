@@ -15,10 +15,10 @@ class Status:
     DISABLED = "DISABLED"
 
 
-def get_db_config():
+def get_db_config(ip, port):
     config = {
-        "ip": "172.17.0.1",
-        "port": 50123,
+        "ip": ip if ip else "localhost",
+        "port": port,
         "dbfarm": "db",
         "username": "monetdb",
         "password": "monetdb",
@@ -462,7 +462,7 @@ class MonetDB(DBExecutorMixin, DataBase):
         ip = dbconfig["ip"]
         port = dbconfig["port"]
         dbfarm = dbconfig["dbfarm"]
-        url = f"monetdb://{username}:{password}@localhost:{port}/{dbfarm}:"
+        url = f"monetdb://{username}:{password}@{ip}:{port}/{dbfarm}:"
         return MonetDB(url)
 
     @handle_errors

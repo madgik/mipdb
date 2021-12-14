@@ -25,12 +25,12 @@ def test_get_schemas():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def update_schema_status(db):
+def update_schema_status(db, port):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file])
+    runner.invoke(init, ["--port", port])
+    runner.invoke(add_data_model, [data_model_file, "--port", port])
     # Check the status of schema is disabled
     res = db.execute(
         'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
@@ -47,14 +47,16 @@ def update_schema_status(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def update_dataset_status(db):
+def update_dataset_status(db, port):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     dataset_file = "tests/data/success/data_model/dataset.csv"
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file])
-    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
+    runner.invoke(init, ["--port", port])
+    runner.invoke(add_data_model, [data_model_file, "--port", port])
+    runner.invoke(
+        add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0", "--port", port]
+    )
 
     # Check the status of dataset is disabled
     res = db.execute(
@@ -72,15 +74,15 @@ def update_dataset_status(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_schemas_with_db(db):
+def test_get_schemas_with_db(db, port):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check schema not present already
     assert db.get_schemas() == []
 
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file])
+    runner.invoke(init, ["--port", port])
+    runner.invoke(add_data_model, [data_model_file, "--port", port])
 
     # Check schema present
     schemas = db.get_schemas()
@@ -95,16 +97,18 @@ def test_get_datasets():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_datasets_with_db(db):
+def test_get_datasets_with_db(db, port):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file])
-    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
+    runner.invoke(init, ["--port", port])
+    runner.invoke(add_data_model, [data_model_file, "--port", port])
+    runner.invoke(
+        add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0", "--port", port]
+    )
 
     # Check dataset present
     datasets = db.get_datasets(columns=["code"])
@@ -114,12 +118,12 @@ def test_get_datasets_with_db(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_data_model_id_with_db(db):
+def test_get_data_model_id_with_db(db, port):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file])
+    runner.invoke(init, ["--port", port])
+    runner.invoke(add_data_model, [data_model_file, "--port", port])
 
     # Test success
     data_model_id = db.get_data_model_id("data_model", "1.0")
@@ -128,10 +132,10 @@ def test_get_data_model_id_with_db(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_data_model_id_not_found_error(db):
+def test_get_data_model_id_not_found_error(db, port):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, [])
+    runner.invoke(init, ["--port", port])
 
     # Test when there is no schema in the database with the specific code and version
     with pytest.raises(DataBaseError):
@@ -140,12 +144,12 @@ def test_get_data_model_id_not_found_error(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_data_model_id_duplication_error(db):
+def test_get_data_model_id_duplication_error(db, port):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file])
+    runner.invoke(init, ["--port", port])
+    runner.invoke(add_data_model, [data_model_file, "--port", port])
     db.execute(
         sql.text(
             'INSERT INTO "mipdb_metadata".data_models (data_model_id, code, version, status)'
@@ -160,14 +164,16 @@ def test_get_data_model_id_duplication_error(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_dataset_id_with_db(db):
+def test_get_dataset_id_with_db(db, port):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     dataset_file = "tests/data/success/data_model/dataset.csv"
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file])
-    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
+    runner.invoke(init, ["--port", port])
+    runner.invoke(add_data_model, [data_model_file, "--port", port])
+    runner.invoke(
+        add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0", "--port", port]
+    )
 
     # Test
     dataset_id = db.get_dataset_id("dataset", 1)
@@ -176,14 +182,16 @@ def test_get_dataset_id_with_db(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_dataset_id_duplication_error(db):
+def test_get_dataset_id_duplication_error(db, port):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     dataset_file = "tests/data/success/data_model/dataset.csv"
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file])
-    runner.invoke(add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0"])
+    runner.invoke(init, ["--port", port])
+    runner.invoke(add_data_model, [data_model_file, "--port", port])
+    runner.invoke(
+        add_dataset, [dataset_file, "-d", "data_model", "-v", "1.0", "--port", port]
+    )
 
     db.execute(
         sql.text(
@@ -199,12 +207,12 @@ def test_get_dataset_id_duplication_error(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_dataset_id_not_found_error(db):
+def test_get_dataset_id_not_found_error(db, port):
     # Setup
     runner = CliRunner()
     data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file])
+    runner.invoke(init, ["--port", port])
+    runner.invoke(add_data_model, [data_model_file, "--port", port])
 
     # Test when there is no dataset in the database with the specific code and data_model_id
     with pytest.raises(DataBaseError):
