@@ -1,10 +1,6 @@
-import uuid
-
 import click as cl
 import os
 import glob
-
-import pandas
 
 from mipdb.database import MonetDB, get_db_config
 from mipdb.reader import CSVFileReader, JsonFileReader
@@ -38,32 +34,30 @@ def entry():
 
 @entry.command()
 @cl.argument("file", required=True)
-@cl.option("-v", "--version", required=True, help="The data model version")
 @handle_errors
-def load_folder(file, version):
+def load_folder(file):
+    dbconfig = get_db_config()
+    db = MonetDB.from_config(dbconfig)
     for subdir, dirs, files in os.walk(file):
         if dirs:
             continue
         print(f"Data model {subdir} is being loaded...")
-        dbconfig = get_db_config()
-        db = MonetDB.from_config(dbconfig)
         reader = JsonFileReader(subdir + "/CDEsMetadata.json")
         data_model_data = reader.read()
+        data_model = os.path.basename(os.path.normpath(subdir))
+        index = data_model.index("_v_")
+        code = data_model[:index]
+        version = data_model[index + 1 :].replace("_", ".")
         data_model_data["version"] = version
         AddDataModel(db).execute(data_model_data)
-        print(
-            f"Data model {os.path.basename(os.path.normpath(subdir))} was successfully added."
-        )
+        print(f"Data model {data_model} was successfully added.")
 
         for csv in glob.glob(subdir + "/*.csv"):
             print(f"Dataset {csv} is being loaded...")
-            dbconfig = get_db_config()
-            db = MonetDB.from_config(dbconfig)
             reader = CSVFileReader(csv)
             dataset_data = reader.read()
-            data_model = os.path.basename(os.path.normpath(subdir))
-            ValidateDataset(db).execute(dataset_data, data_model, version)
-            AddDataset(db).execute(dataset_data, data_model, version)
+            ValidateDataset(db).execute(dataset_data, code, version)
+            AddDataset(db).execute(dataset_data, code, version)
             print(
                 f"Dataset {os.path.basename(os.path.normpath(csv))} was successfully added."
             )
@@ -80,7 +74,6 @@ def init():
 @entry.command()
 @cl.argument("file", required=True)
 @cl.option("-v", "--version", required=True, help="The data model version")
-# @cl.option("--dry-run", is_flag=True)
 @handle_errors
 def add_data_model(file, version):
     print(f"Data model {file} is being loaded...")

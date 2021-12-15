@@ -10,14 +10,31 @@ from mipdb.reader import JsonFileReader
 
 @pytest.fixture
 def data_model_data():
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+    data_model_file = "tests/data/success/data_model_v_1_0/CDEsMetadata.json"
     reader = JsonFileReader(data_model_file)
     return reader.read()
 
 
 @pytest.fixture
 def dataset_data():
-    dataset_file = "tests/data/success/data_model/dataset.csv"
+    dataset_file = "tests/data/success/data_model_v_1_0/dataset.csv"
+    reader = CSVFileReader(dataset_file)
+    return reader.read()
+
+
+@pytest.fixture
+def data_model_file():
+    return "tests/data/success/data_model_v_1_0/CDEsMetadata.json"
+
+
+@pytest.fixture
+def dataset_file():
+    return "tests/data/success/data_model_v_1_0/dataset.csv"
+
+
+@pytest.fixture
+def dataset_data():
+    dataset_file = "tests/data/success/data_model_v_1_0/dataset.csv"
     reader = CSVFileReader(dataset_file)
     return reader.read()
 

@@ -193,22 +193,22 @@ def test_validate1():
 
 
 dataset_files = [
-    "tests/data/fail/data_model/dataset_exceeds_max.csv",
-    "tests/data/fail/data_model/dataset_exceeds_min.csv",
-    "tests/data/fail/data_model/dataset_is_not_unique.csv",
-    "tests/data/fail/data_model/duplication_column_subjectcode.csv",
-    "tests/data/fail/data_model/invalid_enum.csv",
-    "tests/data/fail/data_model/invalid_type1.csv",
-    "tests/data/fail/data_model/invalid_type2.csv",
-    "tests/data/fail/data_model/missing_column_dataset.csv",
-    "tests/data/fail/data_model/missing_column_subjectcode.csv",
+    "tests/data/fail/data_model_v_1_0/dataset_exceeds_max.csv",
+    "tests/data/fail/data_model_v_1_0/dataset_exceeds_min.csv",
+    "tests/data/fail/data_model_v_1_0/dataset_is_not_unique.csv",
+    "tests/data/fail/data_model_v_1_0/duplication_column_subjectcode.csv",
+    "tests/data/fail/data_model_v_1_0/invalid_enum.csv",
+    "tests/data/fail/data_model_v_1_0/invalid_type1.csv",
+    "tests/data/fail/data_model_v_1_0/invalid_type2.csv",
+    "tests/data/fail/data_model_v_1_0/missing_column_dataset.csv",
+    "tests/data/fail/data_model_v_1_0/missing_column_subjectcode.csv",
 ]
 
 
 @pytest.mark.parametrize("dataset_file", dataset_files)
 def test_invalid_dataset_error_cases(dataset_file):
 
-    reader = JsonFileReader("tests/data/fail/data_model/CDEsMetadata.json")
+    reader = JsonFileReader("tests/data/fail/data_model_v_1_0/CDEsMetadata.json")
     data_model_data = reader.read()
     cdes = make_cdes(data_model_data)
 

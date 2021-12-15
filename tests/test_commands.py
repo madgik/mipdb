@@ -38,10 +38,9 @@ def test_init(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_data_model(db):
+def test_add_data_model(db, data_model_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, [])
@@ -65,14 +64,13 @@ def test_add_data_model(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model(db):
+def test_delete_data_model(db, data_model_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, [])
-    runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
+    result = runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
     # Test
     result = runner.invoke(delete_data_model, ["data_model", "-v", "1.0", "-f"])
     assert result.exit_code == ExitCode.OK
@@ -86,11 +84,9 @@ def test_delete_data_model(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset(db):
+def test_add_dataset(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -115,11 +111,9 @@ def test_add_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset(db):
+def test_validate_dataset(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -135,11 +129,9 @@ def test_validate_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_dataset(db):
+def test_delete_dataset(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -173,10 +165,14 @@ def test_load_folder(db):
     assert not db.get_datasets(columns=["code"])
 
     # Test
-    result = runner.invoke(load_folder, [folder, "-v", "1.0"])
+    result = runner.invoke(load_folder, [folder])
     assert result.exit_code == ExitCode.OK
 
-    assert ["mipdb_metadata", "data_model:1.0", "data_model1:1.0"] == db.get_schemas()
+    assert [
+        "mipdb_metadata",
+        "data_model:v.1.0",
+        "data_model1:v.1.0",
+    ] == db.get_schemas()
 
     datasets = db.get_datasets()
     dataset_codes = [code for _, _, code, *_ in datasets]
@@ -192,10 +188,9 @@ def test_load_folder(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_data_model(db):
+def test_tag_data_model(db, data_model_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
@@ -216,10 +211,9 @@ def test_tag_data_model(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_untag_data_model(db):
+def test_untag_data_model(db, data_model_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -245,10 +239,9 @@ def test_untag_data_model(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_property_data_model_addition(db):
+def test_property_data_model_addition(db, data_model_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
@@ -271,10 +264,9 @@ def test_property_data_model_addition(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_property_data_model_deletion(db):
+def test_property_data_model_deletion(db, data_model_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -300,11 +292,9 @@ def test_property_data_model_deletion(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset(db):
+def test_tag_dataset(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -332,11 +322,9 @@ def test_tag_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_untag_dataset(db):
+def test_untag_dataset(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -370,11 +358,9 @@ def test_untag_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_property_dataset_addition(db):
+def test_property_dataset_addition(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -400,11 +386,9 @@ def test_property_dataset_addition(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_property_dataset_deletion(db):
+def test_property_dataset_deletion(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -438,10 +422,10 @@ def test_property_dataset_deletion(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_data_model(db):
+def test_enable_data_model(db, data_model_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+
     # Check status is disabled
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
@@ -460,10 +444,10 @@ def test_enable_data_model(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_data_model(db):
+def test_disable_data_model(db, data_model_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
+
     # Check status is enabled
     runner.invoke(init, [])
     runner.invoke(add_data_model, [data_model_file, "-v", "1.0"])
@@ -483,11 +467,9 @@ def test_disable_data_model(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_dataset(db):
+def test_enable_dataset(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -508,11 +490,9 @@ def test_enable_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_dataset(db):
+def test_disable_dataset(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])
@@ -536,11 +516,9 @@ def test_disable_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_list_data_models(db):
+def test_list_data_models(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
@@ -578,11 +556,9 @@ def test_list_data_models(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_list_datasets(db):
+def test_list_datasets(db, data_model_file, dataset_file):
     # Setup
     runner = CliRunner()
-    data_model_file = "tests/data/success/data_model/CDEsMetadata.json"
-    dataset_file = "tests/data/success/data_model/dataset.csv"
 
     # Check dataset not present already
     runner.invoke(init, [])

@@ -250,7 +250,7 @@ class TestPrimaryDataTable:
     def test_insert_dataset_mockdb(self, cdes):
         # Setup
         db = MonetDBMock()
-        dataset_file = "tests/data/success/data_model/dataset.csv"
+        dataset_file = "tests/data/success/data_model_v_1_0/dataset.csv"
         reader = CSVFileReader(dataset_file)
         dataset = Dataset(reader.read())
         schema = Schema("schema:1.0")
@@ -262,9 +262,8 @@ class TestPrimaryDataTable:
 
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-    def test_insert_dataset_with_db(self, db, cdes):
+    def test_insert_dataset_with_db(self, db, cdes, dataset_file):
         # Setup
-        dataset_file = "tests/data/success/data_model/dataset.csv"
         reader = CSVFileReader(dataset_file)
         dataset = Dataset(reader.read())
         schema = Schema("schema:1.0")
