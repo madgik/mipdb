@@ -21,6 +21,12 @@ class CommonDataElement:
             raise InvalidDatasetError(
                 f"The CDE {code} has 'isCategorical' set to True but there are no enumerations."
             )
+        if {"minValue", "maxValue"}.issubset(set(cde_data)) and cde_data[
+            "minValue"
+        ] >= cde_data["maxValue"]:
+            raise InvalidDatasetError(
+                f"The CDE {code} has minValue greater than the maxValue."
+            )
 
         metadata = json.dumps(cde_data)
         return cls(

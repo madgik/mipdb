@@ -56,6 +56,135 @@ def test_to_dict():
     ]
 
 
+def test_validate_with_nan_values_integer_column_with_minValue():
+    data = pd.DataFrame(
+        {
+            "subjectcode": [1, 2],
+            "var4": [22, None],
+            "dataset": ["dataset1", "dataset1"],
+        }
+    )
+    dataset = Dataset(data)
+    metadata = {
+        "dataset": CommonDataElement(
+            code="dataset",
+            metadata="""
+                {
+                    "isCategorical": true,
+                    "code": "dataset",
+                    "sql_type": "text",
+                    "description": "",
+                    "enumerations": [{"code": "dataset1", "label": "Dataset 1"}, {"code": "dataset2", "label": "Dataset 2"}],
+                    "label": "Dataset", "methodology": ""
+                }
+            """,
+        ),
+        "var4": CommonDataElement(
+            code="var4",
+            metadata="""
+            {
+                "isCategorical": false,
+                "code": "var4",
+                "sql_type": "int",
+                "minValue": 10,
+                "units": "years",
+                "description": "",
+                "label": "Variable 4",
+                "methodology": ""
+            }
+            """,
+        ),
+    }
+
+    dataset.validate_dataset(metadata)
+
+
+def test_validate_with_nan_values_integer_column_with_only_maxValue():
+    data = pd.DataFrame(
+        {
+            "subjectcode": [1, 2],
+            "var4": [1, None],
+            "dataset": ["dataset1", "dataset1"],
+        }
+    )
+    dataset = Dataset(data)
+    metadata = {
+        "dataset": CommonDataElement(
+            code="dataset",
+            metadata="""
+                {
+                    "isCategorical": true,
+                    "code": "dataset",
+                    "sql_type": "text",
+                    "description": "",
+                    "enumerations": [{"code": "dataset1", "label": "Dataset 1"}, {"code": "dataset2", "label": "Dataset 2"}],
+                    "label": "Dataset", "methodology": ""
+                }
+            """,
+        ),
+        "var4": CommonDataElement(
+            code="var4",
+            metadata="""
+            {
+                "isCategorical": false,
+                "code": "var4",
+                "sql_type": "int",
+                "maxValue": 100,
+                "units": "years",
+                "description": "",
+                "label": "Variable 4",
+                "methodology": ""
+            }
+            """,
+        ),
+    }
+
+    dataset.validate_dataset(metadata)
+
+
+def test_validate_with_nan_values_integer_column_without_min_max():
+    data = pd.DataFrame(
+        {
+            "subjectcode": [1, 2],
+            "var4": [1, None],
+            "dataset": ["dataset1", "dataset1"],
+        }
+    )
+    dataset = Dataset(data)
+    metadata = {
+        "dataset": CommonDataElement(
+            code="dataset",
+            metadata="""
+                {
+                    "isCategorical": true,
+                    "code": "dataset",
+                    "sql_type": "text",
+                    "description": "",
+                    "enumerations": [{"code": "dataset1", "label": "Dataset 1"}, {"code": "dataset2", "label": "Dataset 2"}],
+                    "label": "Dataset", "methodology": ""
+                }
+            """,
+        ),
+        "var4": CommonDataElement(
+            code="var4",
+            metadata="""
+            {
+                "isCategorical": false,
+                "code": "var4",
+                "sql_type": "int",
+                "maxValue": 100,
+                "units": "years",
+                "description": "",
+                "label": "Variable 4",
+                "methodology": ""
+            }
+            """,
+        ),
+    }
+
+    dataset.validate_dataset(metadata)
+
+
 def test_validate():
     data = pd.DataFrame(
         {
@@ -63,7 +192,7 @@ def test_validate():
             "var1": [1, 2],
             "var2": [1, 2],
             "var3": [50, 20],
-            "var4": [1.1, None],
+            "var4": [1, None],
             "dataset": ["dataset1", "dataset1"],
         }
     )
@@ -146,52 +275,6 @@ def test_validate():
     dataset.validate_dataset(metadata)
 
 
-def test_validate1():
-    data = pd.DataFrame(
-        {
-            "subjectcode": [1, 2],
-            "var2": [5, None],
-            "dataset": ["dataset1", "dataset1"],
-        }
-    )
-    dataset = Dataset(data)
-    metadata = {
-        "var2": CommonDataElement(
-            code="var2",
-            metadata="""
-                {
-                    "isCategorical": true,
-                    "code": "var2",
-                    "sql_type": "text",
-                    "description": "",
-                    "enumerations":
-                        [
-                            {"code": "1", "label": "Number1"},
-                            {"code": "2", "label": "Number2"}
-                        ],
-                    "label": "Variable 2",
-                    "methodology": ""
-                }
-            """,
-        ),
-        "dataset": CommonDataElement(
-            code="dataset",
-            metadata="""
-                {
-                    "isCategorical": true,
-                    "code": "dataset",
-                    "sql_type": "text",
-                    "description": "",
-                    "enumerations": [{"code": "dataset1", "label": "Dataset 1"}, {"code": "dataset2", "label": "Dataset 2"}],
-                    "label": "Dataset", "methodology": ""
-                }
-            """,
-        ),
-    }
-    with pytest.raises(InvalidDatasetError):
-        dataset.validate_dataset(metadata)
-
-
 dataset_files = [
     "tests/data/fail/data_model_v_1_0/dataset_exceeds_max.csv",
     "tests/data/fail/data_model_v_1_0/dataset_exceeds_min.csv",
@@ -207,7 +290,6 @@ dataset_files = [
 
 @pytest.mark.parametrize("dataset_file", dataset_files)
 def test_invalid_dataset_error_cases(dataset_file):
-
     reader = JsonFileReader("tests/data/fail/data_model_v_1_0/CDEsMetadata.json")
     data_model_data = reader.read()
     cdes = make_cdes(data_model_data)

@@ -42,12 +42,12 @@ def load_folder(file):
         if dirs:
             continue
         print(f"Data model {subdir} is being loaded...")
-        reader = JsonFileReader(subdir + "/CDEsMetadata.json")
+        metadata_path = os.path.join(subdir, "CDEsMetadata.json")
+        reader = JsonFileReader(metadata_path)
         data_model_data = reader.read()
         data_model = os.path.basename(os.path.normpath(subdir))
-        index = data_model.index("_v_")
-        code = data_model[:index]
-        version = data_model[index + 1 :].replace("_", ".")
+        code, version = data_model.split("_v_")
+        version = version.replace("_", ".")
         data_model_data["version"] = version
         AddDataModel(db).execute(data_model_data)
         print(f"Data model {data_model} was successfully added.")

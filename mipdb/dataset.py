@@ -61,8 +61,18 @@ class Dataset:
             checks = self._get_pa_checks(metadata_column_dict)
             cde_sql_type = metadata_column_dict["sql_type"]
             pa_type = self._pa_type_from_sql_type(cde_sql_type)
+            # A pandas dataframe it is not possible for a column of integers to contain Nan values.
+            # It is automatically converted to float.
+            # The workaround is to replace the column's Nan values with valid integers.
+            # This change is only for the validation.
+            # This will not affect the dataframe that will be imported in the database.
             if cde_sql_type == "int":
-                self._data[column] = self._data[column].fillna(0)
+                valid_int = 0
+                if "minValue" in metadata_column_dict:
+                    valid_int = metadata_column_dict["minValue"]
+                elif "maxValue" in metadata_column_dict:
+                    valid_int = metadata_column_dict["maxValue"]
+                self._data[column] = self._data[column].fillna(valid_int)
             pa_columns[column] = pa.Column(dtype=pa_type, checks=checks, nullable=True)
 
         schema = pa.DataFrameSchema(
