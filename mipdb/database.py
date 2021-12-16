@@ -1,3 +1,4 @@
+import ipaddress
 from abc import abstractmethod, ABC
 from contextlib import contextmanager
 from typing import Union
@@ -5,6 +6,7 @@ from typing import Union
 import sqlalchemy as sql
 
 from mipdb.exceptions import DataBaseError
+from mipdb.exceptions import UserInputError
 
 METADATA_SCHEMA = "mipdb_metadata"
 METADATA_TABLE = "variables_metadata"
@@ -15,10 +17,21 @@ class Status:
     DISABLED = "DISABLED"
 
 
-def get_db_config():
+def validate_ip(ip):
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        raise UserInputError("Invalid ip provided")
+
+
+def get_db_config(ip, port):
+    if ip:
+        validate_ip(ip)
+    else:
+        ip = "localhost"
     config = {
-        "ip": "172.17.0.1",
-        "port": 50123,
+        "ip": ip,
+        "port": port,
         "dbfarm": "db",
         "username": "monetdb",
         "password": "monetdb",
@@ -462,7 +475,7 @@ class MonetDB(DBExecutorMixin, DataBase):
         ip = dbconfig["ip"]
         port = dbconfig["port"]
         dbfarm = dbconfig["dbfarm"]
-        url = f"monetdb://{username}:{password}@localhost:{port}/{dbfarm}:"
+        url = f"monetdb://{username}:{password}@{ip}:{port}/{dbfarm}:"
         return MonetDB(url)
 
     @handle_errors

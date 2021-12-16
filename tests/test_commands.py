@@ -21,6 +21,7 @@ from mipdb import validate_dataset
 from mipdb.exceptions import ExitCode
 from tests.conftest import DATASET_FILE
 from tests.conftest import DATA_MODEL_FILE
+from tests.conftest import PORT
 
 
 @pytest.mark.database
@@ -31,7 +32,7 @@ def test_init(db):
     # Check data_model not present already
     assert "mipdb_metadata" not in db.get_schemas()
     # Test
-    result = runner.invoke(init, [])
+    result = runner.invoke(init, ["--port", PORT])
     assert result.exit_code == ExitCode.OK
     assert "mipdb_metadata" in db.get_schemas()
     assert db.execute(f"select * from mipdb_metadata.data_models").fetchall() == []
@@ -45,9 +46,11 @@ def test_add_data_model(db):
     runner = CliRunner()
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
-    runner.invoke(init, [])
+    runner.invoke(init, ["--port", PORT])
     # Test
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    result = runner.invoke(
+        add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
     assert "data_model:1.0" in db.get_schemas()
     data_models = db.execute(f"select * from mipdb_metadata.data_models").fetchall()
@@ -71,10 +74,13 @@ def test_delete_data_model(db):
     runner = CliRunner()
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
-    runner.invoke(init, [])
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+
     # Test
-    result = runner.invoke(delete_data_model, ["data_model", "-v", "1.0", "-f"])
+    result = runner.invoke(
+        delete_data_model, ["data_model", "-v", "1.0", "-f", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
     assert "data_model:1.0" not in db.get_schemas()
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
@@ -91,13 +97,14 @@ def test_add_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
     assert not db.get_datasets(columns=["code"])
 
     # Test
     result = runner.invoke(
-        add_dataset, [DATASET_FILE, "--data-model", "data_model", "-v", "1.0"]
+        add_dataset,
+        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
     )
     assert "dataset" == db.get_datasets(columns=["code"])[0][0]
 
@@ -118,13 +125,14 @@ def test_validate_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
     assert not db.get_datasets(columns=["code"])
 
     # Test
     result = runner.invoke(
-        validate_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0"]
+        validate_dataset,
+        [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT],
     )
     assert result.exit_code == ExitCode.OK
 
@@ -136,15 +144,18 @@ def test_delete_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "--data-model", "data_model", "-v", "1.0"]
+        add_dataset,
+        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
     )
     assert "dataset" == db.get_datasets(columns=["code"])[0][0]
 
     # Test
-    result = runner.invoke(delete_dataset, ["dataset", "-d", "data_model", "-v", "1.0"])
+    result = runner.invoke(
+        delete_dataset, ["dataset", "-d", "data_model", "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
 
     assert not db.get_datasets(columns=["code"])
@@ -160,14 +171,14 @@ def test_delete_dataset(db):
 def test_load_folder(db):
     # Setup
     runner = CliRunner()
-    folder = "tests/data/success/"
+    folder = "tests/data/success"
 
     # Check dataset not present already
-    runner.invoke(init, [])
+    result = runner.invoke(init, ["--port", PORT])
     assert not db.get_datasets(columns=["code"])
 
     # Test
-    result = runner.invoke(load_folder, [folder])
+    result = runner.invoke(load_folder, [folder, "--port", PORT])
     assert result.exit_code == ExitCode.OK
 
     assert [
@@ -194,11 +205,13 @@ def test_tag_data_model(db):
     # Setup
     runner = CliRunner()
 
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
 
     # Test
-    result = runner.invoke(tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"])
+    result = runner.invoke(
+        tag_data_model, ["data_model", "-t", "tag", "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.data_models"
@@ -218,13 +231,15 @@ def test_untag_data_model(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
-    runner.invoke(tag_data_model, ["data_model", "-t", "tag", "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(
+        tag_data_model, ["data_model", "-t", "tag", "-v", "1.0", "--port", PORT]
+    )
 
     # Test
     result = runner.invoke(
-        tag_data_model, ["data_model", "-t", "tag", "-v", "1.0", "-r"]
+        tag_data_model, ["data_model", "-t", "tag", "-v", "1.0", "-r", "--port", PORT]
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -245,12 +260,12 @@ def test_property_data_model_addition(db):
     # Setup
     runner = CliRunner()
 
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
 
     # Test
     result = runner.invoke(
-        tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0"]
+        tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0", "--port", PORT]
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -271,13 +286,16 @@ def test_property_data_model_deletion(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
-    runner.invoke(tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(
+        tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0", "--port", PORT]
+    )
 
     # Test
     result = runner.invoke(
-        tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0", "-r"]
+        tag_data_model,
+        ["data_model", "-t", "key=value", "-v", "1.0", "-r", "--port", PORT],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -299,16 +317,17 @@ def test_tag_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "--data-model", "data_model", "-v", "1.0"]
+        add_dataset,
+        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
     )
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["dataset", "-t", "tag", "-d", "data_model", "-v", "1.0"],
+        ["dataset", "-t", "tag", "-d", "data_model", "-v", "1.0", "--port", PORT],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -329,22 +348,26 @@ def test_untag_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    result = runner.invoke(
+        add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
 
-    result = runner.invoke(add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0"])
+    result = runner.invoke(
+        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
         tag_dataset,
-        ["dataset", "-t", "tag", "-d", "data_model", "-v", "1.0"],
+        ["dataset", "-t", "tag", "-d", "data_model", "-v", "1.0", "--port", PORT],
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["dataset", "-t", "tag", "-d", "data_model", "-v", "1.0", "-r"],
+        ["dataset", "-t", "tag", "-d", "data_model", "-v", "1.0", "-r", "--port", PORT],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -365,14 +388,16 @@ def test_property_dataset_addition(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
-    runner.invoke(add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(
+        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+    )
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
+        ["dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0", "--port", PORT],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -393,22 +418,37 @@ def test_property_dataset_deletion(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    result = runner.invoke(
+        add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
 
-    result = runner.invoke(add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0"])
+    result = runner.invoke(
+        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
         tag_dataset,
-        ["dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"],
+        ["dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0", "--port", PORT],
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
     result = runner.invoke(
         tag_dataset,
-        ["dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0", "-r"],
+        [
+            "dataset",
+            "-t",
+            "key=value",
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "-r",
+            "--port",
+            PORT,
+        ],
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -429,12 +469,14 @@ def test_enable_data_model(db):
     runner = CliRunner()
 
     # Check status is disabled
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
     assert _get_status(db, "data_models") == "DISABLED"
 
     # Test
-    result = runner.invoke(enable_data_model, ["data_model", "-v", "1.0"])
+    result = runner.invoke(
+        enable_data_model, ["data_model", "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
     assert _get_status(db, "data_models") == "ENABLED"
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
@@ -451,13 +493,15 @@ def test_disable_data_model(db):
     runner = CliRunner()
 
     # Check status is enabled
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
-    runner.invoke(enable_data_model, ["data_model", "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(enable_data_model, ["data_model", "-v", "1.0", "--port", PORT])
     assert _get_status(db, "data_models") == "ENABLED"
 
     # Test
-    result = runner.invoke(disable_data_model, ["data_model", "-v", "1.0"])
+    result = runner.invoke(
+        disable_data_model, ["data_model", "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
     assert _get_status(db, "data_models") == "DISABLED"
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
@@ -474,13 +518,17 @@ def test_enable_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
-    runner.invoke(add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(
+        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+    )
     assert _get_status(db, "datasets") == "DISABLED"
 
     # Test
-    result = runner.invoke(enable_dataset, ["dataset", "-d", "data_model", "-v", "1.0"])
+    result = runner.invoke(
+        enable_dataset, ["dataset", "-d", "data_model", "-v", "1.0", "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
     assert _get_status(db, "datasets") == "ENABLED"
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
@@ -497,15 +545,19 @@ def test_disable_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
-    runner.invoke(add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0"])
-    runner.invoke(enable_dataset, ["dataset", "-d", "data_model", "-v", "1.0"])
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(
+        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+    )
+    runner.invoke(
+        enable_dataset, ["dataset", "-d", "data_model", "-v", "1.0", "--port", PORT]
+    )
     assert _get_status(db, "datasets") == "ENABLED"
 
     # Test
     result = runner.invoke(
-        disable_dataset, ["dataset", "-d", "data_model", "-v", "1.0"]
+        disable_dataset, ["dataset", "-d", "data_model", "-v", "1.0", "--port", PORT]
     )
     assert _get_status(db, "datasets") == "DISABLED"
     assert result.exit_code == ExitCode.OK
@@ -524,14 +576,17 @@ def test_list_data_models(db):
 
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
-    runner.invoke(init, [])
-    result = runner.invoke(list_data_models)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
-    result_with_data_model = runner.invoke(list_data_models)
+    runner.invoke(init, ["--port", PORT])
+    result = runner.invoke(list_data_models, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    result_with_data_model = runner.invoke(list_data_models, ["--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "--data-model", "data_model", "-v", "1.0"]
+        add_dataset,
+        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
     )
-    result_with_data_model_and_dataset = runner.invoke(list_data_models)
+    result_with_data_model_and_dataset = runner.invoke(
+        list_data_models, ["--port", PORT]
+    )
 
     # Test
     assert result.exit_code == ExitCode.OK
@@ -563,13 +618,14 @@ def test_list_datasets(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, [])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0"])
-    result = runner.invoke(list_datasets)
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    result = runner.invoke(list_datasets, ["--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "--data-model", "data_model", "-v", "1.0"]
+        add_dataset,
+        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
     )
-    result_with_dataset = runner.invoke(list_datasets)
+    result_with_dataset = runner.invoke(list_datasets, ["--port", PORT])
 
     # Test
     assert result.exit_code == ExitCode.OK

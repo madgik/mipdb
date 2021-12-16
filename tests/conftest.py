@@ -9,6 +9,7 @@ from mipdb.reader import JsonFileReader
 
 DATA_MODEL_FILE = "tests/data/success/data_model_v_1_0/CDEsMetadata.json"
 DATASET_FILE = "tests/data/success/data_model_v_1_0/dataset.csv"
+PORT = 50123
 
 
 @pytest.fixture
@@ -72,7 +73,7 @@ def monetdb_container():
 
 @pytest.fixture(scope="function")
 def db():
-    dbconfig = get_db_config()
+    dbconfig = get_db_config(ip=None, port=50123)
     return MonetDB.from_config(dbconfig)
 
 
