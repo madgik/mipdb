@@ -48,21 +48,6 @@ def test_missing_nessesary_variables():
         CommonDataElement.from_cde_data(cde_data)
 
 
-def test_min_greater_than_max():
-    cde_data = {
-        "isCategorical": False,
-        "code": "code",
-        "sql_type": "text",
-        "label": "",
-        "minValue": 55,
-        "maxValue": 50,
-        "description": "",
-        "methodology": "",
-    }
-    with pytest.raises(InvalidDatasetError):
-        CommonDataElement.from_cde_data(cde_data)
-
-
 def test_is_categorical_without_enumerations():
     cde_data = {
         "isCategorical": True,
