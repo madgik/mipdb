@@ -31,7 +31,15 @@ class FileContentError(Exception):
 
 
 class InvalidDatasetError(Exception):
-    """Is raised when a dataset violates the constraints imposed by the schema."""
+    """Is raised when a dataset violates the constraints imposed by the data model."""
+
+    def __init__(self, message) -> None:
+        self.message = message
+        super().__init__(message)
+
+
+class InvalidDataModelError(Exception):
+    """Is raised when the data model doesn't have the expected schema."""
 
     def __init__(self, message) -> None:
         self.message = message

@@ -1,8 +1,7 @@
 import pytest
 
 from mipdb.dataelements import make_cdes, CommonDataElement
-from mipdb.exceptions import InvalidDatasetError
-from mipdb.exceptions import UserInputError
+from mipdb.exceptions import InvalidDataModelError
 
 
 def test_make_cdes_empty():
@@ -44,7 +43,22 @@ def test_missing_nessesary_variables():
         "description": "",
         "methodology": "",
     }
-    with pytest.raises(InvalidDatasetError):
+    with pytest.raises(InvalidDataModelError):
+        CommonDataElement.from_cde_data(cde_data)
+
+
+def test_min_greater_than_max():
+    cde_data = {
+        "isCategorical": False,
+        "code": "code",
+        "sql_type": "text",
+        "label": "",
+        "minValue": 55,
+        "maxValue": 50,
+        "description": "",
+        "methodology": "",
+    }
+    with pytest.raises(InvalidDataModelError):
         CommonDataElement.from_cde_data(cde_data)
 
 
@@ -57,5 +71,5 @@ def test_is_categorical_without_enumerations():
         "label": "label",
         "methodology": "",
     }
-    with pytest.raises(InvalidDatasetError):
+    with pytest.raises(InvalidDataModelError):
         CommonDataElement.from_cde_data(cde_data)
