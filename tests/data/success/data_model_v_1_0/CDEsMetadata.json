@@ -1,0 +1,75 @@
+{
+        "code": "data_model",
+        "label": "The Data Model",
+        "version": "1.0",
+        "variables": [
+            {
+                "isCategorical": false,
+                "code": "var1",
+                "sql_type": "text",
+                "description": "",
+                "label": "Variable 1",
+                "methodology": ""
+            },
+            {
+                "isCategorical": true,
+                "code": "var2",
+                "sql_type": "text",
+                "description": "",
+                "enumerations": [
+                    {"code": "l1", "label": "Level1"},
+                    {"code": "l2", "label": "Level2"}
+                ],
+                "label": "Variable 2",
+                "methodology": ""
+            },
+            {
+                "isCategorical": true,
+                "code": "dataset",
+                "sql_type": "text",
+                "description": "",
+                "enumerations": [
+                    {"code": "dataset", "label": "Dataset"},
+                    {"code": "dataset1", "label": "Dataset 1"},
+                    {"code": "dataset2", "label": "Dataset 2"}
+                ],
+                "label": "Dataset",
+                "methodology": ""
+            }
+        ],
+        "groups": [
+            {
+                "name": "group",
+                "label": "The Group",
+                "variables": [
+                    {
+                        "isCategorical": false,
+                        "code": "var3",
+                        "sql_type": "real",
+                        "minValue": 0,
+                        "maxValue": 100,
+                        "description": "",
+                        "label": "Variable 3",
+                        "methodology": ""
+                    }
+                ],
+                "groups": [
+                    {
+                        "name": "inner_group",
+                        "label": "The Inner Group",
+                        "variables": [
+                            {
+                                "isCategorical": false,
+                                "code": "var4",
+                                "sql_type": "int",
+                                "units": "years",
+                                "description": "",
+                                "label": "Variable 4",
+                                "methodology": ""
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }

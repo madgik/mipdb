@@ -15,6 +15,7 @@ from mipdb.tables import (
 )
 from mipdb.dataelements import CommonDataElement, make_cdes
 from mipdb.dataset import Dataset
+from tests.conftest import DATASET_FILE
 from tests.mocks import MonetDBMock
 
 
@@ -205,7 +206,7 @@ class TestPrimaryDataTable:
             "\n\tvar2 VARCHAR(255), "
             "\n\tdataset VARCHAR(255), "
             "\n\tvar3 FLOAT, "
-            "\n\tvar4 FLOAT\n)\n\n"
+            "\n\tvar4 INTEGER\n)\n\n"
         )
         assert db.captured_queries[0] == expected
 
@@ -250,8 +251,8 @@ class TestPrimaryDataTable:
     def test_insert_dataset_mockdb(self, cdes):
         # Setup
         db = MonetDBMock()
-        dataset_file = "tests/data/dataset.csv"
-        reader = CSVFileReader(dataset_file)
+        DATASET_FILE = "tests/data/success/data_model_v_1_0/dataset.csv"
+        reader = CSVFileReader(DATASET_FILE)
         dataset = Dataset(reader.read())
         schema = Schema("schema:1.0")
         # Test
@@ -264,8 +265,7 @@ class TestPrimaryDataTable:
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
     def test_insert_dataset_with_db(self, db, cdes):
         # Setup
-        dataset_file = "tests/data/dataset.csv"
-        reader = CSVFileReader(dataset_file)
+        reader = CSVFileReader(DATASET_FILE)
         dataset = Dataset(reader.read())
         schema = Schema("schema:1.0")
         schema.create(db)

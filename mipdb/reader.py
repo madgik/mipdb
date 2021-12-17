@@ -30,4 +30,4 @@ class CSVFileReader(Reader):
         self.file = file
 
     def read(self):
-        return pd.read_csv(self.file)
+        return pd.read_csv(self.file, dtype=object)

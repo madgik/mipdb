@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 
-from mipdb.exceptions import InvalidDatasetError
+from mipdb.exceptions import InvalidDataModelError
 
 
 @dataclass
@@ -14,12 +14,18 @@ class CommonDataElement:
         code = cde_data["code"]
         for element in ["isCategorical", "code", "sql_type", "label"]:
             if element not in cde_data:
-                raise InvalidDatasetError(
+                raise InvalidDataModelError(
                     f"Element: {element} is missing from the CDE {code}"
                 )
         if cde_data["isCategorical"] and "enumerations" not in cde_data:
-            raise InvalidDatasetError(
+            raise InvalidDataModelError(
                 f"The CDE {code} has 'isCategorical' set to True but there are no enumerations."
+            )
+        if {"minValue", "maxValue"} < set(cde_data) and cde_data[
+            "minValue"
+        ] >= cde_data["maxValue"]:
+            raise InvalidDataModelError(
+                f"The CDE {code} has minValue greater than the maxValue."
             )
 
         metadata = json.dumps(cde_data)
