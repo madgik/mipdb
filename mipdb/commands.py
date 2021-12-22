@@ -26,6 +26,17 @@ from mipdb.usecases import TagDataset
 from mipdb.usecases import UntagDataset
 from mipdb.usecases import ValidateDataset
 
+_ip_port_options = [
+    cl.option("--ip", "ip", required=False, help="The ip of the database"),
+    cl.option("--port", "port", required=True, help="The port of the database"),
+]
+
+
+def ip_port_options(func):
+    for option in reversed(_ip_port_options):
+        func = option(func)
+    return func
+
 
 @cl.group()
 def entry():
@@ -34,9 +45,10 @@ def entry():
 
 @entry.command()
 @cl.argument("file", required=True)
+@ip_port_options
 @handle_errors
-def load_folder(file):
-    dbconfig = get_db_config()
+def load_folder(file, ip, port):
+    dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
     for subdir, dirs, files in os.walk(file):
         if dirs:
@@ -64,20 +76,22 @@ def load_folder(file):
 
 
 @entry.command()
+@ip_port_options
 @handle_errors
-def init():
-    dbconfig = get_db_config()
+def init(ip, port):
+    dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
     InitDB(db).execute()
 
 
 @entry.command()
 @cl.argument("file", required=True)
+@ip_port_options
 @cl.option("-v", "--version", required=True, help="The data model version")
 @handle_errors
-def add_data_model(file, version):
+def add_data_model(file, version, ip, port):
     print(f"Data model {file} is being loaded...")
-    dbconfig = get_db_config()
+    dbconfig = get_db_config(ip, port)
     reader = JsonFileReader(file)
     db = MonetDB.from_config(dbconfig)
     data_model_data = reader.read()
@@ -97,11 +111,12 @@ def add_data_model(file, version):
     help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
+@ip_port_options
 @handle_errors
-def add_dataset(file, data_model, version):
+def add_dataset(file, data_model, version, ip, port):
     print(f"Dataset {file} is being loaded...")
     reader = CSVFileReader(file)
-    dbconfig = get_db_config()
+    dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
     dataset_data = reader.read()
     ValidateDataset(db).execute(dataset_data, data_model, version)
@@ -118,10 +133,11 @@ def add_dataset(file, data_model, version):
     help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
+@ip_port_options
 @handle_errors
-def validate_dataset(file, data_model, version):
+def validate_dataset(file, data_model, version, ip, port):
     reader = CSVFileReader(file)
-    dbconfig = get_db_config()
+    dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
     dataset_data = reader.read()
     ValidateDataset(db).execute(dataset_data, data_model, version)
@@ -139,9 +155,10 @@ def validate_dataset(file, data_model, version):
     is_flag=True,
     help="Force deletion of dataset that are based on the data model",
 )
+@ip_port_options
 @handle_errors
-def delete_data_model(name, version, force):
-    db = MonetDB.from_config(get_db_config())
+def delete_data_model(name, version, force, ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     DeleteDataModel(db).execute(name, version, force)
     print(f"Data model {name} was successfully removed.")
 
@@ -155,9 +172,10 @@ def delete_data_model(name, version, force):
     help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
+@ip_port_options
 @handle_errors
-def delete_dataset(dataset, data_model, version):
-    db = MonetDB.from_config(get_db_config())
+def delete_dataset(dataset, data_model, version, ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     DeleteDataset(db).execute(dataset, data_model, version)
     print(f"Dataset {dataset} was successfully removed.")
 
@@ -165,9 +183,10 @@ def delete_dataset(dataset, data_model, version):
 @entry.command()
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The data model version")
+@ip_port_options
 @handle_errors
-def enable_data_model(name, version):
-    db = MonetDB.from_config(get_db_config())
+def enable_data_model(name, version, ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     EnableDataModel(db).execute(name, version)
     print(f"Data model {name} was successfully enabled.")
 
@@ -175,9 +194,10 @@ def enable_data_model(name, version):
 @entry.command()
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The data model version")
+@ip_port_options
 @handle_errors
-def disable_data_model(name, version):
-    db = MonetDB.from_config(get_db_config())
+def disable_data_model(name, version, ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     DisableDataModel(db).execute(name, version)
     print(f"Data model {name} was successfully disabled.")
 
@@ -191,9 +211,10 @@ def disable_data_model(name, version):
     help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
+@ip_port_options
 @handle_errors
-def enable_dataset(dataset, data_model, version):
-    db = MonetDB.from_config(get_db_config())
+def enable_dataset(dataset, data_model, version, ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     EnableDataset(db).execute(dataset, data_model, version)
     print(f"Dataset {dataset} was successfully enabled.")
 
@@ -207,9 +228,10 @@ def enable_dataset(dataset, data_model, version):
     help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
+@ip_port_options
 @handle_errors
-def disable_dataset(dataset, data_model, version):
-    db = MonetDB.from_config(get_db_config())
+def disable_dataset(dataset, data_model, version, ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     DisableDataset(db).execute(dataset, data_model, version)
     print(f"Dataset {dataset} was successfully disabled.")
 
@@ -237,9 +259,10 @@ def disable_dataset(dataset, data_model, version):
     is_flag=True,
     help="Force overwrite on property",
 )
+@ip_port_options
 @handle_errors
-def tag_data_model(name, version, tag, remove, force):
-    db = MonetDB.from_config(get_db_config())
+def tag_data_model(name, version, tag, remove, force, ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     if "=" in tag:
         key, value = tag.split("=")
         if remove:
@@ -287,9 +310,10 @@ def tag_data_model(name, version, tag, remove, force):
     is_flag=True,
     help="Force overwrite on property",
 )
+@ip_port_options
 @handle_errors
-def tag_dataset(dataset, data_model, version, tag, remove, force):
-    db = MonetDB.from_config(get_db_config())
+def tag_dataset(dataset, data_model, version, tag, remove, force, ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     if "=" in tag:
         key, value = tag.split("=")
         if remove:
@@ -312,14 +336,16 @@ def tag_dataset(dataset, data_model, version, tag, remove, force):
 
 
 @entry.command()
+@ip_port_options
 @handle_errors
-def list_data_models():
-    db = MonetDB.from_config(get_db_config())
+def list_data_models(ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     ListDataModels(db).execute()
 
 
 @entry.command()
+@ip_port_options
 @handle_errors
-def list_datasets():
-    db = MonetDB.from_config(get_db_config())
+def list_datasets(ip, port):
+    db = MonetDB.from_config(get_db_config(ip, port))
     ListDatasets(db).execute()
