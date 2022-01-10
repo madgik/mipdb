@@ -59,7 +59,8 @@ def test_to_dict():
 def test_validate_with_nan_values_integer_column_with_minValue():
     data = pd.DataFrame(
         {
-            "subjectcode": [1, 2],
+            "row_id": [1, 2],
+            "subjectcode": [2, 2],
             "var4": [22, None],
             "dataset": ["dataset1", "dataset1"],
         }
@@ -102,7 +103,8 @@ def test_validate_with_nan_values_integer_column_with_minValue():
 def test_validate_with_nan_values_integer_column_with_only_maxValue():
     data = pd.DataFrame(
         {
-            "subjectcode": [1, 2],
+            "row_id": [1, 2],
+            "subjectcode": [2, 2],
             "var4": [1, None],
             "dataset": ["dataset1", "dataset1"],
         }
@@ -145,7 +147,8 @@ def test_validate_with_nan_values_integer_column_with_only_maxValue():
 def test_validate_with_nan_values_integer_column_without_min_max():
     data = pd.DataFrame(
         {
-            "subjectcode": [1, 2],
+            "row_id": [1, 2],
+            "subjectcode": [2, 2],
             "var4": [1, None],
             "dataset": ["dataset1", "dataset1"],
         }
@@ -184,11 +187,11 @@ def test_validate_with_nan_values_integer_column_without_min_max():
 
     dataset.validate_dataset(metadata)
 
-
 def test_validate():
     data = pd.DataFrame(
         {
-            "subjectcode": [1, 2],
+            "row_id": [1, 2],
+            "subjectcode": [2, 2],
             "var1": [1, 2],
             "var2": [1, 2],
             "var3": [50, 20],
@@ -279,12 +282,13 @@ dataset_files = [
     "tests/data/fail/data_model_v_1_0/dataset_exceeds_max.csv",
     "tests/data/fail/data_model_v_1_0/dataset_exceeds_min.csv",
     "tests/data/fail/data_model_v_1_0/dataset_is_not_unique.csv",
-    "tests/data/fail/data_model_v_1_0/duplication_column_subjectcode.csv",
+    "tests/data/fail/data_model_v_1_0/duplication_column_row_id.csv",
     "tests/data/fail/data_model_v_1_0/invalid_enum.csv",
     "tests/data/fail/data_model_v_1_0/invalid_type1.csv",
     "tests/data/fail/data_model_v_1_0/invalid_type2.csv",
     "tests/data/fail/data_model_v_1_0/missing_column_dataset.csv",
     "tests/data/fail/data_model_v_1_0/missing_column_subjectcode.csv",
+    "tests/data/fail/data_model_v_1_0/missing_column_row_id.csv",
 ]
 
 
