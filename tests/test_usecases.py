@@ -298,7 +298,8 @@ def test_validate_dataset(db, data_model_data, dataset_data):
     AddDataModel(db).execute(data_model_data)
     data = pd.DataFrame(
         {
-            "subjectcode": [1, 2, 3, 4, 5],
+            "row_id": [1, 2, 3, 4, 5],
+            "subjectcode": [2, 2, 2, 4, 4],
             "var1": [1, 2, 3, 4, 5],
             "var2": ["l1", "l2", "l1", "l1", "l2"],
             "var3": [11, 12, 13, 14, 15],

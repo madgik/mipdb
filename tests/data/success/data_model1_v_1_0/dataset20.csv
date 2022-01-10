@@ -1,6 +1,6 @@
-subjectcode,var2,var3,var4,dataset
-1,l10,11,,dataset20
-2,l20,12,22,dataset20
-3,l10,13,23,dataset20
-4,l10,14,24,dataset20
-5,l20,15,25,dataset20
+row_id,subjectcode,var2,var3,var4,dataset
+1,1,l10,11,,dataset20
+2,2,l20,12,22,dataset20
+3,2,l10,13,23,dataset20
+4,4,l10,14,24,dataset20
+5,4,l20,15,25,dataset20

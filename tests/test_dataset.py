@@ -59,7 +59,8 @@ def test_to_dict():
 def test_validate_with_nan_values_integer_column_with_minValue():
     data = pd.DataFrame(
         {
-            "subjectcode": [1, 2],
+            "row_id": [1, 2],
+            "subjectcode": [2, 2],
             "var4": [22, None],
             "dataset": ["dataset1", "dataset1"],
         }
@@ -102,7 +103,8 @@ def test_validate_with_nan_values_integer_column_with_minValue():
 def test_validate_with_nan_values_integer_column_with_only_maxValue():
     data = pd.DataFrame(
         {
-            "subjectcode": [1, 2],
+            "row_id": [1, 2],
+            "subjectcode": [2, 2],
             "var4": [1, None],
             "dataset": ["dataset1", "dataset1"],
         }
@@ -145,7 +147,8 @@ def test_validate_with_nan_values_integer_column_with_only_maxValue():
 def test_validate_with_nan_values_integer_column_without_min_max():
     data = pd.DataFrame(
         {
-            "subjectcode": [1, 2],
+            "row_id": [1, 2],
+            "subjectcode": [2, 2],
             "var4": [1, None],
             "dataset": ["dataset1", "dataset1"],
         }
@@ -188,7 +191,8 @@ def test_validate_with_nan_values_integer_column_without_min_max():
 def test_validate():
     data = pd.DataFrame(
         {
-            "subjectcode": [1, 2],
+            "row_id": [1, 2],
+            "subjectcode": [2, 2],
             "var1": [1, 2],
             "var2": [1, 2],
             "var3": [50, 20],
@@ -276,20 +280,51 @@ def test_validate():
 
 
 dataset_files = [
-    "tests/data/fail/data_model_v_1_0/dataset_exceeds_max.csv",
-    "tests/data/fail/data_model_v_1_0/dataset_exceeds_min.csv",
-    "tests/data/fail/data_model_v_1_0/dataset_is_not_unique.csv",
-    "tests/data/fail/data_model_v_1_0/duplication_column_subjectcode.csv",
-    "tests/data/fail/data_model_v_1_0/invalid_enum.csv",
-    "tests/data/fail/data_model_v_1_0/invalid_type1.csv",
-    "tests/data/fail/data_model_v_1_0/invalid_type2.csv",
-    "tests/data/fail/data_model_v_1_0/missing_column_dataset.csv",
-    "tests/data/fail/data_model_v_1_0/missing_column_subjectcode.csv",
+    (
+        "tests/data/fail/data_model_v_1_0/dataset_exceeds_max.csv",
+        "On dataset valid_dataset and column var3 has error",
+    ),
+    (
+        "tests/data/fail/data_model_v_1_0/dataset_exceeds_min.csv",
+        "On dataset valid_dataset and column var3 has error",
+    ),
+    (
+        "tests/data/fail/data_model_v_1_0/dataset_is_not_unique.csv",
+        "The dataset field contains multiple values.",
+    ),
+    (
+        "tests/data/fail/data_model_v_1_0/duplication_column_row_id.csv",
+        "There are duplicated values in the column row_id",
+    ),
+    (
+        "tests/data/fail/data_model_v_1_0/invalid_enum.csv",
+        "On dataset valid_dataset and column var2 has error",
+    ),
+    (
+        "tests/data/fail/data_model_v_1_0/invalid_type1.csv",
+        "On dataset valid_dataset and column var3 has error",
+    ),
+    (
+        "tests/data/fail/data_model_v_1_0/invalid_type2.csv",
+        "On dataset valid_dataset and column var4 has error",
+    ),
+    (
+        "tests/data/fail/data_model_v_1_0/missing_column_dataset.csv",
+        "There is no dataset field in the Dataset",
+    ),
+    (
+        "tests/data/fail/data_model_v_1_0/missing_column_subjectcode.csv",
+        "Error inserting dataset without the column subjectcode into the database",
+    ),
+    (
+        "tests/data/fail/data_model_v_1_0/missing_column_row_id.csv",
+        "Error inserting dataset without the column row_id into the database",
+    ),
 ]
 
 
-@pytest.mark.parametrize("dataset_file", dataset_files)
-def test_invalid_dataset_error_cases(dataset_file):
+@pytest.mark.parametrize("dataset_file,exception_message", dataset_files)
+def test_invalid_dataset_error_cases(dataset_file, exception_message):
     reader = JsonFileReader("tests/data/fail/data_model_v_1_0/CDEsMetadata.json")
     data_model_data = reader.read()
     cdes = make_cdes(data_model_data)
@@ -298,6 +333,6 @@ def test_invalid_dataset_error_cases(dataset_file):
     dataset_data = dataset_reader.read()
     metadata = {cde.code: cde for cde in cdes}
 
-    with pytest.raises(InvalidDatasetError):
+    with pytest.raises(InvalidDatasetError, match=exception_message):
         dataset = Dataset(dataset_data)
         dataset.validate_dataset(metadata)
