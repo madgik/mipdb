@@ -53,7 +53,7 @@ class Dataset:
                 "There are duplicated values in the column row_id"
             )
 
-        self._data = self._data.drop(['row_id', 'subjectcode'], axis=1)
+        self._data = self._data.drop(["row_id", "subjectcode"], axis=1)
 
         # There is a need to construct a DataFrameSchema with all the constrains that the metadata is imposing
         # For each column a pandera Column is created that will contain the constrains for the specific column
