@@ -58,9 +58,14 @@ def load_folder(file, ip, port):
         reader = JsonFileReader(metadata_path)
         data_model_data = reader.read()
         data_model = os.path.basename(os.path.normpath(subdir))
-        code, version = data_model.split("_v_")
-        version = version.replace("_", ".")
-        data_model_data["version"] = version
+        if "_v_" in data_model:
+            code, version = data_model.split("_v_")
+            version = version.replace("_", ".")
+            data_model_data["version"] = version
+        else:
+            code = data_model
+            version = "0.1"
+
         AddDataModel(db).execute(data_model_data)
         print(f"Data model {data_model} was successfully added.")
 

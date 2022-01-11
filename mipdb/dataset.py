@@ -48,16 +48,15 @@ class Dataset:
             )
 
         if self.data.duplicated(subset=["row_id"]).any():
-            print(self._data["row_id"])
             raise InvalidDatasetError(
                 "There are duplicated values in the column row_id"
             )
 
-        self._data = self._data.drop(["row_id", "subjectcode"], axis=1)
+        columns = [column for column in self._data.columns if column not in ["row_id", "subjectcode"]]
 
-        # There is a need to construct a DataFrameSchema with all the constrains that the metadata is imposing
-        # For each column a pandera Column is created that will contain the constrains for the specific column
-        for column in self.data.columns:
+        # There is a need to construct a DataFrameSchema with all the constraints that the metadata is imposing
+        # For each column a pandera Column is created that will contain the constraints for the specific column
+        for column in columns:
             if column not in metadata_table:
                 raise InvalidDatasetError(
                     f"The column: '{column}' does not exist in the metadata"

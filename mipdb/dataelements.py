@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from typing import List
 
 from mipdb.exceptions import InvalidDataModelError
 
@@ -35,8 +36,25 @@ class CommonDataElement:
         )
 
 
+def get_system_columns_metadata():
+    row_id = {
+        "isCategorical": False,
+        "label": "row_id",
+        "code": "row_id",
+        "sql_type": "text",
+    }
+    subjectcode = {
+        "isCategorical": False,
+        "label": "subjectcode",
+        "code": "subjectcode",
+        "sql_type": "text",
+    }
+    return [CommonDataElement.from_cde_data(row_id), CommonDataElement.from_cde_data(subjectcode)]
+
+
 def make_cdes(schema_data):
     cdes = []
+
     if "variables" in schema_data:
         cdes += [
             CommonDataElement.from_cde_data(cde_data)

@@ -7,6 +7,7 @@ import pandas as pa
 from mipdb.database import DataBase, Connection
 from mipdb.database import METADATA_SCHEMA
 from mipdb.database import Status
+from mipdb.dataelements import get_system_columns_metadata
 from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.properties import Properties
@@ -57,15 +58,15 @@ class AddDataModel(UseCase):
         version = data_model_data["version"]
         name = get_data_model_fullname(code, version)
         cdes = make_cdes(data_model_data)
+        system_columns_metadata = get_system_columns_metadata()
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_next_data_model_id(conn)
             schema = self._create_schema(name, conn)
-            self._create_primary_data_table(schema, cdes, conn)
+            self._create_primary_data_table(schema, cdes + system_columns_metadata, conn)
             self._create_metadata_table(schema, conn, cdes)
-
             record = dict(
                 code=code,
                 version=version,
