@@ -181,11 +181,11 @@ def test_load_folder(db):
     result = runner.invoke(load_folder, [folder, "--port", PORT])
     assert result.exit_code == ExitCode.OK
 
-    assert [
+    assert {
         "mipdb_metadata",
         "data_model:1.0",
         "data_model1:1.0",
-    ] == db.get_schemas()
+           } == set(db.get_schemas())
 
     datasets = db.get_datasets()
     dataset_codes = [code for _, _, code, *_ in datasets]
