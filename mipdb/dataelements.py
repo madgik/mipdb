@@ -36,20 +36,14 @@ class CommonDataElement:
         )
 
 
-def get_system_columns_metadata():
-    row_id = {
-        "isCategorical": False,
-        "label": "row_id",
-        "code": "row_id",
-        "sql_type": "text",
-    }
+def get_system_column_metadata():
     subjectcode = {
         "isCategorical": False,
         "label": "subjectcode",
         "code": "subjectcode",
         "sql_type": "text",
     }
-    return [CommonDataElement.from_cde_data(row_id), CommonDataElement.from_cde_data(subjectcode)]
+    return CommonDataElement.from_cde_data(subjectcode)
 
 
 def make_cdes(schema_data):

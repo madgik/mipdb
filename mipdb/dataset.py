@@ -42,17 +42,7 @@ class Dataset:
                 "Error inserting dataset without the column subjectcode into the database"
             )
 
-        if "row_id" not in self.data.keys():
-            raise InvalidDatasetError(
-                "Error inserting dataset without the column row_id into the database"
-            )
-
-        if self.data.duplicated(subset=["row_id"]).any():
-            raise InvalidDatasetError(
-                "There are duplicated values in the column row_id"
-            )
-
-        columns = [column for column in self._data.columns if column not in ["row_id", "subjectcode"]]
+        columns = [column for column in self._data.columns if column != "subjectcode"]
 
         # There is a need to construct a DataFrameSchema with all the constraints that the metadata is imposing
         # For each column a pandera Column is created that will contain the constraints for the specific column

@@ -59,7 +59,6 @@ def test_to_dict():
 def test_validate_with_nan_values_integer_column_with_minValue():
     data = pd.DataFrame(
         {
-            "row_id": [1, 2],
             "subjectcode": [2, 2],
             "var4": [22, None],
             "dataset": ["dataset1", "dataset1"],
@@ -103,7 +102,6 @@ def test_validate_with_nan_values_integer_column_with_minValue():
 def test_validate_with_nan_values_integer_column_with_only_maxValue():
     data = pd.DataFrame(
         {
-            "row_id": [1, 2],
             "subjectcode": [2, 2],
             "var4": [1, None],
             "dataset": ["dataset1", "dataset1"],
@@ -147,7 +145,6 @@ def test_validate_with_nan_values_integer_column_with_only_maxValue():
 def test_validate_with_nan_values_integer_column_without_min_max():
     data = pd.DataFrame(
         {
-            "row_id": [1, 2],
             "subjectcode": [2, 2],
             "var4": [1, None],
             "dataset": ["dataset1", "dataset1"],
@@ -191,7 +188,6 @@ def test_validate_with_nan_values_integer_column_without_min_max():
 def test_validate():
     data = pd.DataFrame(
         {
-            "row_id": [1, 2],
             "subjectcode": [2, 2],
             "var1": [1, 2],
             "var2": [1, 2],
@@ -293,10 +289,6 @@ dataset_files = [
         "The dataset field contains multiple values.",
     ),
     (
-        "tests/data/fail/data_model_v_1_0/duplication_column_row_id.csv",
-        "There are duplicated values in the column row_id",
-    ),
-    (
         "tests/data/fail/data_model_v_1_0/invalid_enum.csv",
         "On dataset valid_dataset and column var2 has error",
     ),
@@ -315,10 +307,6 @@ dataset_files = [
     (
         "tests/data/fail/data_model_v_1_0/missing_column_subjectcode.csv",
         "Error inserting dataset without the column subjectcode into the database",
-    ),
-    (
-        "tests/data/fail/data_model_v_1_0/missing_column_row_id.csv",
-        "Error inserting dataset without the column row_id into the database",
     ),
 ]
 

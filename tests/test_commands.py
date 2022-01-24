@@ -64,7 +64,7 @@ def test_add_data_model(db):
         f'select * from "data_model:1.0".variables_metadata'
     ).fetchall()
     # TODO better test
-    assert len(metadata) == 5
+    assert len(metadata) == 6
 
 
 @pytest.mark.database
@@ -197,6 +197,13 @@ def test_load_folder(db):
         "dataset20",
     ]
     assert set(expected) == set(dataset_codes)
+    ((count, *_), *_) = db.execute(
+        f'select count(*) from "data_model:1.0".primary_data'
+    ).fetchall()
+    row_ids = db.execute(
+        f'select row_id from "data_model:1.0".primary_data'
+    ).fetchall()
+    assert list(range(1, count + 1)) == [row_id for row_id, *_ in row_ids]
 
 
 @pytest.mark.database
