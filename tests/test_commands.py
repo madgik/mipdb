@@ -48,9 +48,7 @@ def test_add_data_model(db):
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, ["--port", PORT])
     # Test
-    result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE, "--port", PORT]
-    )
+    result = runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     assert result.exit_code == ExitCode.OK
     assert "data_model:1.0" in db.get_schemas()
     data_models = db.execute(f"select * from mipdb_metadata.data_models").fetchall()
@@ -185,7 +183,7 @@ def test_load_folder(db):
         "mipdb_metadata",
         "data_model:1.0",
         "data_model1:1.0",
-           } == set(db.get_schemas())
+    } == set(db.get_schemas())
 
     datasets = db.get_datasets()
     dataset_codes = [code for _, _, code, *_ in datasets]
@@ -200,9 +198,7 @@ def test_load_folder(db):
     ((count, *_), *_) = db.execute(
         f'select count(*) from "data_model:1.0".primary_data'
     ).fetchall()
-    row_ids = db.execute(
-        f'select row_id from "data_model:1.0".primary_data'
-    ).fetchall()
+    row_ids = db.execute(f'select row_id from "data_model:1.0".primary_data').fetchall()
     assert list(range(1, count + 1)) == [row_id for row_id, *_ in row_ids]
 
 
@@ -356,9 +352,7 @@ def test_untag_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE, "--port", PORT]
-    )
+    result = runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(
@@ -426,9 +420,7 @@ def test_property_dataset_deletion(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE, "--port", PORT]
-    )
+    result = runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(

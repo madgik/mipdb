@@ -202,7 +202,7 @@ class TestPrimaryDataTable:
         primary_data_table.create(db)
         expected = (
             '\nCREATE TABLE "schema:1.0".primary_data ('
-            '\n\trow_id INTEGER NOT NULL, '
+            "\n\trow_id INTEGER NOT NULL, "
             "\n\tvar1 VARCHAR(255), "
             "\n\tvar2 VARCHAR(255), "
             "\n\tdataset VARCHAR(255), "
