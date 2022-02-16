@@ -89,7 +89,7 @@ def test_update_data_models_on_data_model_addition():
     update_data_models_on_data_model_addition(record, db)
     assert f"INSERT INTO mipdb_metadata.data_models" in db.captured_queries[0]
     data_models_record = db.captured_multiparams[0][0]
-    assert data_models_record["status"] == "DISABLED"
+    assert data_models_record["status"] == "ENABLED"
 
 
 def test_delete_data_model():
@@ -287,7 +287,7 @@ def test_update_datasets_on_dataset_addition():
     update_datasets_on_dataset_addition(record, db)
     assert f"INSERT INTO mipdb_metadata.datasets" in db.captured_queries[0]
     datasets_record = db.captured_multiparams[0][0]
-    assert datasets_record["status"] == "DISABLED"
+    assert datasets_record["status"] == "ENABLED"
 
 
 @pytest.mark.database
@@ -430,6 +430,9 @@ def test_enable_data_model():
 def test_enable_data_model_with_db(db, data_model_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data=data_model_data)
+    DisableDataModel(db).execute(
+        code=data_model_data["code"], version=data_model_data["version"]
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
     EnableDataModel(db).execute(
@@ -444,9 +447,6 @@ def test_enable_data_model_with_db(db, data_model_data):
 def test_enable_data_model_already_enabled_with_db(db, data_model_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
-    EnableDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"]
-    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
 
@@ -471,9 +471,6 @@ def test_disable_data_model():
 def test_disable_data_model_with_db(db, data_model_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
-    EnableDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"]
-    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
     DisableDataModel(db).execute(
@@ -488,6 +485,9 @@ def test_disable_data_model_with_db(db, data_model_data):
 def test_disable_data_model_already_disabled_with_db(db, data_model_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
+    DisableDataModel(db).execute(
+        code=data_model_data["code"], version=data_model_data["version"]
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
 
@@ -514,6 +514,11 @@ def test_enable_dataset_with_db(db, data_model_data, dataset_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
+    DisableDataset(db).execute(
+        dataset="dataset",
+        data_model_code=data_model_data["code"],
+        version=data_model_data["version"],
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
     EnableDataset(db).execute(
@@ -531,11 +536,6 @@ def test_enable_dataset_already_enabled_with_db(db, data_model_data, dataset_dat
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    EnableDataset(db).execute(
-        dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
-    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
 
@@ -564,11 +564,6 @@ def test_disable_dataset_with_db(db, data_model_data, dataset_data):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    EnableDataset(db).execute(
-        dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
-    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
     DisableDataset(db).execute(
@@ -586,6 +581,11 @@ def test_disable_dataset_already_disabled_with_db(db, data_model_data, dataset_d
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_data)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
+    DisableDataset(db).execute(
+        dataset="dataset",
+        data_model_code=data_model_data["code"],
+        version=data_model_data["version"],
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
 

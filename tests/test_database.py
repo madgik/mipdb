@@ -28,23 +28,23 @@ def test_get_schemas():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_update_schema_status(db):
+def test_update_data_model_status(db):
     # Setup
     runner = CliRunner()
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
-    # Check the status of schema is disabled
-    res = db.execute(
-        'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
-    )
-    assert list(res)[0][0] == "DISABLED"
-
-    # Test
-    db.update_data_model_status("ENABLED", 1)
+    # Check the status of data model is disabled
     res = db.execute(
         'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
     )
     assert list(res)[0][0] == "ENABLED"
+
+    # Test
+    db.update_data_model_status("DISABLED", 1)
+    res = db.execute(
+        'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
+    )
+    assert list(res)[0][0] == "DISABLED"
 
 
 @pytest.mark.database
