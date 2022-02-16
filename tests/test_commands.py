@@ -49,7 +49,7 @@ def test_add_data_model(db):
     runner.invoke(init, ["--port", PORT])
     # Test
     result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT]
+        add_data_model, [DATA_MODEL_FILE, "--port", PORT]
     )
     assert result.exit_code == ExitCode.OK
     assert "data_model:1.0" in db.get_schemas()
@@ -75,7 +75,7 @@ def test_delete_data_model(db):
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
 
     # Test
     result = runner.invoke(
@@ -98,7 +98,7 @@ def test_add_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     assert not db.get_datasets(columns=["code"])
 
     # Test
@@ -126,7 +126,7 @@ def test_validate_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     assert not db.get_datasets(columns=["code"])
 
     # Test
@@ -145,7 +145,7 @@ def test_delete_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset,
         [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
@@ -213,7 +213,7 @@ def test_tag_data_model(db):
     runner = CliRunner()
 
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
 
     # Test
     result = runner.invoke(
@@ -239,7 +239,7 @@ def test_untag_data_model(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         tag_data_model, ["data_model", "-t", "tag", "-v", "1.0", "--port", PORT]
     )
@@ -268,7 +268,7 @@ def test_property_data_model_addition(db):
     runner = CliRunner()
 
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
 
     # Test
     result = runner.invoke(
@@ -294,7 +294,7 @@ def test_property_data_model_deletion(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         tag_data_model, ["data_model", "-t", "key=value", "-v", "1.0", "--port", PORT]
     )
@@ -325,7 +325,7 @@ def test_tag_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset,
         [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
@@ -357,7 +357,7 @@ def test_untag_dataset(db):
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
     result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT]
+        add_data_model, [DATA_MODEL_FILE, "--port", PORT]
     )
     assert result.exit_code == ExitCode.OK
 
@@ -396,7 +396,7 @@ def test_property_dataset_addition(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
     )
@@ -427,7 +427,7 @@ def test_property_dataset_deletion(db):
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
     result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT]
+        add_data_model, [DATA_MODEL_FILE, "--port", PORT]
     )
     assert result.exit_code == ExitCode.OK
 
@@ -477,7 +477,7 @@ def test_enable_data_model(db):
 
     # Check status is disabled
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     result = runner.invoke(
         disable_data_model, ["data_model", "-v", "1.0", "--port", PORT]
     )
@@ -504,7 +504,7 @@ def test_disable_data_model(db):
 
     # Check status is enabled
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     assert _get_status(db, "data_models") == "ENABLED"
 
     # Test
@@ -528,7 +528,7 @@ def test_enable_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
     )
@@ -558,7 +558,7 @@ def test_disable_dataset(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
     )
@@ -587,7 +587,7 @@ def test_list_data_models(db):
     assert "data_model:1.0" not in db.get_schemas()
     runner.invoke(init, ["--port", PORT])
     result = runner.invoke(list_data_models, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     result_with_data_model = runner.invoke(list_data_models, ["--port", PORT])
     runner.invoke(
         add_dataset,
@@ -628,7 +628,7 @@ def test_list_datasets(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     result = runner.invoke(list_datasets, ["--port", PORT])
     runner.invoke(
         add_dataset,

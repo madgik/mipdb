@@ -86,9 +86,8 @@ def init(ip, port):
 @entry.command()
 @cl.argument("file", required=True)
 @ip_port_options
-@cl.option("-v", "--version", required=True, help="The data model version")
 @handle_errors
-def add_data_model(file, version, ip, port):
+def add_data_model(file, ip, port):
     print(f"Data model {file} is being loaded...")
     dbconfig = get_db_config(ip, port)
     reader = JsonFileReader(file)
