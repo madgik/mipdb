@@ -53,11 +53,11 @@ class AddDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
 
-    def execute(self, data_model_data) -> None:
-        code = data_model_data["code"]
-        version = data_model_data["version"]
+    def execute(self, data_model_metadata) -> None:
+        code = data_model_metadata["code"]
+        version = data_model_metadata["version"]
         name = get_data_model_fullname(code, version)
-        cdes = make_cdes(data_model_data)
+        cdes = make_cdes(data_model_metadata)
         cdes.append(get_system_column_metadata())
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
@@ -70,7 +70,7 @@ class AddDataModel(UseCase):
             record = dict(
                 code=code,
                 version=version,
-                label=data_model_data["label"],
+                label=data_model_metadata["label"],
                 data_model_id=data_model_id,
             )
             emitter.emit("add_data_model", record, conn)
@@ -96,7 +96,7 @@ def update_data_models_on_data_model_addition(record: dict, conn: Connection):
     metadata = Schema(METADATA_SCHEMA)
     data_model_table = DataModelTable(schema=metadata)
     record = record.copy()
-    record["status"] = Status.DISABLED
+    record["status"] = Status.ENABLED
     data_model_table.insert_values(record, conn)
 
 
@@ -223,7 +223,7 @@ def update_datasets_on_dataset_addition(record: dict, conn: Connection):
     metadata = Schema(METADATA_SCHEMA)
     datasets_table = DatasetsTable(schema=metadata)
     record = record.copy()
-    record["status"] = Status.DISABLED
+    record["status"] = Status.ENABLED
     datasets_table.insert_values(record, conn)
 
 

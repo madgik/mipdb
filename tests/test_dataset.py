@@ -314,8 +314,8 @@ dataset_files = [
 @pytest.mark.parametrize("dataset_file,exception_message", dataset_files)
 def test_invalid_dataset_error_cases(dataset_file, exception_message):
     reader = JsonFileReader("tests/data/fail/data_model_v_1_0/CDEsMetadata.json")
-    data_model_data = reader.read()
-    cdes = make_cdes(data_model_data)
+    data_model_metadata = reader.read()
+    cdes = make_cdes(data_model_metadata)
 
     dataset_reader = CSVFileReader(dataset_file)
     dataset_data = dataset_reader.read()

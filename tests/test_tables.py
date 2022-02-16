@@ -25,8 +25,8 @@ def metadata():
 
 
 @pytest.fixture
-def cdes(data_model_data):
-    return make_cdes(data_model_data)
+def cdes(data_model_metadata):
+    return make_cdes(data_model_metadata)
 
 
 def test_get_data_models(metadata):
@@ -143,14 +143,14 @@ class TestVariablesMetadataTable:
 
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-    def test_insert_values_with_db(self, db, data_model_data):
+    def test_insert_values_with_db(self, db, data_model_metadata):
         # Setup
         schema = Schema("schema:1.0")
         schema.create(db)
         metadata_table = MetadataTable(schema)
         metadata_table.create(db)
         # Test
-        values = metadata_table.get_values_from_cdes(make_cdes(data_model_data))
+        values = metadata_table.get_values_from_cdes(make_cdes(data_model_metadata))
         metadata_table.insert_values(values, db)
         res = db.execute(
             "SELECT code, json.filter(metadata, '$.isCategorical') "
@@ -165,23 +165,23 @@ class TestVariablesMetadataTable:
             ("var4", [False]),
         ]
 
-    def test_get_values_from_cdes_full_schema_data(self, data_model_data):
+    def test_get_values_from_cdes_full_schema_data(self, data_model_metadata):
         # Setup
         metadata_table = MetadataTable(Schema("schema:1.0"))
-        cdes = make_cdes(data_model_data)
+        cdes = make_cdes(data_model_metadata)
         # Test
         result = metadata_table.get_values_from_cdes(cdes)
         assert len(result) == 5
 
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-    def test_load_from_db(self, data_model_data, db):
+    def test_load_from_db(self, data_model_metadata, db):
         # Setup
         schema = Schema("schema:1.0")
         schema.create(db)
         metadata_table = MetadataTable(schema)
         metadata_table.create(db)
-        values = metadata_table.get_values_from_cdes(make_cdes(data_model_data))
+        values = metadata_table.get_values_from_cdes(make_cdes(data_model_metadata))
         metadata_table.insert_values(values, db)
         # Test
         schema = Schema("schema:1.0")
@@ -202,7 +202,7 @@ class TestPrimaryDataTable:
         primary_data_table.create(db)
         expected = (
             '\nCREATE TABLE "schema:1.0".primary_data ('
-            '\n\trow_id INTEGER NOT NULL, '
+            "\n\trow_id INTEGER NOT NULL, "
             "\n\tvar1 VARCHAR(255), "
             "\n\tvar2 VARCHAR(255), "
             "\n\tdataset VARCHAR(255), "

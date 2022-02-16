@@ -60,9 +60,9 @@ def test_init_with_db(db):
     assert "mipdb_metadata" in schemas
 
 
-def test_add_data_model_mock(data_model_data):
+def test_add_data_model_mock(data_model_metadata):
     db = MonetDBMock()
-    AddDataModel(db).execute(data_model_data=data_model_data)
+    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
     assert 'CREATE SCHEMA "data_model:1.0"' in db.captured_queries[1]
     assert 'CREATE TABLE "data_model:1.0".primary_data' in db.captured_queries[2]
     assert f'CREATE TABLE "data_model:1.0".variables_metadata' in db.captured_queries[3]
@@ -72,10 +72,10 @@ def test_add_data_model_mock(data_model_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_data_model_with_db(db, data_model_data):
+def test_add_data_model_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data=data_model_data)
+    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
 
     # Test
     schemas = db.get_schemas()
@@ -89,7 +89,7 @@ def test_update_data_models_on_data_model_addition():
     update_data_models_on_data_model_addition(record, db)
     assert f"INSERT INTO mipdb_metadata.data_models" in db.captured_queries[0]
     data_models_record = db.captured_multiparams[0][0]
-    assert data_models_record["status"] == "DISABLED"
+    assert data_models_record["status"] == "ENABLED"
 
 
 def test_delete_data_model():
@@ -105,17 +105,19 @@ def test_delete_data_model():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_db(db, data_model_data):
+def test_delete_data_model_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data=data_model_data)
+    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "data_model:1.0" in schemas
 
     # Test with force False
     DeleteDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], force=False
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+        force=False,
     )
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
@@ -124,17 +126,19 @@ def test_delete_data_model_with_db(db, data_model_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_db_with_force(db, data_model_data):
+def test_delete_data_model_with_db_with_force(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data=data_model_data)
+    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "data_model:1.0" in schemas
 
     # Test with force True
     DeleteDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], force=True
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+        force=True,
     )
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
@@ -143,10 +147,10 @@ def test_delete_data_model_with_db_with_force(db, data_model_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_datasets_with_db(db, data_model_data, dataset_data):
+def test_delete_data_model_with_datasets_with_db(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "data_model:1.0" in schemas
@@ -164,8 +168,8 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_data, dataset_da
     # Test with force False
     with pytest.raises(ForeignKeyError):
         DeleteDataModel(db).execute(
-            code=data_model_data["code"],
-            version=data_model_data["version"],
+            code=data_model_metadata["code"],
+            version=data_model_metadata["version"],
             force=False,
         )
 
@@ -173,11 +177,11 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_data, dataset_da
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_delete_data_model_with_datasets_with_db_with_force(
-    db, data_model_data, dataset_data
+    db, data_model_metadata, dataset_data
 ):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "data_model:1.0" in schemas
@@ -194,7 +198,9 @@ def test_delete_data_model_with_datasets_with_db_with_force(
 
     # Test with force True
     DeleteDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], force=True
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+        force=True,
     )
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
@@ -220,10 +226,10 @@ def test_update_datasets_on_data_model_deletion():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset(db, data_model_data, dataset_data):
+def test_add_dataset(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     data = pd.DataFrame(
         {
             "var1": [1, 2, 3, 4, 5],
@@ -243,7 +249,7 @@ def test_add_dataset(db, data_model_data, dataset_data):
         AddDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
 
 
-def test_add_dataset_mock(data_model_data, dataset_data):
+def test_add_dataset_mock(data_model_metadata, dataset_data):
     db = MonetDBMock()
     data = pd.DataFrame(
         {
@@ -265,10 +271,10 @@ def test_add_dataset_mock(data_model_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset_with_db(db, data_model_data, dataset_data):
+def test_add_dataset_with_db(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
 
     # Test
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
@@ -287,15 +293,15 @@ def test_update_datasets_on_dataset_addition():
     update_datasets_on_dataset_addition(record, db)
     assert f"INSERT INTO mipdb_metadata.datasets" in db.captured_queries[0]
     datasets_record = db.captured_multiparams[0][0]
-    assert datasets_record["status"] == "DISABLED"
+    assert datasets_record["status"] == "ENABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset(db, data_model_data, dataset_data):
+def test_validate_dataset(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     data = pd.DataFrame(
         {
             "subjectcode": [2, 2, 2, 4, 4],
@@ -312,10 +318,10 @@ def test_validate_dataset(db, data_model_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset_without_subjectcode(db, data_model_data, dataset_data):
+def test_validate_dataset_without_subjectcode(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     data = pd.DataFrame(
         {
             "var1": [1, 2, 3, 4, 5],
@@ -332,10 +338,10 @@ def test_validate_dataset_without_subjectcode(db, data_model_data, dataset_data)
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset_non_existing_column(db, data_model_data, dataset_data):
+def test_validate_dataset_non_existing_column(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     data = pd.DataFrame(
         {
             "subjectcode": [1, 2, 3, 4, 5],
@@ -352,10 +358,10 @@ def test_validate_dataset_non_existing_column(db, data_model_data, dataset_data)
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset_with_invalid_column(db, data_model_data, dataset_data):
+def test_validate_dataset_with_invalid_column(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     data = pd.DataFrame(
         {
             "subjectcode": [1, 2, 3, 4, 5],
@@ -383,10 +389,10 @@ def test_delete_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_dataset_with_db(db, data_model_data, dataset_data):
+def test_delete_dataset_with_db(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
     datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 1
@@ -395,8 +401,8 @@ def test_delete_dataset_with_db(db, data_model_data, dataset_data):
     # Test
     DeleteDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
     )
     datasets = db.get_datasets(columns=["code"])
     assert len(datasets) == 0
@@ -427,13 +433,16 @@ def test_enable_data_model():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_data_model_with_db(db, data_model_data):
+def test_enable_data_model_with_db(db, data_model_metadata):
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data=data_model_data)
+    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
+    DisableDataModel(db).execute(
+        code=data_model_metadata["code"], version=data_model_metadata["version"]
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
     EnableDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"]
+        code=data_model_metadata["code"], version=data_model_metadata["version"]
     )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
@@ -441,18 +450,15 @@ def test_enable_data_model_with_db(db, data_model_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_data_model_already_enabled_with_db(db, data_model_data):
+def test_enable_data_model_already_enabled_with_db(db, data_model_metadata):
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
-    EnableDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"]
-    )
+    AddDataModel(db).execute(data_model_metadata)
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
         EnableDataModel(db).execute(
-            code=data_model_data["code"], version=data_model_data["version"]
+            code=data_model_metadata["code"], version=data_model_metadata["version"]
         )
 
 
@@ -468,16 +474,13 @@ def test_disable_data_model():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_data_model_with_db(db, data_model_data):
+def test_disable_data_model_with_db(db, data_model_metadata):
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
-    EnableDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"]
-    )
+    AddDataModel(db).execute(data_model_metadata)
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "ENABLED"
     DisableDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"]
+        code=data_model_metadata["code"], version=data_model_metadata["version"]
     )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
@@ -485,15 +488,18 @@ def test_disable_data_model_with_db(db, data_model_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_data_model_already_disabled_with_db(db, data_model_data):
+def test_disable_data_model_already_disabled_with_db(db, data_model_metadata):
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
+    DisableDataModel(db).execute(
+        code=data_model_metadata["code"], version=data_model_metadata["version"]
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
     assert status[0] == "DISABLED"
 
     with pytest.raises(UserInputError):
         DisableDataModel(db).execute(
-            code=data_model_data["code"], version=data_model_data["version"]
+            code=data_model_metadata["code"], version=data_model_metadata["version"]
         )
 
 
@@ -510,16 +516,21 @@ def test_enable_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_dataset_with_db(db, data_model_data, dataset_data):
+def test_enable_dataset_with_db(db, data_model_metadata, dataset_data):
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
+    DisableDataset(db).execute(
+        dataset="dataset",
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
     EnableDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
     )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
@@ -527,23 +538,18 @@ def test_enable_dataset_with_db(db, data_model_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_dataset_already_enabled_with_db(db, data_model_data, dataset_data):
+def test_enable_dataset_already_enabled_with_db(db, data_model_metadata, dataset_data):
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    EnableDataset(db).execute(
-        dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
-    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
         EnableDataset(db).execute(
             dataset="dataset",
-            data_model_code=data_model_data["code"],
-            version=data_model_data["version"],
+            data_model_code=data_model_metadata["code"],
+            version=data_model_metadata["version"],
         )
 
 
@@ -560,21 +566,16 @@ def test_disable_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_dataset_with_db(db, data_model_data, dataset_data):
+def test_disable_dataset_with_db(db, data_model_metadata, dataset_data):
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
-    EnableDataset(db).execute(
-        dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
-    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "ENABLED"
     DisableDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
     )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
@@ -582,18 +583,25 @@ def test_disable_dataset_with_db(db, data_model_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_dataset_already_disabled_with_db(db, data_model_data, dataset_data):
+def test_disable_dataset_already_disabled_with_db(
+    db, data_model_metadata, dataset_data
+):
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(dataset_data=dataset_data, code="data_model", version="1.0")
+    DisableDataset(db).execute(
+        dataset="dataset",
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+    )
     status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
     assert status[0] == "DISABLED"
 
     with pytest.raises(UserInputError):
         DisableDataset(db).execute(
             dataset="dataset",
-            data_model_code=data_model_data["code"],
-            version=data_model_data["version"],
+            data_model_code=data_model_metadata["code"],
+            version=data_model_metadata["version"],
         )
 
 
@@ -635,14 +643,16 @@ def test_remove_property_from_data_model():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_data_model_with_db(db, data_model_data):
+def test_tag_data_model_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
 
     # Test
     TagDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], tag="tag"
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+        tag="tag",
     )
 
     properties = db.get_data_model_properties(1)
@@ -651,23 +661,31 @@ def test_tag_data_model_with_db(db, data_model_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_untag_data_model_with_db(db, data_model_data):
+def test_untag_data_model_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     TagDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], tag="tag1"
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+        tag="tag1",
     )
     TagDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], tag="tag2"
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+        tag="tag2",
     )
     TagDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], tag="tag3"
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+        tag="tag3",
     )
 
     # Test
     UntagDataModel(db).execute(
-        code=data_model_data["code"], version=data_model_data["version"], tag="tag1"
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
+        tag="tag1",
     )
     properties = db.get_data_model_properties(1)
     assert properties == '{"tags": ["tag2", "tag3"], "properties": {}}'
@@ -675,15 +693,15 @@ def test_untag_data_model_with_db(db, data_model_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_property2data_model_with_db(db, data_model_data):
+def test_add_property2data_model_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
 
     # Test
     AddPropertyToDataModel(db).execute(
-        code=data_model_data["code"],
-        version=data_model_data["version"],
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key",
         value="value",
         force=False,
@@ -695,13 +713,13 @@ def test_add_property2data_model_with_db(db, data_model_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_property2data_model_with_force_and_db(db, data_model_data):
+def test_add_property2data_model_with_force_and_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddPropertyToDataModel(db).execute(
-        code=data_model_data["code"],
-        version=data_model_data["version"],
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key",
         value="value",
         force=False,
@@ -709,8 +727,8 @@ def test_add_property2data_model_with_force_and_db(db, data_model_data):
 
     # Test
     AddPropertyToDataModel(db).execute(
-        code=data_model_data["code"],
-        version=data_model_data["version"],
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key",
         value="value1",
         force=True,
@@ -722,20 +740,20 @@ def test_add_property2data_model_with_force_and_db(db, data_model_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_remove_property_from_data_model_with_db(db, data_model_data):
+def test_remove_property_from_data_model_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddPropertyToDataModel(db).execute(
-        code=data_model_data["code"],
-        version=data_model_data["version"],
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key1",
         value="value1",
         force=False,
     )
     AddPropertyToDataModel(db).execute(
-        code=data_model_data["code"],
-        version=data_model_data["version"],
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key2",
         value="value2",
         force=False,
@@ -743,8 +761,8 @@ def test_remove_property_from_data_model_with_db(db, data_model_data):
 
     # Test
     RemovePropertyFromDataModel(db).execute(
-        code=data_model_data["code"],
-        version=data_model_data["version"],
+        code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key1",
         value="value1",
     )
@@ -803,17 +821,17 @@ def test_remove_property_from_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_with_db(db, data_model_data, dataset_data):
+def test_tag_dataset_with_db(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(dataset_data, "data_model", "1.0")
 
     # Test
     TagDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         tag="tag",
     )
 
@@ -823,35 +841,35 @@ def test_tag_dataset_with_db(db, data_model_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_untag_dataset_with_db(db, data_model_data, dataset_data):
+def test_untag_dataset_with_db(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(dataset_data, "data_model", "1.0")
     TagDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         tag="tag1",
     )
     TagDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         tag="tag2",
     )
     TagDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         tag="tag3",
     )
 
     # Test
     UntagDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         tag="tag1",
     )
 
@@ -861,17 +879,17 @@ def test_untag_dataset_with_db(db, data_model_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_property2dataset_with_db(db, data_model_data, dataset_data):
+def test_add_property2dataset_with_db(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(dataset_data, "data_model", "1.0")
 
     # Test
     AddPropertyToDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key",
         value="value",
         force=False,
@@ -883,31 +901,31 @@ def test_add_property2dataset_with_db(db, data_model_data, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_remove_property_from_dataset_with_db(db, data_model_data, dataset_data):
+def test_remove_property_from_dataset_with_db(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
-    AddDataModel(db).execute(data_model_data)
+    AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(dataset_data, "data_model", "1.0")
     AddPropertyToDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key",
         value="value",
         force=False,
     )
     AddPropertyToDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key1",
         value="value1",
         force=False,
     )
     AddPropertyToDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key2",
         value="value2",
         force=False,
@@ -916,8 +934,8 @@ def test_remove_property_from_dataset_with_db(db, data_model_data, dataset_data)
     # Test
     RemovePropertyFromDataset(db).execute(
         dataset="dataset",
-        data_model_code=data_model_data["code"],
-        version=data_model_data["version"],
+        data_model_code=data_model_metadata["code"],
+        version=data_model_metadata["version"],
         key="key2",
         value="value2",
     )

@@ -28,23 +28,23 @@ def test_get_schemas():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_update_schema_status(db):
+def test_update_data_model_status(db):
     # Setup
     runner = CliRunner()
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
-    # Check the status of schema is disabled
-    res = db.execute(
-        'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
-    )
-    assert list(res)[0][0] == "DISABLED"
-
-    # Test
-    db.update_data_model_status("ENABLED", 1)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    # Check the status of data model is disabled
     res = db.execute(
         'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
     )
     assert list(res)[0][0] == "ENABLED"
+
+    # Test
+    db.update_data_model_status("DISABLED", 1)
+    res = db.execute(
+        'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
+    )
+    assert list(res)[0][0] == "DISABLED"
 
 
 @pytest.mark.database
@@ -53,7 +53,7 @@ def update_dataset_status(db):
     # Setup
     runner = CliRunner()
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
     )
@@ -81,7 +81,7 @@ def test_get_schemas_with_db(db):
     assert db.get_schemas() == []
 
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
 
     # Check schema present
     schemas = db.get_schemas()
@@ -102,7 +102,7 @@ def test_get_datasets_with_db(db):
 
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
     )
@@ -119,7 +119,7 @@ def test_get_data_model_id_with_db(db):
     # Setup
     runner = CliRunner()
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
 
     # Test success
     data_model_id = db.get_data_model_id("data_model", "1.0")
@@ -144,7 +144,7 @@ def test_get_data_model_id_duplication_error(db):
     # Setup
     runner = CliRunner()
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     db.execute(
         sql.text(
             'INSERT INTO "mipdb_metadata".data_models (data_model_id, code, version, status)'
@@ -163,7 +163,7 @@ def test_get_dataset_id_with_db(db):
     # Setup
     runner = CliRunner()
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
     )
@@ -179,7 +179,7 @@ def test_get_dataset_id_duplication_error(db):
     # Setup
     runner = CliRunner()
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
     )
@@ -202,7 +202,7 @@ def test_get_dataset_id_not_found_error(db):
     # Setup
     runner = CliRunner()
     runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "-v", "1.0", "--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
 
     # Test when there is no dataset in the database with the specific code and data_model_id
     with pytest.raises(DataBaseError):

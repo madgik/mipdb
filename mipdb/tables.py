@@ -214,7 +214,12 @@ class PrimaryDataTable(Table):
             sql.Column(cde.code, STR2SQLTYPE[json.loads(cde.metadata)["sql_type"]])
             for cde in cdes
         ]
-        columns.insert(0, sql.Column("row_id", SQLTYPES.INTEGER, primary_key=True, autoincrement=True))
+        columns.insert(
+            0,
+            sql.Column(
+                "row_id", SQLTYPES.INTEGER, primary_key=True, autoincrement=True
+            ),
+        )
         table = sql.Table(
             "primary_data",
             schema.schema,

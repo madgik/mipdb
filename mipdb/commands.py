@@ -56,17 +56,11 @@ def load_folder(file, ip, port):
         print(f"Data model {subdir} is being loaded...")
         metadata_path = os.path.join(subdir, "CDEsMetadata.json")
         reader = JsonFileReader(metadata_path)
-        data_model_data = reader.read()
+        data_model_metadata = reader.read()
         data_model = os.path.basename(os.path.normpath(subdir))
-        if "_v_" in data_model:
-            code, version = data_model.split("_v_")
-            version = version.replace("_", ".")
-            data_model_data["version"] = version
-        else:
-            code = data_model
-            version = "0.1"
-
-        AddDataModel(db).execute(data_model_data)
+        code = data_model_metadata["code"]
+        version = data_model_metadata["version"]
+        AddDataModel(db).execute(data_model_metadata)
         print(f"Data model {data_model} was successfully added.")
 
         for csv in glob.glob(subdir + "/*.csv"):
@@ -92,16 +86,14 @@ def init(ip, port):
 @entry.command()
 @cl.argument("file", required=True)
 @ip_port_options
-@cl.option("-v", "--version", required=True, help="The data model version")
 @handle_errors
-def add_data_model(file, version, ip, port):
+def add_data_model(file, ip, port):
     print(f"Data model {file} is being loaded...")
     dbconfig = get_db_config(ip, port)
     reader = JsonFileReader(file)
     db = MonetDB.from_config(dbconfig)
-    data_model_data = reader.read()
-    data_model_data["version"] = version
-    AddDataModel(db).execute(data_model_data)
+    data_model_metadata = reader.read()
+    AddDataModel(db).execute(data_model_metadata)
     print(
         f"Data model {os.path.basename(os.path.normpath(file))} was successfully added."
     )
