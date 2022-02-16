@@ -13,7 +13,7 @@ PORT = 50123
 
 
 @pytest.fixture
-def data_model_data():
+def data_model_metadata():
     reader = JsonFileReader(DATA_MODEL_FILE)
     return reader.read()
 

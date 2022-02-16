@@ -56,11 +56,11 @@ def load_folder(file, ip, port):
         print(f"Data model {subdir} is being loaded...")
         metadata_path = os.path.join(subdir, "CDEsMetadata.json")
         reader = JsonFileReader(metadata_path)
-        data_model_data = reader.read()
+        data_model_metadata = reader.read()
         data_model = os.path.basename(os.path.normpath(subdir))
-        code = data_model_data["code"]
-        version = data_model_data["version"]
-        AddDataModel(db).execute(data_model_data)
+        code = data_model_metadata["code"]
+        version = data_model_metadata["version"]
+        AddDataModel(db).execute(data_model_metadata)
         print(f"Data model {data_model} was successfully added.")
 
         for csv in glob.glob(subdir + "/*.csv"):
@@ -92,8 +92,8 @@ def add_data_model(file, ip, port):
     dbconfig = get_db_config(ip, port)
     reader = JsonFileReader(file)
     db = MonetDB.from_config(dbconfig)
-    data_model_data = reader.read()
-    AddDataModel(db).execute(data_model_data)
+    data_model_metadata = reader.read()
+    AddDataModel(db).execute(data_model_metadata)
     print(
         f"Data model {os.path.basename(os.path.normpath(file))} was successfully added."
     )

@@ -10,14 +10,14 @@ def test_make_cdes_empty():
     assert cdes == []
 
 
-def test_make_cdes(data_model_data):
-    cdes = make_cdes(data_model_data)
+def test_make_cdes(data_model_metadata):
+    cdes = make_cdes(data_model_metadata)
     assert all(isinstance(cde, CommonDataElement) for cde in cdes)
     assert len(cdes) == 5
 
 
-def test_make_cdes_full_schema(data_model_data):
-    cdes = make_cdes(data_model_data)
+def test_make_cdes_full_schema(data_model_metadata):
+    cdes = make_cdes(data_model_metadata)
     assert all(isinstance(cde, CommonDataElement) for cde in cdes)
 
 
