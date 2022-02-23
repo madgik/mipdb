@@ -22,7 +22,7 @@ def test_make_cdes_full_schema(data_model_metadata):
 
 
 def test_make_cde():
-    cde_data = {
+    metadata = {
         "is_categorical": False,
         "code": "code",
         "sql_type": "text",
@@ -30,13 +30,13 @@ def test_make_cde():
         "label": "",
         "methodology": "",
     }
-    cde = CommonDataElement.from_cde_data(cde_data)
+    cde = CommonDataElement.from_metadata(metadata)
     assert hasattr(cde, "code")
     assert hasattr(cde, "metadata")
 
 
 def test_missing_nessesary_variables():
-    cde_data = {
+    metadata = {
         "is_categorical": False,
         "code": "code",
         "sql_type": "text",
@@ -44,11 +44,11 @@ def test_missing_nessesary_variables():
         "methodology": "",
     }
     with pytest.raises(InvalidDataModelError):
-        CommonDataElement.from_cde_data(cde_data)
+        CommonDataElement.from_metadata(metadata)
 
 
 def test_min_greater_than_max():
-    cde_data = {
+    metadata = {
         "is_categorical": False,
         "code": "code",
         "sql_type": "text",
@@ -59,11 +59,11 @@ def test_min_greater_than_max():
         "methodology": "",
     }
     with pytest.raises(InvalidDataModelError):
-        CommonDataElement.from_cde_data(cde_data)
+        CommonDataElement.from_metadata(metadata)
 
 
 def test_is_categorical_without_enumerations():
-    cde_data = {
+    metadata = {
         "is_categorical": True,
         "code": "code",
         "sql_type": "text",
@@ -72,4 +72,4 @@ def test_is_categorical_without_enumerations():
         "methodology": "",
     }
     with pytest.raises(InvalidDataModelError):
-        CommonDataElement.from_cde_data(cde_data)
+        CommonDataElement.from_metadata(metadata)

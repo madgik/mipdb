@@ -272,7 +272,7 @@ class MetadataTable(Table):
         new_table = cls(schema)
         new_table.set_table(
             {
-                name: CommonDataElement.from_cde_data(json.loads(val)[0])
+                name: CommonDataElement.from_metadata(json.loads(val)[0])
                 for name, val in res.fetchall()
             }
         )
