@@ -74,7 +74,7 @@ def test_validate_with_nan_values_integer_column_with_minValue():
                     "code": "dataset",
                     "sql_type": "text",
                     "description": "",
-                    "enumerations": [{"dataset1": "Dataset 1"}, {"dataset2": "Dataset 2"}],
+                    "enumerations": {"dataset1": "Dataset 1", "dataset2": "Dataset 2"},
                     "label": "Dataset", 
                     "methodology": ""
                 }
@@ -118,7 +118,7 @@ def test_validate_with_nan_values_integer_column_with_only_maxValue():
                     "code": "dataset",
                     "sql_type": "text",
                     "description": "",
-                    "enumerations": [{"dataset1": "Dataset 1"}, {"dataset2": "Dataset 2"}],
+                    "enumerations": {"dataset1": "Dataset 1", "dataset2": "Dataset 2"},
                     "label": "Dataset", "methodology": ""
                 }
             """,
@@ -161,7 +161,7 @@ def test_validate_with_nan_values_integer_column_without_min_max():
                     "code": "dataset",
                     "sql_type": "text",
                     "description": "",
-                    "enumerations": [{"dataset1": "Dataset 1"}, {"dataset2": "Dataset 2"}],
+                    "enumerations": {"dataset1": "Dataset 1", "dataset2": "Dataset 2"},
                     "label": "Dataset", "methodology": ""
                 }
             """,
@@ -220,10 +220,10 @@ def test_validate():
                     "sql_type": "text",
                     "description": "",
                     "enumerations":
-                        [
-                            {"1": "Number1"},
-                            {"2": "Number2"}
-                        ],
+                        {
+                            "1": "Number1",
+                            "2": "Number2"
+                        },
                     "label": "Variable 2",
                     "methodology": ""
                 }
@@ -237,7 +237,7 @@ def test_validate():
                     "code": "dataset",
                     "sql_type": "text",
                     "description": "",
-                    "enumerations": [{"dataset1": "Dataset 1"}, {"dataset2": "Dataset 2"}],
+                    "enumerations": {"dataset1": "Dataset 1", "dataset2": "Dataset 2"},
                     "label": "Dataset", "methodology": ""
                 }
             """,

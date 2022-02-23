@@ -1,6 +1,5 @@
 import json
 from dataclasses import dataclass
-from typing import List
 
 from mipdb.exceptions import InvalidDataModelError
 
@@ -59,10 +58,10 @@ def reformat_metadata(metadata):
             metadata[new_key] = metadata.pop(old_key)
 
     if "enumerations" in metadata:
-        metadata["enumerations"] = [
-            {enumeration["code"]: enumeration["label"]}
+        metadata["enumerations"] = {
+            enumeration["code"]: enumeration["label"]
             for enumeration in metadata["enumerations"]
-        ]
+        }
     return metadata
 
 

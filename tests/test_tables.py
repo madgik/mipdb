@@ -210,7 +210,6 @@ class TestPrimaryDataTable:
             "\n\tvar4 INTEGER, "
             "\n\tPRIMARY KEY (row_id)\n)\n\n"
         )
-        print(db.captured_queries[0])
         assert db.captured_queries[0] == expected
 
     @pytest.mark.database

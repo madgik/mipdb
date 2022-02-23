@@ -100,8 +100,7 @@ class Dataset:
                     lambda s: s.isin(
                         [
                             key
-                            for enumeration in _metadata["enumerations"]
-                            for key, value in enumeration.items()
+                            for key, value in _metadata["enumerations"].items()
                         ]
                         + ["None"]
                     )
