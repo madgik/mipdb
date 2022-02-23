@@ -23,7 +23,7 @@ def test_make_cdes_full_schema(data_model_metadata):
 
 def test_make_cde():
     cde_data = {
-        "isCategorical": False,
+        "is_categorical": False,
         "code": "code",
         "sql_type": "text",
         "description": "",
@@ -37,7 +37,7 @@ def test_make_cde():
 
 def test_missing_nessesary_variables():
     cde_data = {
-        "isCategorical": False,
+        "is_categorical": False,
         "code": "code",
         "sql_type": "text",
         "description": "",
@@ -49,12 +49,12 @@ def test_missing_nessesary_variables():
 
 def test_min_greater_than_max():
     cde_data = {
-        "isCategorical": False,
+        "is_categorical": False,
         "code": "code",
         "sql_type": "text",
         "label": "",
-        "minValue": 55,
-        "maxValue": 50,
+        "min": 55,
+        "max": 50,
         "description": "",
         "methodology": "",
     }
@@ -64,7 +64,7 @@ def test_min_greater_than_max():
 
 def test_is_categorical_without_enumerations():
     cde_data = {
-        "isCategorical": True,
+        "is_categorical": True,
         "code": "code",
         "sql_type": "text",
         "description": "",

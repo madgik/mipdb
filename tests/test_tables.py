@@ -153,7 +153,7 @@ class TestVariablesMetadataTable:
         values = metadata_table.get_values_from_cdes(make_cdes(data_model_metadata))
         metadata_table.insert_values(values, db)
         res = db.execute(
-            "SELECT code, json.filter(metadata, '$.isCategorical') "
+            "SELECT code, json.filter(metadata, '$.is_categorical') "
             f'FROM "schema:1.0".variables_metadata'
         )
         result = [(name, json.loads(val)) for name, val in res.fetchall()]
