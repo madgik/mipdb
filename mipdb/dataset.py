@@ -63,10 +63,10 @@ class Dataset:
             # This will not affect the dataframe that will be imported in the database.
             if cde_sql_type == "int":
                 valid_int = 0
-                if "minValue" in metadata_column_dict:
-                    valid_int = metadata_column_dict["minValue"]
-                elif "maxValue" in metadata_column_dict:
-                    valid_int = metadata_column_dict["maxValue"]
+                if "min" in metadata_column_dict:
+                    valid_int = metadata_column_dict["min"]
+                elif "max" in metadata_column_dict:
+                    valid_int = metadata_column_dict["max"]
                 self._data[column] = self._data[column].fillna(valid_int)
             pa_columns[column] = pa.Column(dtype=pa_type, checks=checks, nullable=True)
 
@@ -90,17 +90,18 @@ class Dataset:
 
     def _get_pa_checks(self, _metadata):
         checks = []
-        if "maxValue" in _metadata:
-            checks.append(pa.Check(lambda s: s <= _metadata["maxValue"]))
-        if "minValue" in _metadata:
-            checks.append(pa.Check(lambda s: s >= _metadata["minValue"]))
+        if "max" in _metadata:
+            checks.append(pa.Check(lambda s: s <= _metadata["max"]))
+        if "min" in _metadata:
+            checks.append(pa.Check(lambda s: s >= _metadata["min"]))
         if "enumerations" in _metadata:
             checks.append(
                 pa.Check(
                     lambda s: s.isin(
                         [
-                            enumeration["code"]
+                            key
                             for enumeration in _metadata["enumerations"]
+                            for key, value in enumeration.items()
                         ]
                         + ["None"]
                     )

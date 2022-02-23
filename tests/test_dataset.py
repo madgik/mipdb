@@ -70,12 +70,13 @@ def test_validate_with_nan_values_integer_column_with_minValue():
             code="dataset",
             metadata="""
                 {
-                    "isCategorical": true,
+                    "is_categorical": true,
                     "code": "dataset",
                     "sql_type": "text",
                     "description": "",
-                    "enumerations": [{"code": "dataset1", "label": "Dataset 1"}, {"code": "dataset2", "label": "Dataset 2"}],
-                    "label": "Dataset", "methodology": ""
+                    "enumerations": [{"dataset1": "Dataset 1"}, {"dataset2": "Dataset 2"}],
+                    "label": "Dataset", 
+                    "methodology": ""
                 }
             """,
         ),
@@ -83,10 +84,10 @@ def test_validate_with_nan_values_integer_column_with_minValue():
             code="var4",
             metadata="""
             {
-                "isCategorical": false,
+                "is_categorical": false,
                 "code": "var4",
                 "sql_type": "int",
-                "minValue": 10,
+                "min": 10,
                 "units": "years",
                 "description": "",
                 "label": "Variable 4",
@@ -113,11 +114,11 @@ def test_validate_with_nan_values_integer_column_with_only_maxValue():
             code="dataset",
             metadata="""
                 {
-                    "isCategorical": true,
+                    "is_categorical": true,
                     "code": "dataset",
                     "sql_type": "text",
                     "description": "",
-                    "enumerations": [{"code": "dataset1", "label": "Dataset 1"}, {"code": "dataset2", "label": "Dataset 2"}],
+                    "enumerations": [{"dataset1": "Dataset 1"}, {"dataset2": "Dataset 2"}],
                     "label": "Dataset", "methodology": ""
                 }
             """,
@@ -126,10 +127,10 @@ def test_validate_with_nan_values_integer_column_with_only_maxValue():
             code="var4",
             metadata="""
             {
-                "isCategorical": false,
+                "is_categorical": false,
                 "code": "var4",
                 "sql_type": "int",
-                "maxValue": 100,
+                "max": 100,
                 "units": "years",
                 "description": "",
                 "label": "Variable 4",
@@ -156,11 +157,11 @@ def test_validate_with_nan_values_integer_column_without_min_max():
             code="dataset",
             metadata="""
                 {
-                    "isCategorical": true,
+                    "is_categorical": true,
                     "code": "dataset",
                     "sql_type": "text",
                     "description": "",
-                    "enumerations": [{"code": "dataset1", "label": "Dataset 1"}, {"code": "dataset2", "label": "Dataset 2"}],
+                    "enumerations": [{"dataset1": "Dataset 1"}, {"dataset2": "Dataset 2"}],
                     "label": "Dataset", "methodology": ""
                 }
             """,
@@ -169,10 +170,10 @@ def test_validate_with_nan_values_integer_column_without_min_max():
             code="var4",
             metadata="""
             {
-                "isCategorical": false,
+                "is_categorical": false,
                 "code": "var4",
                 "sql_type": "int",
-                "maxValue": 100,
+                "max": 100,
                 "units": "years",
                 "description": "",
                 "label": "Variable 4",
@@ -202,7 +203,7 @@ def test_validate():
             code="var1",
             metadata="""
                 {
-                "isCategorical": false,
+                "is_categorical": false,
                 "code": "var1",
                 "sql_type": "text",
                 "description": "",
@@ -214,14 +215,14 @@ def test_validate():
             code="var2",
             metadata="""
                 {
-                    "isCategorical": true,
+                    "is_categorical": true,
                     "code": "var2",
                     "sql_type": "text",
                     "description": "",
                     "enumerations":
                         [
-                            {"code": "1", "label": "Number1"},
-                            {"code": "2", "label": "Number2"}
+                            {"1": "Number1"},
+                            {"2": "Number2"}
                         ],
                     "label": "Variable 2",
                     "methodology": ""
@@ -232,11 +233,11 @@ def test_validate():
             code="dataset",
             metadata="""
                 {
-                    "isCategorical": true,
+                    "is_categorical": true,
                     "code": "dataset",
                     "sql_type": "text",
                     "description": "",
-                    "enumerations": [{"code": "dataset1", "label": "Dataset 1"}, {"code": "dataset2", "label": "Dataset 2"}],
+                    "enumerations": [{"dataset1": "Dataset 1"}, {"dataset2": "Dataset 2"}],
                     "label": "Dataset", "methodology": ""
                 }
             """,
@@ -245,11 +246,11 @@ def test_validate():
             code="var3",
             metadata="""
             {
-                "isCategorical": false,
+                "is_categorical": false,
                 "code": "var3",
                 "sql_type": "real",
-                "minValue": 0,
-                "maxValue": 100,
+                "min": 0,
+                "max": 100,
                 "description": "",
                 "label": "Variable 3",
                 "methodology": ""
@@ -260,7 +261,7 @@ def test_validate():
             code="var4",
             metadata="""
             {
-                "isCategorical": false,
+                "is_categorical": false,
                 "code": "var4",
                 "sql_type": "int",
                 "units": "years",
