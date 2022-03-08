@@ -633,11 +633,11 @@ def test_list_datasets(db):
     assert result.stdout == "There are no datasets.\n"
     assert result_with_dataset.exit_code == ExitCode.OK
     assert (
-        "dataset_id  data_model_id     code label   status  count"
+        "dataset_id  data_model_id     code    label   status  count"
         in result_with_dataset.stdout
     )
     assert (
-        "0           1              1  dataset  None  ENABLED      5"
+        "0           1              1  dataset  Dataset  ENABLED      5"
         in result_with_dataset.stdout
     )
 

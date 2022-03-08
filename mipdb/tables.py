@@ -265,15 +265,13 @@ class MetadataTable(Table):
 
     @classmethod
     def from_db(cls, schema, db):
-        res = db.execute(
-            "SELECT code, json.filter(metadata, '$') "
-            f'FROM "{schema.name}".{METADATA_TABLE}'
-        )
+        res = db.get_metadata(schema)
+        print(res)
         new_table = cls(schema)
         new_table.set_table(
             {
-                name: CommonDataElement.from_metadata(json.loads(val)[0])
-                for name, val in res.fetchall()
+                code: CommonDataElement.from_metadata(json.loads(metadata)[0])
+                for code, metadata in res.items()
             }
         )
         return new_table

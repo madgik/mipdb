@@ -139,7 +139,7 @@ def validate_dataset(file, data_model, version, ip, port):
     dataset_data = reader.read()
     ValidateDataset(db).execute(dataset_data, data_model, version)
     print(
-        f"Dataset {os.path.basename(os.path.normpath(file))} was successfully validated."
+        f"Dataset {os.path.basename(os.path.normpath(file))} is valid."
     )
 
 

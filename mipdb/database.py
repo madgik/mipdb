@@ -63,6 +63,10 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def get_metadata(self, schema):
+        pass
+
+    @abstractmethod
     def update_dataset_status(self, status, dataset_id):
         pass
 
@@ -152,6 +156,10 @@ class DataBase(ABC):
 
     @abstractmethod
     def get_dataset_status(self, dataset_id):
+        pass
+
+    @abstractmethod
+    def get_metadata(self, schema):
         pass
 
     @abstractmethod
@@ -300,6 +308,14 @@ class DBExecutorMixin(ABC):
         )
         (status, *_), *_ = self.execute(select, dataset_id=dataset_id)
         return status
+
+    def get_metadata(self, schema):
+        select = sql.text(
+            "SELECT code, json.filter(metadata, '$') "
+            f'FROM "{schema.name}".{METADATA_TABLE}'
+        )
+        res = self.execute(select)
+        return {code:metadata for code, metadata in res}
 
     def update_dataset_status(self, status, dataset_id):
         update = sql.text(
