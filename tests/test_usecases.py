@@ -160,7 +160,7 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_metadata, datase
             "var2": ["l1", "l2", "l1", "l1", "l2"],
             "var3": [11, 12, 13, 14, 15],
             "var4": [21, 22, 23, 24, 25],
-            "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
+            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
         }
     )
     AddDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
@@ -191,7 +191,7 @@ def test_delete_data_model_with_datasets_with_db_with_force(
             "var2": ["l1", "l2", "l1", "l1", "l2"],
             "var3": [11, 12, 13, 14, 15],
             "var4": [21, 22, 23, 24, 25],
-            "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
+            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
         }
     )
     AddDataset(db).execute(dataset_data=data, code="data_model", version="1.0")
@@ -236,7 +236,7 @@ def test_add_dataset(db, data_model_metadata, dataset_data):
             "var2": ["l1", "l2", "l1", "l1", "l2"],
             "var3": [11, 12, 13, 14, 15],
             "var4": [21, 22, 23, 24, 25],
-            "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
+            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
         }
     )
     # Test success
@@ -257,7 +257,7 @@ def test_add_dataset_mock(data_model_metadata, dataset_data):
             "var2": ["l1", "l2", "l1", "l1", "l2"],
             "var3": [11, 12, 13, 14, 15],
             "var4": [21, 22, 23, 24, 25],
-            "dataset": ["a_ds", "a_ds", "a_ds", "a_ds", "a_ds"],
+            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
         }
     )
     AddDataset(db).execute(data, "data_model", "1.0")

@@ -182,6 +182,7 @@ class AddDataset(UseCase):
 
     def execute(self, dataset_data, code, version) -> None:
         dataset = Dataset(dataset_data)
+        print(dataset)
 
         data_model_name = get_data_model_fullname(code=code, version=version)
         data_model = Schema(data_model_name)
@@ -189,16 +190,21 @@ class AddDataset(UseCase):
         data_model_table = DataModelTable(schema=metadata)
 
         with self.db.begin() as conn:
+            metadata_table = MetadataTable.from_db(data_model, conn)
+            dataset_enumerations = json.loads(metadata_table.table["dataset"].metadata)["enumerations"]
             dataset_id = self._get_next_dataset_id(conn)
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
 
             primary_data_table = PrimaryDataTable.from_db(data_model, conn)
             self._verify_dataset_does_not_exist(data_model_id, dataset, conn)
             primary_data_table.insert_dataset(dataset, conn)
+            label = dataset_enumerations[dataset.name]
+
             record = dict(
                 data_model_id=data_model_id,
                 dataset_id=dataset_id,
                 code=dataset.name,
+                label=label,
             )
             emitter.emit("add_dataset", record, conn)
 
