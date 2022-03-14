@@ -138,9 +138,7 @@ def validate_dataset(file, data_model, version, ip, port):
     db = MonetDB.from_config(dbconfig)
     dataset_data = reader.read()
     ValidateDataset(db).execute(dataset_data, data_model, version)
-    print(
-        f"Dataset {os.path.basename(os.path.normpath(file))} is valid."
-    )
+    print(f"Dataset {os.path.basename(os.path.normpath(file))} is valid.")
 
 
 @entry.command()

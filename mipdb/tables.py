@@ -266,7 +266,6 @@ class MetadataTable(Table):
     @classmethod
     def from_db(cls, schema, db):
         res = db.get_metadata(schema)
-        print(res)
         new_table = cls(schema)
         new_table.set_table(
             {
