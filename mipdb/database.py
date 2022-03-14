@@ -315,7 +315,7 @@ class DBExecutorMixin(ABC):
             f'FROM "{schema.name}".{METADATA_TABLE}'
         )
         res = self.execute(select)
-        return {code:metadata for code, metadata in res}
+        return {code: metadata for code, metadata in res}
 
     def update_dataset_status(self, status, dataset_id):
         update = sql.text(

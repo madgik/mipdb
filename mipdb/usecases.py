@@ -182,7 +182,6 @@ class AddDataset(UseCase):
 
     def execute(self, dataset_data, code, version) -> None:
         dataset = Dataset(dataset_data)
-        print(dataset)
 
         data_model_name = get_data_model_fullname(code=code, version=version)
         data_model = Schema(data_model_name)
@@ -191,7 +190,9 @@ class AddDataset(UseCase):
 
         with self.db.begin() as conn:
             metadata_table = MetadataTable.from_db(data_model, conn)
-            dataset_enumerations = json.loads(metadata_table.table["dataset"].metadata)["enumerations"]
+            dataset_enumerations = json.loads(metadata_table.table["dataset"].metadata)[
+                "enumerations"
+            ]
             dataset_id = self._get_next_dataset_id(conn)
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
 

@@ -55,7 +55,7 @@ class MonetDBMock(MonetDB):
 
     def get_metadata(self, schema):
         return {
-            "dataset":"[{\"code\": \"dataset\", \"sql_type\": \"text\", \"description\": \"\", \"enumerations\": {\"dataset1\": \"Dataset 1\"}, \"label\": \"Dataset\", \"units\": \"\", \"type\": \"nominal\", \"methodology\": \"\", \"is_categorical\": true}]",
+            "dataset": '[{"code": "dataset", "sql_type": "text", "description": "", "enumerations": {"dataset1": "Dataset 1"}, "label": "Dataset", "units": "", "type": "nominal", "methodology": "", "is_categorical": true}]',
         }
 
     def get_data_model_status(self, data_model_id):

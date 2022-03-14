@@ -98,10 +98,7 @@ class Dataset:
             checks.append(
                 pa.Check(
                     lambda s: s.isin(
-                        [
-                            key
-                            for key, value in _metadata["enumerations"].items()
-                        ]
+                        [key for key, value in _metadata["enumerations"].items()]
                         + ["None"]
                     )
                 )
