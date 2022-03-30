@@ -1,7 +1,6 @@
 import datetime
 import json
 from abc import ABC, abstractmethod
-from time import sleep
 
 import pandas as pa
 
@@ -705,6 +704,29 @@ class ListDatasets(UseCase):
             dataset_info_columns = dataset_row_columns + ["count"]
             df = pa.DataFrame(datasets_info, columns=dataset_info_columns)
             print(df)
+
+
+class Cleanup(UseCase):
+    def __init__(self, db: DataBase) -> None:
+        self.db = db
+
+    def execute(self) -> None:
+        metadata = Schema(METADATA_SCHEMA)
+        data_model_table = DataModelTable(schema=metadata)
+        data_model_rows = []
+
+        with self.db.begin() as conn:
+            data_model_row_columns = [
+                "code",
+                "version",
+            ]
+            data_model_rows = data_model_table.get_data_models(
+                conn, columns=data_model_row_columns
+            )
+
+        for data_model_row in data_model_rows:
+            code, version = data_model_row
+            DeleteDataModel(self.db).execute(code=code, version=version, force=True)
 
 
 def get_data_model_fullname(code, version):

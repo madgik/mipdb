@@ -50,6 +50,9 @@ def entry():
 def load_folder(file, ip, port):
     dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
+
+    Cleanup(db).execute()
+
     for subdir, dirs, files in os.walk(file):
         if dirs:
             continue

@@ -88,9 +88,9 @@ def test_delete_data_model():
     assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
     assert 'DELETE FROM "data_model:1.0"."primary_data" ' in db.captured_queries[2]
     assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[4]
-    assert 'DELETE FROM mipdb_metadata.datasets ' in db.captured_queries[5]
+    assert "DELETE FROM mipdb_metadata.datasets " in db.captured_queries[5]
     assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[6]
-    assert 'DELETE FROM mipdb_metadata.data_models ' in db.captured_queries[7]
+    assert "DELETE FROM mipdb_metadata.data_models " in db.captured_queries[7]
 
 
 @pytest.mark.database
