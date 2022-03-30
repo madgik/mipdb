@@ -38,10 +38,8 @@ from tests.mocks import MonetDBMock
 def test_init_mock():
     db = MonetDBMock()
     InitDB(db).execute()
-    assert f"CREATE SCHEMA mipdb_metadata" in db.captured_queries[0]
-    assert f"CREATE TABLE mipdb_metadata.data_models" in db.captured_queries[2]
-    assert f"CREATE TABLE mipdb_metadata.datasets" in db.captured_queries[4]
-    assert f"CREATE TABLE mipdb_metadata.actions" in db.captured_queries[6]
+    assert f"SELECT name FROM sys.schemas" in db.captured_queries[0]
+    assert f"CREATE SCHEMA mipdb_metadata" in db.captured_queries[1]
 
 
 @pytest.mark.database

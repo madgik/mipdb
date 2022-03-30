@@ -37,11 +37,19 @@ class InitDB(UseCase):
 
     def execute(self) -> None:
         metadata = Schema(METADATA_SCHEMA)
+        data_model_table = DataModelTable(schema=metadata)
+        datasets_table = DatasetsTable(schema=metadata)
+        actions_table = ActionsTable(schema=metadata)
+
         with self.db.begin() as conn:
-            metadata.create(conn)
-            DataModelTable(schema=metadata).create(conn)
-            DatasetsTable(schema=metadata).create(conn)
-            ActionsTable(schema=metadata).create(conn)
+            if "mipdb_metadata" not in self.db.get_schemas():
+                metadata.create(conn)
+            if not data_model_table.exists(conn):
+                data_model_table.create(conn)
+            if not datasets_table.exists(conn):
+                datasets_table.create(conn)
+            if not actions_table.exists(conn):
+                actions_table.create(conn)
 
 
 class AddDataModel(UseCase):

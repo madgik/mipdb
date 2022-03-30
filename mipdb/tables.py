@@ -44,6 +44,9 @@ class Table(ABC):
     def create(self, db: Union[DataBase, Connection]):
         db.create_table(self._table)
 
+    def exists(self, db: Union[DataBase, Connection]):
+        return db.table_exists(self._table)
+
     def insert_values(self, values, db: Union[DataBase, Connection]):
         db.insert_values_to_table(self._table, values)
 

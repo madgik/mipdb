@@ -127,6 +127,10 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def table_exists(self, table):
+        pass
+
+    @abstractmethod
     def insert_values_to_table(self, values, table):
         pass
 
@@ -224,6 +228,10 @@ class DataBase(ABC):
 
     @abstractmethod
     def get_data_count_by_dataset(self, schema_fullname):
+        pass
+
+    @abstractmethod
+    def table_exists(self, table):
         pass
 
     @abstractmethod
@@ -458,6 +466,9 @@ class DBExecutorMixin(ABC):
             """
         )
         return list(datasets)
+
+    def table_exists(self, table):
+        return table.exists(bind=self._executor)
 
     @handle_errors
     def create_table(self, table):

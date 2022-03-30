@@ -33,6 +33,9 @@ class MonetDBMock(MonetDB):
         # external database, I do the following trick and it works!
         yield self
 
+    def table_exists(self, table):
+        return True
+
     def get_current_user(self):
         return "test_user"
 
