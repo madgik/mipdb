@@ -80,6 +80,14 @@ class DataModelTable(Table):
             )
         return db.get_data_models(columns)
 
+    def get_data_model(self, data_model_id, db, columns: list = None):
+        if columns and not set(columns).issubset(self.table.columns.keys()):
+            non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
+            raise ValueError(
+                f"The columns: {non_existing_columns} do not exist in the data model's schema"
+            )
+        return db.get_data_model(data_model_id, columns)
+
     def get_dataset_count_by_data_model_id(self, db):
         return db.get_dataset_count_by_data_model_id()
 
@@ -141,6 +149,14 @@ class DatasetsTable(Table):
                 f"The columns: {non_existing_columns} do not exist in the datasets schema"
             )
         return db.get_datasets(data_model_id, columns)
+
+    def get_dataset(self, db, dataset_id=None, columns=None):
+        if columns and not set(columns).issubset(self.table.columns.keys()):
+            non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
+            raise ValueError(
+                f"The columns: {non_existing_columns} do not exist in the datasets schema"
+            )
+        return db.get_dataset(dataset_id, columns)
 
     def get_data_count_by_dataset(self, data_model_fullname, db):
         return db.get_data_count_by_dataset(data_model_fullname)
