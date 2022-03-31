@@ -75,9 +75,11 @@ class DataModelTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
-    def create(self, db: Union[DataBase, Connection]):
+    def drop_sequence(self, db: Union[DataBase, Connection]):
         if db.get_executor():
             self.data_model_id_seq.drop(db.get_executor())
+
+    def create(self, db: Union[DataBase, Connection]):
         db.create_table(self.table)
 
     def get_data_models(self, db, columns: list = None):
@@ -150,9 +152,11 @@ class DatasetsTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
-    def create(self, db: Union[DataBase, Connection]):
+    def drop_sequence(self, db: Union[DataBase, Connection]):
         if db.get_executor():
             self.dataset_id_seq.drop(db.get_executor())
+
+    def create(self, db: Union[DataBase, Connection]):
         db.create_table(self.table)
 
     def get_datasets(self, db, data_model_id=None, columns=None):
@@ -216,9 +220,11 @@ class ActionsTable(Table):
             sql.Column("action", SQLTYPES.JSON),
         )
 
-    def create(self, db: Union[DataBase, Connection]):
+    def drop_sequence(self, db: Union[DataBase, Connection]):
         if db.get_executor():
             self.action_id_seq.drop(db.get_executor())
+
+    def create(self, db: Union[DataBase, Connection]):
         db.create_table(self.table)
 
     def insert_values(self, values, db: Union[DataBase, Connection]):

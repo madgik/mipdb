@@ -45,10 +45,13 @@ class InitDB(UseCase):
             if "mipdb_metadata" not in self.db.get_schemas():
                 metadata.create(conn)
             if not data_model_table.exists(conn):
+                data_model_table.drop_sequence(conn)
                 data_model_table.create(conn)
             if not datasets_table.exists(conn):
+                datasets_table.drop_sequence(conn)
                 datasets_table.create(conn)
             if not actions_table.exists(conn):
+                actions_table.drop_sequence(conn)
                 actions_table.create(conn)
 
 

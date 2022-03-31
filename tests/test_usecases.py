@@ -64,6 +64,25 @@ def test_init_with_db(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_init_with_db(db):
+    # Setup
+    InitDB(db).execute()
+    metadata = Schema(METADATA_SCHEMA)
+    data_model_table = DataModelTable(schema=metadata)
+    datasets_table = DatasetsTable(schema=metadata)
+    actions_table = ActionsTable(schema=metadata)
+    InitDB(db).execute()
+
+
+    # Test
+    assert"mipdb_metadata" in db.get_schemas()
+    assert data_model_table.exists(db)
+    assert datasets_table.exists(db)
+    assert actions_table.exists(db)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_re_init_with_missing_schema_with_db(db):
     # Setup
     InitDB(db).execute()
