@@ -4,7 +4,7 @@ import glob
 
 from mipdb.database import MonetDB, get_db_config
 from mipdb.reader import CSVFileReader, JsonFileReader
-from mipdb.usecases import AddDataModel
+from mipdb.usecases import AddDataModel, Cleanup
 from mipdb.usecases import AddPropertyToDataModel
 from mipdb.usecases import AddPropertyToDataset
 from mipdb.usecases import DeleteDataModel
@@ -50,6 +50,9 @@ def entry():
 def load_folder(file, ip, port):
     dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
+
+    Cleanup(db).execute()
+
     for subdir, dirs, files in os.walk(file):
         if dirs:
             continue
@@ -81,6 +84,7 @@ def init(ip, port):
     dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
     InitDB(db).execute()
+    print("Database initialized")
 
 
 @entry.command()
@@ -266,7 +270,6 @@ def tag_data_model(name, version, tag, remove, force, ip, port):
         else:
             AddPropertyToDataModel(db).execute(name, version, key, value, force)
             print(f"Property was successfully added to data model {name}.")
-
     else:
         if remove:
             UntagDataModel(db).execute(name, version, tag)

@@ -33,6 +33,9 @@ class MonetDBMock(MonetDB):
         # external database, I do the following trick and it works!
         yield self
 
+    def table_exists(self, table):
+        return True
+
     def get_current_user(self):
         return "test_user"
 
@@ -47,7 +50,12 @@ class MonetDBMock(MonetDB):
 
     def get_datasets(self, data_model_id=None, columns=None):
         if columns:
-            return [range(1, len(columns) + 1)]
+            return [list(range(1, len(columns) + 1))]
+        return [[1, 2]]
+
+    def get_data_models(self, columns=None):
+        if columns:
+            return [list(range(1, len(columns) + 1))]
         return [[1, 2]]
 
     def get_dataset_status(self, dataset_id):
@@ -66,3 +74,11 @@ class MonetDBMock(MonetDB):
 
     def get_data_model_properties(self, dataset_id):
         return '{"tags":["tag1"], "properties": {"key1": "value1"}}'
+
+    def get_data_model(self, data_model_id, columns):
+        return "code", "version", "label"
+
+    def get_dataset(self, dataset_id, columns):
+        return "code", "label"
+
+

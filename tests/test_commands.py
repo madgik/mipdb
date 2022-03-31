@@ -204,6 +204,46 @@ def test_load_folder(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_load_folder_twice(db):
+    # Setup
+    runner = CliRunner()
+    folder = "tests/data/success"
+
+    # Check dataset not present already
+    result = runner.invoke(init, ["--port", PORT])
+    assert not db.get_datasets(columns=["code"])
+    result = runner.invoke(load_folder, [folder, "--port", PORT])
+    assert result.exit_code == ExitCode.OK
+
+    # Test
+    result = runner.invoke(load_folder, [folder, "--port", PORT])
+    assert result.exit_code == ExitCode.OK
+
+    assert {
+        "mipdb_metadata",
+        "data_model:1.0",
+        "data_model1:1.0",
+    } == set(db.get_schemas())
+
+    datasets = db.get_datasets()
+    dataset_codes = [code for _, _, code, *_ in datasets]
+    expected = [
+        "dataset",
+        "dataset1",
+        "dataset2",
+        "dataset10",
+        "dataset20",
+    ]
+    assert set(expected) == set(dataset_codes)
+    ((count, *_), *_) = db.execute(
+        f'select count(*) from "data_model:1.0".primary_data'
+    ).fetchall()
+    row_ids = db.execute(f'select row_id from "data_model:1.0".primary_data').fetchall()
+    assert list(range(1, count + 1)) == [row_id for row_id, *_ in row_ids]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_tag_data_model(db):
     # Setup
     runner = CliRunner()

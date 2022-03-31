@@ -44,6 +44,9 @@ class Table(ABC):
     def create(self, db: Union[DataBase, Connection]):
         db.create_table(self._table)
 
+    def exists(self, db: Union[DataBase, Connection]):
+        return db.table_exists(self._table)
+
     def insert_values(self, values, db: Union[DataBase, Connection]):
         db.insert_values_to_table(self._table, values)
 
@@ -72,6 +75,13 @@ class DataModelTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
+    def drop_sequence(self, db: Union[DataBase, Connection]):
+        if db.get_executor():
+            self.data_model_id_seq.drop(db.get_executor())
+
+    def create(self, db: Union[DataBase, Connection]):
+        db.create_table(self.table)
+
     def get_data_models(self, db, columns: list = None):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
@@ -79,6 +89,14 @@ class DataModelTable(Table):
                 f"The columns: {non_existing_columns} do not exist in the data models schema"
             )
         return db.get_data_models(columns)
+
+    def get_data_model(self, data_model_id, db, columns: list = None):
+        if columns and not set(columns).issubset(self.table.columns.keys()):
+            non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
+            raise ValueError(
+                f"The columns: {non_existing_columns} do not exist in the data model's schema"
+            )
+        return db.get_data_model(data_model_id, columns)
 
     def get_dataset_count_by_data_model_id(self, db):
         return db.get_dataset_count_by_data_model_id()
@@ -134,6 +152,13 @@ class DatasetsTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
+    def drop_sequence(self, db: Union[DataBase, Connection]):
+        if db.get_executor():
+            self.dataset_id_seq.drop(db.get_executor())
+
+    def create(self, db: Union[DataBase, Connection]):
+        db.create_table(self.table)
+
     def get_datasets(self, db, data_model_id=None, columns=None):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
@@ -141,6 +166,14 @@ class DatasetsTable(Table):
                 f"The columns: {non_existing_columns} do not exist in the datasets schema"
             )
         return db.get_datasets(data_model_id, columns)
+
+    def get_dataset(self, db, dataset_id=None, columns=None):
+        if columns and not set(columns).issubset(self.table.columns.keys()):
+            non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
+            raise ValueError(
+                f"The columns: {non_existing_columns} do not exist in the datasets schema"
+            )
+        return db.get_dataset(dataset_id, columns)
 
     def get_data_count_by_dataset(self, data_model_fullname, db):
         return db.get_data_count_by_dataset(data_model_fullname)
@@ -186,6 +219,13 @@ class ActionsTable(Table):
             ),
             sql.Column("action", SQLTYPES.JSON),
         )
+
+    def drop_sequence(self, db: Union[DataBase, Connection]):
+        if db.get_executor():
+            self.action_id_seq.drop(db.get_executor())
+
+    def create(self, db: Union[DataBase, Connection]):
+        db.create_table(self.table)
 
     def insert_values(self, values, db: Union[DataBase, Connection]):
         # Needs to be overridden because sqlalchemy and monetdb are not cooperating

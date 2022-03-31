@@ -71,6 +71,14 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def get_dataset(self, dataset_id, columns):
+        pass
+
+    @abstractmethod
+    def get_data_model(self, data_model_id, columns):
+        pass
+
+    @abstractmethod
     def get_datasets(self, data_model_id, columns):
         pass
 
@@ -116,6 +124,10 @@ class Connection(ABC):
 
     @abstractmethod
     def create_table(self, table):
+        pass
+
+    @abstractmethod
+    def table_exists(self, table):
         pass
 
     @abstractmethod
@@ -195,6 +207,14 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
+    def get_dataset(self, dataset_id, columns):
+        pass
+
+    @abstractmethod
+    def get_data_model(self, data_model_id, columns):
+        pass
+
+    @abstractmethod
     def get_datasets(self, data_model_id, columns):
         pass
 
@@ -208,6 +228,10 @@ class DataBase(ABC):
 
     @abstractmethod
     def get_data_count_by_dataset(self, schema_fullname):
+        pass
+
+    @abstractmethod
+    def table_exists(self, table):
         pass
 
     @abstractmethod
@@ -393,12 +417,38 @@ class DBExecutorMixin(ABC):
         )
         return list(res)
 
+    def get_dataset(self, dataset_id, columns):
+        columns_query = ", ".join(columns) if columns else "*"
+
+        dataset = self.execute(
+            f"""
+                SELECT {columns_query}
+                FROM {METADATA_SCHEMA}.datasets
+                WHERE dataset_id = {dataset_id}
+                LIMIT 1
+            """
+        ).fetchone()
+
+        return dataset
+
+    def get_data_model(self, data_model_id, columns):
+        columns_query = ", ".join(columns) if columns else "*"
+        data_model = self.execute(
+            f"""
+                SELECT {columns_query}
+                FROM {METADATA_SCHEMA}.data_models
+                WHERE data_model_id = {data_model_id}
+                LIMIT 1
+            """
+        ).fetchone()
+        return data_model
+
     def get_data_models(self, columns=None):
         columns_query = ", ".join(columns) if columns else "*"
         data_models = self.execute(
             f"""
             SELECT {columns_query}
-            FROM {METADATA_SCHEMA}.data_models as data_models
+            FROM {METADATA_SCHEMA}.data_models
             """
         )
 
@@ -416,6 +466,9 @@ class DBExecutorMixin(ABC):
             """
         )
         return list(datasets)
+
+    def table_exists(self, table):
+        return table.exists(bind=self._executor)
 
     @handle_errors
     def create_table(self, table):
