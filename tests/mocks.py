@@ -80,3 +80,5 @@ class MonetDBMock(MonetDB):
 
     def get_dataset(self, dataset_id, columns):
         return "code", "label"
+
+

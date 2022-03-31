@@ -75,6 +75,11 @@ class DataModelTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
+    def create(self, db: Union[DataBase, Connection]):
+        if db.get_executor():
+            self.data_model_id_seq.drop(db.get_executor())
+        db.create_table(self.table)
+
     def get_data_models(self, db, columns: list = None):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
@@ -145,6 +150,11 @@ class DatasetsTable(Table):
             sql.Column("properties", SQLTYPES.JSON),
         )
 
+    def create(self, db: Union[DataBase, Connection]):
+        if db.get_executor():
+            self.dataset_id_seq.drop(db.get_executor())
+        db.create_table(self.table)
+
     def get_datasets(self, db, data_model_id=None, columns=None):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
@@ -205,6 +215,11 @@ class ActionsTable(Table):
             ),
             sql.Column("action", SQLTYPES.JSON),
         )
+
+    def create(self, db: Union[DataBase, Connection]):
+        if db.get_executor():
+            self.action_id_seq.drop(db.get_executor())
+        db.create_table(self.table)
 
     def insert_values(self, values, db: Union[DataBase, Connection]):
         # Needs to be overridden because sqlalchemy and monetdb are not cooperating
