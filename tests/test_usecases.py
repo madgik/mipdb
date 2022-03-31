@@ -1,9 +1,12 @@
 import pandas as pd
 import pytest
 
+from mipdb.database import METADATA_SCHEMA
 from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import InvalidDatasetError
 from mipdb.exceptions import UserInputError
+from mipdb.schema import Schema
+from mipdb.tables import DataModelTable, DatasetsTable, ActionsTable
 from mipdb.usecases import AddPropertyToDataset
 from mipdb.usecases import AddPropertyToDataModel
 from mipdb.usecases import (
@@ -47,10 +50,105 @@ def test_init_mock():
 def test_init_with_db(db):
     # Setup
     InitDB(db).execute()
+    metadata = Schema(METADATA_SCHEMA)
+    data_model_table = DataModelTable(schema=metadata)
+    datasets_table = DatasetsTable(schema=metadata)
+    actions_table = ActionsTable(schema=metadata)
 
     # Test
-    schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+    assert"mipdb_metadata" in db.get_schemas()
+    assert data_model_table.exists(db)
+    assert datasets_table.exists(db)
+    assert actions_table.exists(db)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_re_init_with_missing_schema_with_db(db):
+    # Setup
+    InitDB(db).execute()
+    metadata = Schema(METADATA_SCHEMA)
+    data_model_table = DataModelTable(schema=metadata)
+    datasets_table = DatasetsTable(schema=metadata)
+    actions_table = ActionsTable(schema=metadata)
+    db.execute(f'DROP SCHEMA "mipdb_metadata" CASCADE')
+    assert "mipdb_metadata" not in db.get_schemas()
+    InitDB(db).execute()
+
+    # Test
+    assert "mipdb_metadata" in db.get_schemas()
+    assert data_model_table.exists(db)
+    assert datasets_table.exists(db)
+    assert actions_table.exists(db)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_re_init_with_missing_actions_table_with_db(db):
+    # Setup
+    InitDB(db).execute()
+    metadata = Schema(METADATA_SCHEMA)
+    data_model_table = DataModelTable(schema=metadata)
+    datasets_table = DatasetsTable(schema=metadata)
+    actions_table = ActionsTable(schema=metadata)
+    db.execute(f'DROP TABLE "mipdb_metadata".actions')
+    assert "mipdb_metadata" in db.get_schemas()
+    assert data_model_table.exists(db)
+    assert datasets_table.exists(db)
+    assert not actions_table.exists(db)
+    InitDB(db).execute()
+
+    # Test
+    assert "mipdb_metadata" in db.get_schemas()
+    assert data_model_table.exists(db)
+    assert datasets_table.exists(db)
+    assert actions_table.exists(db)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_re_init_with_missing_data_models_table_with_db(db):
+    # Setup
+    InitDB(db).execute()
+    metadata = Schema(METADATA_SCHEMA)
+    data_model_table = DataModelTable(schema=metadata)
+    datasets_table = DatasetsTable(schema=metadata)
+    actions_table = ActionsTable(schema=metadata)
+    db.execute(f'DROP TABLE "mipdb_metadata".data_models CASCADE')
+    assert "mipdb_metadata" in db.get_schemas()
+    assert not data_model_table.exists(db)
+    assert datasets_table.exists(db)
+    assert actions_table.exists(db)
+    InitDB(db).execute()
+
+    # Test
+    assert "mipdb_metadata" in db.get_schemas()
+    assert data_model_table.exists(db)
+    assert datasets_table.exists(db)
+    assert actions_table.exists(db)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_re_init_with_missing_datasets_table_with_db(db):
+    # Setup
+    InitDB(db).execute()
+    metadata = Schema(METADATA_SCHEMA)
+    data_model_table = DataModelTable(schema=metadata)
+    datasets_table = DatasetsTable(schema=metadata)
+    actions_table = ActionsTable(schema=metadata)
+    db.execute(f'DROP TABLE "mipdb_metadata".datasets')
+    assert "mipdb_metadata" in db.get_schemas()
+    assert data_model_table.exists(db)
+    assert not datasets_table.exists(db)
+    assert actions_table.exists(db)
+    InitDB(db).execute()
+
+    # Test
+    assert "mipdb_metadata" in db.get_schemas()
+    assert data_model_table.exists(db)
+    assert datasets_table.exists(db)
+    assert actions_table.exists(db)
 
 
 def test_add_data_model_mock(data_model_metadata):
