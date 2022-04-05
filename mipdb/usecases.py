@@ -121,15 +121,14 @@ class DeleteDataModel(UseCase):
                 self._validate_data_model_deletion(name, data_model_id, conn)
 
             data_model_details = _get_data_model_details(data_model_id, conn)
+            self._delete_datasets(data_model_id, code, version)
+            schema.drop(conn)
+            data_model_table.delete_data_model(code, version, conn)
             update_actions(
                 conn=conn,
                 action="DELETE DATA MODEL",
                 data_model_details=data_model_details,
             )
-
-            self._delete_datasets(data_model_id, code, version)
-            schema.drop(conn)
-            data_model_table.delete_data_model(code, version, conn)
 
     def _validate_data_model_deletion(self, data_model_name, data_model_id, conn):
         metadata = Schema(METADATA_SCHEMA)
@@ -263,13 +262,13 @@ class DeleteDataset(UseCase):
 
             data_model_details = _get_data_model_details(data_model_id, conn)
             dataset_details = _get_dataset_details(dataset_id, conn)
+            datasets_table.delete_dataset(dataset_id, data_model_id, conn)
             update_actions(
                 conn=conn,
                 action="DELETE DATASET",
                 data_model_details=data_model_details,
                 dataset_details=dataset_details,
             )
-            datasets_table.delete_dataset(dataset_id, data_model_id, conn)
 
 
 class EnableDataModel(UseCase):

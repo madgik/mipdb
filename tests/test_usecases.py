@@ -73,9 +73,8 @@ def test_init_with_db(db):
     actions_table = ActionsTable(schema=metadata)
     InitDB(db).execute()
 
-
     # Test
-    assert"mipdb_metadata" in db.get_schemas()
+    assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
     assert actions_table.exists(db)
@@ -200,12 +199,12 @@ def test_delete_data_model():
     force = True
     DeleteDataModel(db).execute(code=code, version=version, force=force)
 
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[1]
-    assert 'DELETE FROM "data_model:1.0"."primary_data" ' in db.captured_queries[2]
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[4]
-    assert "DELETE FROM mipdb_metadata.datasets " in db.captured_queries[5]
-    assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[6]
-    assert "DELETE FROM mipdb_metadata.data_models " in db.captured_queries[7]
+    assert 'DELETE FROM "data_model:1.0"."primary_data"' in db.captured_queries[0]
+    assert 'DELETE FROM mipdb_metadata.datasets' in db.captured_queries[1]
+    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[3]
+    assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[4]
+    assert 'DELETE FROM mipdb_metadata.data_models' in db.captured_queries[5]
+    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[7]
 
 
 @pytest.mark.database
@@ -478,16 +477,17 @@ def test_delete_dataset():
     DeleteDataset(db).execute(
         dataset_code=dataset, data_model_code=code, data_model_version=version
     )
+
     assert (
         'DELETE FROM "data_model:1.0"."primary_data" WHERE dataset = :dataset_name '
         in db.captured_queries[0]
     )
     assert (
-        'INSERT INTO "mipdb_metadata".actions VALUES(:action_id, :action)'
-        in db.captured_queries[2]
+        "DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
+        in db.captured_queries[1]
     )
     assert (
-        "DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
+        'INSERT INTO "mipdb_metadata".actions VALUES(:action_id, :action)'
         in db.captured_queries[3]
     )
 
