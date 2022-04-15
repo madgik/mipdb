@@ -98,8 +98,10 @@ def add_data_model(file, ip, port):
     db = MonetDB.from_config(dbconfig)
     data_model_metadata = reader.read()
     AddDataModel(db).execute(data_model_metadata)
+    code = data_model_metadata["code"]
+    version = data_model_metadata["version"]
     print(
-        f"Data model {os.path.basename(os.path.normpath(file))} was successfully added."
+        f"Data model {code}:{version} was successfully added."
     )
 
 
