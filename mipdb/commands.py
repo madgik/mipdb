@@ -3,6 +3,7 @@ import os
 import glob
 
 from mipdb.database import MonetDB, get_db_config
+from mipdb.dataset import Dataset
 from mipdb.reader import CSVFileReader, JsonFileReader
 from mipdb.usecases import AddDataModel, Cleanup
 from mipdb.usecases import AddPropertyToDataModel
@@ -124,7 +125,8 @@ def add_dataset(file, data_model, version, ip, port):
     dataset_data = reader.read()
     ValidateDataset(db).execute(dataset_data, data_model, version)
     AddDataset(db).execute(dataset_data, data_model, version)
-    print(f"Dataset {os.path.basename(os.path.normpath(file))} was successfully added.")
+    dataset = Dataset(dataset_data)
+    print(f"Dataset {dataset.name} was successfully added.")
 
 
 @entry.command()
