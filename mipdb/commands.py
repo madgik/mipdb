@@ -101,9 +101,7 @@ def add_data_model(file, ip, port):
     AddDataModel(db).execute(data_model_metadata)
     code = data_model_metadata["code"]
     version = data_model_metadata["version"]
-    print(
-        f"Data model {code}:{version} was successfully added."
-    )
+    print(f"Data model {code}:{version} was successfully added.")
 
 
 @entry.command()

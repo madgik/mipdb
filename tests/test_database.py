@@ -23,7 +23,7 @@ def test_create_schema():
 def test_get_schemas():
     db = MonetDBMock()
     schemas = db.get_schemas()
-    assert schemas == []
+    assert schemas == ["mipdb_metadata"]
 
 
 @pytest.mark.database

@@ -31,6 +31,25 @@ class UseCase(ABC):
         effects but no return values."""
 
 
+def is_db_initialized(db):
+    metadata = Schema(METADATA_SCHEMA)
+    data_model_table = DataModelTable(schema=metadata)
+    datasets_table = DatasetsTable(schema=metadata)
+    actions_table = ActionsTable(schema=metadata)
+
+    with db.begin() as conn:
+        if (
+            "mipdb_metadata" in db.get_schemas()
+            and data_model_table.exists(conn)
+            and datasets_table.exists(conn)
+            and actions_table.exists(conn)
+        ):
+            return True
+        else:
+            raise UserInputError("You need to initialize the database!\n "
+                                 "Try mipdb init --port <db_port>")
+
+
 class InitDB(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
@@ -58,6 +77,7 @@ class InitDB(UseCase):
 class AddDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, data_model_metadata) -> None:
         code = data_model_metadata["code"]
@@ -108,6 +128,7 @@ class AddDataModel(UseCase):
 class DeleteDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, code, version, force) -> None:
         name = get_data_model_fullname(code, version)
@@ -160,6 +181,7 @@ class DeleteDataModel(UseCase):
 class AddDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, dataset_data, data_model_code, data_model_version) -> None:
         dataset = Dataset(dataset_data)
@@ -224,6 +246,7 @@ class AddDataset(UseCase):
 class ValidateDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, dataset_data, data_model_code, data_model_version) -> None:
         dataset = Dataset(dataset_data)
@@ -240,6 +263,7 @@ class ValidateDataset(UseCase):
 class DeleteDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version) -> None:
         data_model_name = get_data_model_fullname(
@@ -274,6 +298,7 @@ class DeleteDataset(UseCase):
 class EnableDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, code, version) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -298,6 +323,7 @@ class EnableDataModel(UseCase):
 class DisableDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, code, version) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -322,6 +348,7 @@ class DisableDataModel(UseCase):
 class EnableDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -355,6 +382,7 @@ class EnableDataset(UseCase):
 class DisableDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -388,6 +416,7 @@ class DisableDataset(UseCase):
 class TagDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, code, version, tag) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -414,6 +443,7 @@ class TagDataModel(UseCase):
 class UntagDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, code, version, tag) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -440,6 +470,7 @@ class UntagDataModel(UseCase):
 class AddPropertyToDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, code, version, key, value, force) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -466,6 +497,7 @@ class AddPropertyToDataModel(UseCase):
 class RemovePropertyFromDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, code, version, key, value) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -493,6 +525,7 @@ class RemovePropertyFromDataModel(UseCase):
 class TagDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version, tag) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -525,6 +558,7 @@ class TagDataset(UseCase):
 class UntagDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, dataset, data_model_code, version, tag) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -557,6 +591,7 @@ class UntagDataset(UseCase):
 class AddPropertyToDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, dataset, data_model_code, version, key, value, force) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -587,6 +622,7 @@ class AddPropertyToDataset(UseCase):
 class RemovePropertyFromDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self, dataset, data_model_code, version, key, value) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -617,6 +653,7 @@ class RemovePropertyFromDataset(UseCase):
 class ListDataModels(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -667,6 +704,7 @@ class ListDataModels(UseCase):
 class ListDatasets(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self) -> None:
         metadata = Schema(METADATA_SCHEMA)
@@ -719,6 +757,7 @@ class ListDatasets(UseCase):
 class Cleanup(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
+        is_db_initialized(db)
 
     def execute(self) -> None:
         metadata = Schema(METADATA_SCHEMA)

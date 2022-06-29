@@ -27,6 +27,7 @@ from mipdb.usecases import UntagDataset
 from mipdb.usecases import TagDataModel
 from mipdb.usecases import UntagDataModel
 from mipdb.usecases import ValidateDataset
+from mipdb.usecases import is_db_initialized
 from tests.mocks import MonetDBMock
 
 
@@ -36,14 +37,6 @@ from tests.mocks import MonetDBMock
 # system. The use case tests below verify that the main queries are correct and
 # that more queries have been issued by the handlers. Separate tests verify
 # that the correct queries have been issued by the handlers.
-
-
-def test_init_mock():
-    db = MonetDBMock()
-    InitDB(db).execute()
-    assert f"SELECT name FROM sys.schemas" in db.captured_queries[0]
-    assert f"CREATE SCHEMA mipdb_metadata" in db.captured_queries[1]
-
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
@@ -56,10 +49,24 @@ def test_init_with_db(db):
     actions_table = ActionsTable(schema=metadata)
 
     # Test
-    assert"mipdb_metadata" in db.get_schemas()
+    assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
     assert actions_table.exists(db)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_is_db_initialized_with_db_fail(db):
+    with pytest.raises(UserInputError):
+        is_db_initialized(db=db)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_is_db_initialized_with_db_fail(db):
+    InitDB(db).execute()
+    assert is_db_initialized(db=db)
 
 
 @pytest.mark.database
@@ -200,10 +207,10 @@ def test_delete_data_model():
     DeleteDataModel(db).execute(code=code, version=version, force=force)
 
     assert 'DELETE FROM "data_model:1.0"."primary_data"' in db.captured_queries[0]
-    assert 'DELETE FROM mipdb_metadata.datasets' in db.captured_queries[1]
+    assert "DELETE FROM mipdb_metadata.datasets" in db.captured_queries[1]
     assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[3]
     assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[4]
-    assert 'DELETE FROM mipdb_metadata.data_models' in db.captured_queries[5]
+    assert "DELETE FROM mipdb_metadata.data_models" in db.captured_queries[5]
     assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[7]
 
 
