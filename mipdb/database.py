@@ -31,7 +31,7 @@ def get_db_config(ip, port):
         ip = "localhost"
     config = {
         "ip": ip,
-        "port": port,
+        "port": port if port else 50000,
         "dbfarm": "db",
         "username": "monetdb",
         "password": "monetdb",
