@@ -29,7 +29,7 @@ from mipdb.usecases import ValidateDataset
 
 _ip_port_options = [
     cl.option("--ip", "ip", required=False, help="The ip of the database"),
-    cl.option("--port", "port", required=True, help="The port of the database"),
+    cl.option("--port", "port", required=False, help="The port of the database"),
 ]
 
 
