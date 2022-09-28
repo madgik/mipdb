@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from typing import Union
 
 import sqlalchemy as sql
+from pymonetdb.sql import monetize
 
 from mipdb.exceptions import DataBaseError
 from mipdb.exceptions import UserInputError
@@ -487,15 +488,19 @@ class DBExecutorMixin(ABC):
         return properties
 
     def set_data_model_properties(self, properties, data_model_id):
+        properties_monetized = monetize.convert(properties)
+        query = f"""UPDATE {METADATA_SCHEMA}.data_models SET properties = {properties_monetized}
+                WHERE data_model_id = {data_model_id}"""
         self.execute(
-            f"UPDATE {METADATA_SCHEMA}.data_models SET properties = '{properties}'"
-            f" WHERE data_model_id = {data_model_id}"
+            query
         )
 
     def set_dataset_properties(self, properties, dataset_id):
+        properties_monetized = monetize.convert(properties)
+        query = f"""UPDATE {METADATA_SCHEMA}.datasets SET properties = {properties_monetized}
+                        WHERE dataset_id = {dataset_id}"""
         self.execute(
-            f"UPDATE {METADATA_SCHEMA}.datasets SET properties = '{properties}'"
-            f" WHERE dataset_id = {dataset_id}"
+            query
         )
 
     @handle_errors
