@@ -108,7 +108,7 @@ class AddDataModel(UseCase):
                 action="ADD DATA MODEL",
                 data_model_details=data_model_details,
             )
-            AddPropertyToDataModel(self.db).execute(code=code, version=version, key=f"{code}:{version}",
+            AddPropertyToDataModel(self.db).execute(code=code, version=version, key="cdes",
                                                     value=data_model_metadata, force=True)
 
     def _create_schema(self, name, conn):
