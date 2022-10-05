@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 import pytest
 
@@ -776,7 +778,9 @@ def test_tag_data_model_with_db(db, data_model_metadata):
     )
 
     properties = db.get_data_model_properties(1)
-    assert properties == '{"tags": ["tag"], "properties": {}}'
+    assert json.loads(
+        properties
+    )["tags"] == ["tag"]
 
 
 @pytest.mark.database
@@ -808,7 +812,9 @@ def test_untag_data_model_with_db(db, data_model_metadata):
         tag="tag1",
     )
     properties = db.get_data_model_properties(1)
-    assert properties == '{"tags": ["tag2", "tag3"], "properties": {}}'
+    assert json.loads(
+        properties
+    )["tags"] == ["tag2", "tag3"]
 
 
 @pytest.mark.database
@@ -828,7 +834,11 @@ def test_add_property2data_model_with_db(db, data_model_metadata):
     )
 
     properties = db.get_data_model_properties(1)
-    assert properties == '{"tags": [], "properties": {"key": "value"}}'
+    assert "key" in json.loads(
+        properties
+    )["properties"] and json.loads(
+        properties
+    )["properties"]["key"] == "value"
 
 
 @pytest.mark.database
@@ -855,7 +865,11 @@ def test_add_property2data_model_with_force_and_db(db, data_model_metadata):
     )
 
     properties = db.get_data_model_properties(1)
-    assert properties == '{"tags": [], "properties": {"key": "value1"}}'
+    assert "key" in json.loads(
+        properties
+    )["properties"] and json.loads(
+        properties
+    )["properties"]["key"] == "value1"
 
 
 @pytest.mark.database
@@ -887,7 +901,11 @@ def test_remove_property_from_data_model_with_db(db, data_model_metadata):
         value="value1",
     )
     properties = db.get_data_model_properties(1)
-    assert properties == '{"tags": [], "properties": {"key2": "value2"}}'
+    assert "key2" in json.loads(
+        properties
+    )["properties"] and json.loads(
+        properties
+    )["properties"]["key2"] == "value2"
 
 
 def test_tag_dataset():
