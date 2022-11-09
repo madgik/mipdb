@@ -202,13 +202,13 @@ class TestPrimaryDataTable:
         primary_data_table.create(db)
         expected = (
             '\nCREATE TABLE "schema:1.0".primary_data ('
-            "\n\trow_id INTEGER NOT NULL, "
-            "\n\tvar1 VARCHAR(255), "
-            "\n\tvar2 VARCHAR(255), "
-            "\n\tdataset VARCHAR(255), "
-            "\n\tvar3 FLOAT, "
-            "\n\tvar4 INTEGER, "
-            "\n\tPRIMARY KEY (row_id)\n)\n\n"
+            "\n\t\"row_id\" INTEGER NOT NULL, "
+            "\n\t\"var1\" VARCHAR(255), "
+            "\n\t\"var2\" VARCHAR(255), "
+            "\n\t\"dataset\" VARCHAR(255), "
+            "\n\t\"var3\" FLOAT, "
+            "\n\t\"var4\" INTEGER, "
+            "\n\tPRIMARY KEY (\"row_id\")\n)\n\n"
         )
         assert db.captured_queries[0] == expected
 

@@ -250,14 +250,11 @@ class PrimaryDataTable(Table):
     def from_cdes(
         cls, schema: Schema, cdes: List[CommonDataElement]
     ) -> "PrimaryDataTable":
-        columns = [
-            sql.Column(cde.code, STR2SQLTYPE[json.loads(cde.metadata)["sql_type"]])
-            for cde in cdes
-        ]
+        columns = [sql.Column(cde.code, STR2SQLTYPE[json.loads(cde.metadata)["sql_type"]], quote=True) for cde in cdes]
         columns.insert(
             0,
             sql.Column(
-                "row_id", SQLTYPES.INTEGER, primary_key=True, autoincrement=True
+                "row_id", SQLTYPES.INTEGER, primary_key=True, autoincrement=True, quote=True
             ),
         )
         table = sql.Table(
@@ -275,6 +272,7 @@ class PrimaryDataTable(Table):
             "primary_data", schema.schema, autoload_with=db.get_executor()
         )
         new_table = cls()
+        table.columns = [sql.Column(column.name, quote=True) for column in list(table.columns)]
         new_table.set_table(table)
         return new_table
 
