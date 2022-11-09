@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass
 
-from mipdb.exceptions import InvalidDataModelError
+from mipdb.exceptions import InvalidDataModelError, UserInputError
 
 
 @dataclass
@@ -12,6 +12,9 @@ class CommonDataElement:
     @classmethod
     def from_metadata(cls, metadata):
         code = metadata["code"]
+        if not code.isidentifier():
+            raise UserInputError(f'CDE: {code} is not a valid python identifier')
+
         validate_metadata(code, metadata)
         metadata = json.dumps(metadata)
 

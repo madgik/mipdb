@@ -295,7 +295,7 @@ class DBExecutorMixin(ABC):
 
     Remark: creating tables using the execute method doesn't seem to work
     because tables need to be already bound to a connectable, which in our case
-    they aren't. Hence a small hack is needed to implement create_table."""
+    they aren't. Hence, a small hack is needed to implement create_table."""
 
     _executor: Union[sql.engine.Engine, sql.engine.Connection]
 
