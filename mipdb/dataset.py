@@ -34,19 +34,11 @@ class Dataset:
 
     def validate_dataset(self, metadata_table):
         pa_columns = {}
-        # Validating that the dataset always contains column subjectcode.
-        # This is according to the data requirements
-        # https://github.com/HBPMedical/mip-deployment/blob/master/documentation/NewDataRequirements.md
-        if "subjectcode" not in self.data.keys():
-            raise InvalidDatasetError(
-                "Error inserting dataset without the column subjectcode into the database"
-            )
-
-        columns = [column for column in self._data.columns if column != "subjectcode"]
+        # Validating the dataset has proper values, according to the data model.
 
         # There is a need to construct a DataFrameSchema with all the constraints that the metadata is imposing
         # For each column a pandera Column is created that will contain the constraints for the specific column
-        for column in columns:
+        for column in self._data.columns:
             if column not in metadata_table:
                 raise InvalidDatasetError(
                     f"The column: '{column}' does not exist in the metadata"

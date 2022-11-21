@@ -59,7 +59,6 @@ def test_to_dict():
 def test_validate_with_nan_values_integer_column_with_minValue():
     data = pd.DataFrame(
         {
-            "subjectcode": [2, 2],
             "var4": [22, None],
             "dataset": ["dataset1", "dataset1"],
         }
@@ -103,7 +102,6 @@ def test_validate_with_nan_values_integer_column_with_minValue():
 def test_validate_with_nan_values_integer_column_with_only_maxValue():
     data = pd.DataFrame(
         {
-            "subjectcode": [2, 2],
             "var4": [1, None],
             "dataset": ["dataset1", "dataset1"],
         }
@@ -146,7 +144,6 @@ def test_validate_with_nan_values_integer_column_with_only_maxValue():
 def test_validate_with_nan_values_integer_column_without_min_max():
     data = pd.DataFrame(
         {
-            "subjectcode": [2, 2],
             "var4": [1, None],
             "dataset": ["dataset1", "dataset1"],
         }
@@ -271,6 +268,19 @@ def test_validate():
             }
             """,
         ),
+        "subjectcode": CommonDataElement(
+            code="subjectcode",
+            metadata="""
+            {
+                "is_categorical": false,
+                "code": "subjectcode",
+                "sql_type": "text",
+                "description": "",
+                "label": "subjectcode",
+                "methodology": ""
+            }
+            """,
+        ),
     }
 
     dataset.validate_dataset(metadata)
@@ -304,10 +314,6 @@ dataset_files = [
     (
         "tests/data/fail/data_model_v_1_0/missing_column_dataset.csv",
         "There is no dataset field in the Dataset",
-    ),
-    (
-        "tests/data/fail/data_model_v_1_0/missing_column_subjectcode.csv",
-        "Error inserting dataset without the column subjectcode into the database",
     ),
 ]
 
