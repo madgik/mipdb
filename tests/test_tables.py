@@ -159,6 +159,7 @@ class TestVariablesMetadataTable:
         result = [(name, json.loads(val)) for name, val in res.fetchall()]
         assert result == [
             ("var1", [False]),
+            ("subjectcode", [False]),
             ("var2", [True]),
             ("dataset", [True]),
             ("var3", [False]),
@@ -171,7 +172,7 @@ class TestVariablesMetadataTable:
         cdes = make_cdes(data_model_metadata)
         # Test
         result = metadata_table.get_values_from_cdes(cdes)
-        assert len(result) == 5
+        assert len(result) == 6
 
     @pytest.mark.database
     @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
@@ -204,6 +205,7 @@ class TestPrimaryDataTable:
             '\nCREATE TABLE "schema:1.0".primary_data ('
             "\n\t\"row_id\" INTEGER NOT NULL, "
             "\n\t\"var1\" VARCHAR(255), "
+            "\n\t\"subjectcode\" VARCHAR(255), "
             "\n\t\"var2\" VARCHAR(255), "
             "\n\t\"dataset\" VARCHAR(255), "
             "\n\t\"var3\" FLOAT, "

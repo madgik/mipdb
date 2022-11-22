@@ -6,12 +6,11 @@ import pandas as pa
 
 from mipdb.database import DataBase, Connection
 from mipdb.database import METADATA_SCHEMA
-from mipdb.dataelements import get_system_column_metadata
 from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.properties import Properties
 from mipdb.schema import Schema
-from mipdb.dataelements import make_cdes
+from mipdb.dataelements import make_cdes, validate_dataset_present_on_cdes
 from mipdb.tables import (
     DataModelTable,
     DatasetsTable,
@@ -84,7 +83,7 @@ class AddDataModel(UseCase):
         version = data_model_metadata["version"]
         name = get_data_model_fullname(code, version)
         cdes = make_cdes(data_model_metadata)
-        cdes.append(get_system_column_metadata())
+        validate_dataset_present_on_cdes(cdes)
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
 

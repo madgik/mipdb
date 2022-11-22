@@ -24,16 +24,6 @@ class CommonDataElement:
         )
 
 
-def get_system_column_metadata():
-    subjectcode = {
-        "is_categorical": False,
-        "label": "subjectcode",
-        "code": "subjectcode",
-        "sql_type": "text",
-    }
-    return CommonDataElement.from_metadata(subjectcode)
-
-
 def make_cdes(schema_data):
     cdes = []
 
@@ -48,6 +38,12 @@ def make_cdes(schema_data):
             for metadata in make_cdes(group_data)
         ]
     return cdes
+
+
+def validate_dataset_present_on_cdes(cdes):
+    if not any("dataset" == cde.code for cde in cdes):
+        raise InvalidDataModelError("There is no dataset cde in the data model's CDEs")
+
 
 
 def reformat_metadata(metadata):

@@ -12,6 +12,14 @@
                 "methodology": ""
             },
             {
+                "isCategorical": false,
+                "label": "subjectcode",
+                "code": "subjectcode",
+                "sql_type": "text",
+                "description": "",
+                "methodology": ""
+            },
+            {
                 "isCategorical": true,
                 "code": "var2",
                 "sql_type": "text",

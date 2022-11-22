@@ -292,7 +292,7 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_metadata, datase
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_delete_data_model_with_datasets_with_db_with_force(
-    db, data_model_metadata, dataset_data
+        db, data_model_metadata, dataset_data
 ):
     # Setup
     InitDB(db).execute()
@@ -415,28 +415,6 @@ def test_validate_dataset(db, data_model_metadata, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset_without_subjectcode(db, data_model_metadata, dataset_data):
-    # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    data = pd.DataFrame(
-        {
-            "var1": [1, 2, 3, 4, 5],
-            "var2": ["l1", "l2", "l1", "l1", "l2"],
-            "var3": [11, 12, 13, 14, 15],
-            "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset", "dataset", "dataset", "dataset", "dataset"],
-        }
-    )
-
-    with pytest.raises(InvalidDatasetError):
-        ValidateDataset(db).execute(
-            dataset_data=data, data_model_code="data_model", data_model_version="1.0"
-        )
-
-
-@pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_validate_dataset_non_existing_column(db, data_model_metadata, dataset_data):
     # Setup
     InitDB(db).execute()
@@ -488,16 +466,16 @@ def test_delete_dataset():
     )
 
     assert (
-        'DELETE FROM "data_model:1.0"."primary_data" WHERE dataset = :dataset_name '
-        in db.captured_queries[0]
+            'DELETE FROM "data_model:1.0"."primary_data" WHERE dataset = :dataset_name '
+            in db.captured_queries[0]
     )
     assert (
-        "DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
-        in db.captured_queries[1]
+            "DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
+            in db.captured_queries[1]
     )
     assert (
-        'INSERT INTO "mipdb_metadata".actions VALUES(:action_id, :action)'
-        in db.captured_queries[3]
+            'INSERT INTO "mipdb_metadata".actions VALUES(:action_id, :action)'
+            in db.captured_queries[3]
     )
 
 
@@ -702,7 +680,7 @@ def test_disable_dataset_with_db(db, data_model_metadata, dataset_data):
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_disable_dataset_already_disabled_with_db(
-    db, data_model_metadata, dataset_data
+        db, data_model_metadata, dataset_data
 ):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
@@ -1082,5 +1060,5 @@ def test_remove_property_from_dataset_with_db(db, data_model_metadata, dataset_d
     )
     properties = db.get_dataset_properties(1)
     assert (
-        properties == '{"tags": [], "properties": {"key": "value", "key1": "value1"}}'
+            properties == '{"tags": [], "properties": {"key": "value", "key1": "value1"}}'
     )
