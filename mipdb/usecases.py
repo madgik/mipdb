@@ -10,7 +10,10 @@ from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.properties import Properties
 from mipdb.schema import Schema
-from mipdb.dataelements import make_cdes, validate_dataset_present_on_cdes
+from mipdb.dataelements import (
+    make_cdes,
+    validate_dataset_present_on_cdes_with_proper_format,
+)
 from mipdb.tables import (
     DataModelTable,
     DatasetsTable,
@@ -45,8 +48,10 @@ def is_db_initialized(db):
         ):
             return True
         else:
-            raise UserInputError("You need to initialize the database!\n "
-                                 "Try mipdb init --port <db_port>")
+            raise UserInputError(
+                "You need to initialize the database!\n "
+                "Try mipdb init --port <db_port>"
+            )
 
 
 class InitDB(UseCase):
@@ -83,7 +88,7 @@ class AddDataModel(UseCase):
         version = data_model_metadata["version"]
         name = get_data_model_fullname(code, version)
         cdes = make_cdes(data_model_metadata)
-        validate_dataset_present_on_cdes(cdes)
+        validate_dataset_present_on_cdes_with_proper_format(cdes)
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
 
@@ -107,8 +112,13 @@ class AddDataModel(UseCase):
                 action="ADD DATA MODEL",
                 data_model_details=data_model_details,
             )
-            AddPropertyToDataModel(self.db).execute(code=code, version=version, key="cdes",
-                                                    value=data_model_metadata, force=True)
+            AddPropertyToDataModel(self.db).execute(
+                code=code,
+                version=version,
+                key="cdes",
+                value=data_model_metadata,
+                force=True,
+            )
 
     def _create_schema(self, name, conn):
         schema = Schema(name)
