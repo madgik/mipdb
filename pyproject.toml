@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mipdb"
-version = "0.5.0"
+version = "0.5.2"
 description = ""
 authors = ["Your Name <you@example.com>"]
 

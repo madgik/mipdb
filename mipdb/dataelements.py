@@ -13,7 +13,7 @@ class CommonDataElement:
     def from_metadata(cls, metadata):
         code = metadata["code"]
         if not code.isidentifier():
-            raise UserInputError(f'CDE: {code} is not a valid python identifier')
+            raise UserInputError(f"CDE: {code} is not a valid python identifier")
 
         validate_metadata(code, metadata)
         metadata = json.dumps(metadata)
@@ -40,10 +40,19 @@ def make_cdes(schema_data):
     return cdes
 
 
-def validate_dataset_present_on_cdes(cdes):
-    if not any("dataset" == cde.code for cde in cdes):
-        raise InvalidDataModelError("There is no dataset cde in the data model's CDEs")
-
+def validate_dataset_present_on_cdes_with_proper_format(cdes):
+    dataset_cde = [cde for cde in cdes if cde.code == "dataset"]
+    if not dataset_cde:
+        raise InvalidDataModelError("There is no 'dataset' CDE in the data model.")
+    dataset_metadata = json.loads(dataset_cde[0].metadata)
+    if not dataset_metadata["is_categorical"]:
+        raise InvalidDataModelError(
+            "CDE 'dataset' must have the 'isCategorical' property equal to 'true'."
+        )
+    if dataset_metadata["sql_type"] != "text":
+        raise InvalidDataModelError(
+            "CDE 'dataset' must have the 'sql_type' property equal to 'text'."
+        )
 
 
 def reformat_metadata(metadata):
