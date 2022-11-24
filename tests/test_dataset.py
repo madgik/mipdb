@@ -19,17 +19,6 @@ def test_valid_dataset_name():
     dataset = Dataset(data)
 
 
-def test_invalid_dataset_name_value_not_unique():
-    data = pd.DataFrame(
-        {
-            "var1": [1, 2],
-            "dataset": ["dataset1", "another_dataset"],
-        }
-    )
-    with pytest.raises(InvalidDatasetError):
-        dataset = Dataset(data)
-
-
 def test_invalid_dataset_no_dataset_field():
     data = pd.DataFrame(
         {
@@ -74,7 +63,7 @@ def test_validate_with_nan_values_integer_column_with_minValue():
                     "sql_type": "text",
                     "description": "",
                     "enumerations": {"dataset1": "Dataset 1", "dataset2": "Dataset 2"},
-                    "label": "Dataset", 
+                    "label": "Dataset",
                     "methodology": ""
                 }
             """,
@@ -289,31 +278,27 @@ def test_validate():
 dataset_files = [
     (
         "tests/data/fail/data_model_v_1_0/dataset_exceeds_max.csv",
-        "On dataset valid_dataset and column var3 has error",
+        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var3'",
     ),
     (
         "tests/data/fail/data_model_v_1_0/dataset_exceeds_min.csv",
-        "On dataset valid_dataset and column var3 has error",
-    ),
-    (
-        "tests/data/fail/data_model_v_1_0/dataset_is_not_unique.csv",
-        "The dataset field contains multiple values.",
+        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var3'",
     ),
     (
         "tests/data/fail/data_model_v_1_0/invalid_enum.csv",
-        "On dataset valid_dataset and column var2 has error",
+        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var2'",
     ),
     (
         "tests/data/fail/data_model_v_1_0/invalid_type1.csv",
-        "On dataset valid_dataset and column var3 has error",
+        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var3'",
     ),
     (
         "tests/data/fail/data_model_v_1_0/invalid_type2.csv",
-        "On dataset valid_dataset and column var4 has error",
+        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var4'",
     ),
     (
         "tests/data/fail/data_model_v_1_0/missing_column_dataset.csv",
-        "There is no dataset field in the Dataset",
+        "The 'dataset' column is required to exist in the csv.",
     ),
 ]
 

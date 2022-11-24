@@ -7,6 +7,7 @@ from mipdb.exceptions import InvalidDatasetError
 
 DATASET_COLUMN_NAME = "dataset"
 
+
 class Dataset:
     _data: pd.DataFrame
     _name: str
@@ -29,7 +30,9 @@ class Dataset:
 
     def _verify_dataset_field(self):
         if DATASET_COLUMN_NAME not in self.data.columns:
-            raise InvalidDatasetError("The 'dataset' column is required to exist in the csv.")
+            raise InvalidDatasetError(
+                "The 'dataset' column is required to exist in the csv."
+            )
 
     def validate_dataset(self, metadata_table):
         pa_columns = {}
@@ -70,7 +73,7 @@ class Dataset:
             schema(self._data)
         except pa.errors.SchemaError as exc:
             raise InvalidDatasetError(
-                f"On dataset {self._name} and column {exc.schema.name} has error\n{exc.failure_cases}"
+                f"An error occurred while validating the dataset: '{self._name}' and column: '{exc.schema.name}'\n{exc.failure_cases}"
             )
 
     def _pa_type_from_sql_type(self, sql_type):
