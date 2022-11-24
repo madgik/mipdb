@@ -5,6 +5,7 @@ import pandera as pa
 
 from mipdb.exceptions import InvalidDatasetError
 
+DATASET_COLUMN_NAME = "dataset"
 
 class Dataset:
     _data: pd.DataFrame
@@ -27,10 +28,8 @@ class Dataset:
         return self._name
 
     def _verify_dataset_field(self):
-        if "dataset" not in self.data.columns:
-            raise InvalidDatasetError("There is no dataset field in the Dataset")
-        if len(set(self.data["dataset"])) > 1:
-            raise InvalidDatasetError("The dataset field contains multiple values.")
+        if DATASET_COLUMN_NAME not in self.data.columns:
+            raise InvalidDatasetError("The 'dataset' column is required to exist in the csv.")
 
     def validate_dataset(self, metadata_table):
         pa_columns = {}
