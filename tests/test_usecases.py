@@ -30,6 +30,7 @@ from mipdb.usecases import TagDataModel
 from mipdb.usecases import UntagDataModel
 from mipdb.usecases import ValidateDataset
 from mipdb.usecases import is_db_initialized
+from tests.conftest import DATASET_FILE
 from tests.mocks import MonetDBMock
 
 
@@ -39,6 +40,7 @@ from tests.mocks import MonetDBMock
 # system. The use case tests below verify that the main queries are correct and
 # that more queries have been issued by the handlers. Separate tests verify
 # that the correct queries have been issued by the handlers.
+
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
@@ -260,24 +262,15 @@ def test_delete_data_model_with_db_with_force(db, data_model_metadata):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_datasets_with_db(db, data_model_metadata, dataset_data):
+def test_delete_data_model_with_datasets_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "data_model:1.0" in schemas
-    data = pd.DataFrame(
-        {
-            "var1": [1, 2, 3, 4, 5],
-            "var2": ["l1", "l2", "l1", "l1", "l2"],
-            "var3": [11, 12, 13, 14, 15],
-            "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
-        }
-    )
     AddDataset(db).execute(
-        dataset_data=data, data_model_code="data_model", data_model_version="1.0"
+        csv_path=DATASET_FILE, data_model_code="data_model", data_model_version="1.0"
     )
 
     # Test with force False
@@ -291,26 +284,15 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_metadata, datase
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_datasets_with_db_with_force(
-        db, data_model_metadata, dataset_data
-):
+def test_delete_data_model_with_datasets_with_db_with_force(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "data_model:1.0" in schemas
-    data = pd.DataFrame(
-        {
-            "var1": [1, 2, 3, 4, 5],
-            "var2": ["l1", "l2", "l1", "l1", "l2"],
-            "var3": [11, 12, 13, 14, 15],
-            "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
-        }
-    )
     AddDataset(db).execute(
-        dataset_data=data, data_model_code="data_model", data_model_version="1.0"
+        csv_path=DATASET_FILE, data_model_code="data_model", data_model_version="1.0"
     )
 
     # Test with force True
@@ -326,45 +308,21 @@ def test_delete_data_model_with_datasets_with_db_with_force(
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset(db, data_model_metadata, dataset_data):
+def test_add_dataset(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    data = pd.DataFrame(
-        {
-            "var1": [1, 2, 3, 4, 5],
-            "var2": ["l1", "l2", "l1", "l1", "l2"],
-            "var3": [11, 12, 13, 14, 15],
-            "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
-        }
-    )
     # Test success
     AddDataset(db).execute(
-        dataset_data=data, data_model_code="data_model", data_model_version="1.0"
+        csv_path=DATASET_FILE, data_model_code="data_model", data_model_version="1.0"
     )
     res = db.execute('SELECT * FROM "data_model:1.0".primary_data').fetchall()
     assert res != []
 
-    # Test that it is not possible to add the same dataset
-    with pytest.raises(UserInputError):
-        AddDataset(db).execute(
-            dataset_data=data, data_model_code="data_model", data_model_version="1.0"
-        )
 
-
-def test_add_dataset_mock(data_model_metadata, dataset_data):
+def test_add_dataset_mock(data_model_metadata):
     db = MonetDBMock()
-    data = pd.DataFrame(
-        {
-            "var1": [1, 2, 3, 4, 5],
-            "var2": ["l1", "l2", "l1", "l1", "l2"],
-            "var3": [11, 12, 13, 14, 15],
-            "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset1", "dataset1", "dataset1", "dataset1", "dataset1"],
-        }
-    )
-    AddDataset(db).execute(data, "data_model", "1.0")
+    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
     assert "Sequence('dataset_id_seq'" in db.captured_queries[0]
     assert 'INSERT INTO "data_model:1.0".primary_data' in db.captured_queries[1]
     assert "INSERT INTO mipdb_metadata.datasets" in db.captured_queries[2]
@@ -375,14 +333,14 @@ def test_add_dataset_mock(data_model_metadata, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset_with_db(db, data_model_metadata, dataset_data):
+def test_add_dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
 
     # Test
     AddDataset(db).execute(
-        dataset_data=dataset_data,
+        csv_path=DATASET_FILE,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -393,67 +351,14 @@ def test_add_dataset_with_db(db, data_model_metadata, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset(db, data_model_metadata, dataset_data):
+def test_validate_dataset(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    data = pd.DataFrame(
-        {
-            "subjectcode": [2, 2, 2, 4, 4],
-            "var1": [1, 2, 3, 4, 5],
-            "var2": ["l1", "l2", "l1", "l1", "l2"],
-            "var3": [11, 12, 13, 14, 15],
-            "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset", "dataset", "dataset", "dataset", "dataset"],
-        }
-    )
     # Test success
     ValidateDataset(db).execute(
-        dataset_data=data, data_model_code="data_model", data_model_version="1.0"
+        csv_path=DATASET_FILE, data_model_code="data_model", data_model_version="1.0"
     )
-
-
-@pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset_non_existing_column(db, data_model_metadata, dataset_data):
-    # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    data = pd.DataFrame(
-        {
-            "subjectcode": [1, 2, 3, 4, 5],
-            "invalid_column": ["l1", "l2", "l1", "l1", "l2"],
-            "var3": [11, 12, 13, 14, 15],
-            "var4": [21, 22, 23, 24, 25],
-            "dataset": ["dataset", "dataset", "dataset", "dataset", "dataset"],
-        }
-    )
-
-    with pytest.raises(InvalidDatasetError):
-        ValidateDataset(db).execute(
-            dataset_data=data, data_model_code="data_model", data_model_version="1.0"
-        )
-
-
-@pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset_with_invalid_column(db, data_model_metadata, dataset_data):
-    # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    data = pd.DataFrame(
-        {
-            "subjectcode": [1, 2, 3, 4, 5],
-            "var3": [11, 12, 13, 14, 15],
-            "var4": ["invalid_type", 22, 23, 24, 25],
-            "dataset": ["dataset", "dataset", "dataset", "dataset", "dataset"],
-        }
-    )
-
-    with pytest.raises(InvalidDatasetError):
-        ValidateDataset(db).execute(
-            dataset_data=data, data_model_code="data_model", data_model_version="1.0"
-        )
 
 
 def test_delete_dataset():
@@ -466,27 +371,27 @@ def test_delete_dataset():
     )
 
     assert (
-            'DELETE FROM "data_model:1.0"."primary_data" WHERE dataset = :dataset_name '
-            in db.captured_queries[0]
+        'DELETE FROM "data_model:1.0"."primary_data" WHERE dataset = :dataset_name '
+        in db.captured_queries[0]
     )
     assert (
-            "DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
-            in db.captured_queries[1]
+        "DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
+        in db.captured_queries[1]
     )
     assert (
-            'INSERT INTO "mipdb_metadata".actions VALUES(:action_id, :action)'
-            in db.captured_queries[3]
+        'INSERT INTO "mipdb_metadata".actions VALUES(:action_id, :action)'
+        in db.captured_queries[3]
     )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_dataset_with_db(db, data_model_metadata, dataset_data):
+def test_delete_dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(
-        dataset_data=dataset_data,
+        csv_path=DATASET_FILE,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -600,11 +505,11 @@ def test_enable_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_dataset_with_db(db, data_model_metadata, dataset_data):
+def test_enable_dataset_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(
-        dataset_data=dataset_data,
+        csv_path=DATASET_FILE,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -626,11 +531,11 @@ def test_enable_dataset_with_db(db, data_model_metadata, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_dataset_already_enabled_with_db(db, data_model_metadata, dataset_data):
+def test_enable_dataset_already_enabled_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(
-        dataset_data=dataset_data,
+        csv_path=DATASET_FILE,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -658,11 +563,11 @@ def test_disable_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_dataset_with_db(db, data_model_metadata, dataset_data):
+def test_disable_dataset_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(
-        dataset_data=dataset_data,
+        csv_path=DATASET_FILE,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -679,13 +584,11 @@ def test_disable_dataset_with_db(db, data_model_metadata, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_dataset_already_disabled_with_db(
-        db, data_model_metadata, dataset_data
-):
+def test_disable_dataset_already_disabled_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     AddDataset(db).execute(
-        dataset_data=dataset_data,
+        csv_path=DATASET_FILE,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -756,9 +659,7 @@ def test_tag_data_model_with_db(db, data_model_metadata):
     )
 
     properties = db.get_data_model_properties(1)
-    assert json.loads(
-        properties
-    )["tags"] == ["tag"]
+    assert json.loads(properties)["tags"] == ["tag"]
 
 
 @pytest.mark.database
@@ -790,9 +691,7 @@ def test_untag_data_model_with_db(db, data_model_metadata):
         tag="tag1",
     )
     properties = db.get_data_model_properties(1)
-    assert json.loads(
-        properties
-    )["tags"] == ["tag2", "tag3"]
+    assert json.loads(properties)["tags"] == ["tag2", "tag3"]
 
 
 @pytest.mark.database
@@ -812,11 +711,10 @@ def test_add_property2data_model_with_db(db, data_model_metadata):
     )
 
     properties = db.get_data_model_properties(1)
-    assert "key" in json.loads(
-        properties
-    )["properties"] and json.loads(
-        properties
-    )["properties"]["key"] == "value"
+    assert (
+        "key" in json.loads(properties)["properties"]
+        and json.loads(properties)["properties"]["key"] == "value"
+    )
 
 
 @pytest.mark.database
@@ -843,11 +741,10 @@ def test_add_property2data_model_with_force_and_db(db, data_model_metadata):
     )
 
     properties = db.get_data_model_properties(1)
-    assert "key" in json.loads(
-        properties
-    )["properties"] and json.loads(
-        properties
-    )["properties"]["key"] == "value1"
+    assert (
+        "key" in json.loads(properties)["properties"]
+        and json.loads(properties)["properties"]["key"] == "value1"
+    )
 
 
 @pytest.mark.database
@@ -879,11 +776,10 @@ def test_remove_property_from_data_model_with_db(db, data_model_metadata):
         value="value1",
     )
     properties = db.get_data_model_properties(1)
-    assert "key2" in json.loads(
-        properties
-    )["properties"] and json.loads(
-        properties
-    )["properties"]["key2"] == "value2"
+    assert (
+        "key2" in json.loads(properties)["properties"]
+        and json.loads(properties)["properties"]["key2"] == "value2"
+    )
 
 
 def test_tag_dataset():
@@ -940,11 +836,11 @@ def test_remove_property_from_dataset():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_with_db(db, data_model_metadata, dataset_data):
+def test_tag_dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(dataset_data, "data_model", "1.0")
+    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
 
     # Test
     TagDataset(db).execute(
@@ -960,11 +856,11 @@ def test_tag_dataset_with_db(db, data_model_metadata, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_untag_dataset_with_db(db, data_model_metadata, dataset_data):
+def test_untag_dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(dataset_data, "data_model", "1.0")
+    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
     TagDataset(db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
@@ -998,11 +894,11 @@ def test_untag_dataset_with_db(db, data_model_metadata, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_property2dataset_with_db(db, data_model_metadata, dataset_data):
+def test_add_property2dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(dataset_data, "data_model", "1.0")
+    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
 
     # Test
     AddPropertyToDataset(db).execute(
@@ -1020,11 +916,11 @@ def test_add_property2dataset_with_db(db, data_model_metadata, dataset_data):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_remove_property_from_dataset_with_db(db, data_model_metadata, dataset_data):
+def test_remove_property_from_dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(dataset_data, "data_model", "1.0")
+    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
     AddPropertyToDataset(db).execute(
         dataset="dataset",
         data_model_code=data_model_metadata["code"],
@@ -1060,5 +956,5 @@ def test_remove_property_from_dataset_with_db(db, data_model_metadata, dataset_d
     )
     properties = db.get_dataset_properties(1)
     assert (
-            properties == '{"tags": [], "properties": {"key": "value", "key1": "value1"}}'
+        properties == '{"tags": [], "properties": {"key": "value", "key1": "value1"}}'
     )

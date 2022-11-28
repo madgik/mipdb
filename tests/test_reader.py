@@ -23,6 +23,6 @@ def test_json_reader_error():
 
 def test_csv_reader():
     dataset_file = "tests/data/success/data_model_v_1_0/dataset.csv"
-    reader = CSVFileReader(dataset_file)
-    content = reader.read()
-    assert content.values.shape == (5, 6)
+    with CSVFileReader(dataset_file).read() as reader:
+        for chunk in reader:
+            assert chunk.values.shape == (5, 6)

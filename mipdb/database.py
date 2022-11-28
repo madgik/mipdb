@@ -491,17 +491,13 @@ class DBExecutorMixin(ABC):
         properties_monetized = monetize.convert(properties)
         query = f"""UPDATE {METADATA_SCHEMA}.data_models SET properties = {properties_monetized}
                 WHERE data_model_id = {data_model_id}"""
-        self.execute(
-            query
-        )
+        self.execute(query)
 
     def set_dataset_properties(self, properties, dataset_id):
         properties_monetized = monetize.convert(properties)
         query = f"""UPDATE {METADATA_SCHEMA}.datasets SET properties = {properties_monetized}
                         WHERE dataset_id = {dataset_id}"""
-        self.execute(
-            query
-        )
+        self.execute(query)
 
     @handle_errors
     def drop_table(self, table):

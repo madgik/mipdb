@@ -36,11 +36,12 @@ class Dataset:
 
     def validate_dataset(self, metadata_table):
         pa_columns = {}
+        data_for_validation = self.data.copy()
         # Validating the dataset has proper values, according to the data model.
 
         # There is a need to construct a DataFrameSchema with all the constraints that the metadata is imposing
         # For each column a pandera Column is created that will contain the constraints for the specific column
-        for column in self._data.columns:
+        for column in data_for_validation.columns:
             if column not in metadata_table:
                 raise InvalidDatasetError(
                     f"The column: '{column}' does not exist in the metadata"
@@ -61,7 +62,9 @@ class Dataset:
                     valid_int = metadata_column_dict["min"]
                 elif "max" in metadata_column_dict:
                     valid_int = metadata_column_dict["max"]
-                self._data[column] = self._data[column].fillna(valid_int)
+                data_for_validation[column] = data_for_validation[column].fillna(
+                    valid_int
+                )
             pa_columns[column] = pa.Column(dtype=pa_type, checks=checks, nullable=True)
 
         schema = pa.DataFrameSchema(
@@ -70,7 +73,7 @@ class Dataset:
         )
 
         try:
-            schema(self._data)
+            schema(data_for_validation)
         except pa.errors.SchemaError as exc:
             raise InvalidDatasetError(
                 f"An error occurred while validating the dataset: '{self._name}' and column: '{exc.schema.name}'\n{exc.failure_cases}"

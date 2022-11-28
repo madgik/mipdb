@@ -3,8 +3,7 @@ import os
 import glob
 
 from mipdb.database import MonetDB, get_db_config
-from mipdb.dataset import Dataset
-from mipdb.reader import CSVFileReader, JsonFileReader
+from mipdb.reader import JsonFileReader
 from mipdb.usecases import AddDataModel, Cleanup
 from mipdb.usecases import AddPropertyToDataModel
 from mipdb.usecases import AddPropertyToDataset
@@ -57,7 +56,7 @@ def load_folder(file, ip, port):
     for subdir, dirs, files in os.walk(file):
         if dirs:
             continue
-        print(f"Data model {subdir} is being loaded...")
+        print(f"Data model '{subdir}' is being loaded...")
         metadata_path = os.path.join(subdir, "CDEsMetadata.json")
         reader = JsonFileReader(metadata_path)
         data_model_metadata = reader.read()
@@ -65,17 +64,12 @@ def load_folder(file, ip, port):
         code = data_model_metadata["code"]
         version = data_model_metadata["version"]
         AddDataModel(db).execute(data_model_metadata)
-        print(f"Data model {data_model} was successfully added.")
+        print(f"Data model '{data_model}' was successfully added.")
 
         for csv in glob.glob(subdir + "/*.csv"):
-            print(f"Dataset {csv} is being loaded...")
-            reader = CSVFileReader(csv)
-            dataset_data = reader.read()
-            ValidateDataset(db).execute(dataset_data, code, version)
-            AddDataset(db).execute(dataset_data, code, version)
-            print(
-                f"Dataset {os.path.basename(os.path.normpath(csv))} was successfully added."
-            )
+            print(f"CSV '{csv}' is being loaded...")
+            AddDataset(db).execute(csv, code, version)
+            print(f"CSV '{csv}' was successfully added.")
 
 
 @entry.command()
@@ -93,19 +87,17 @@ def init(ip, port):
 @ip_port_options
 @handle_errors
 def add_data_model(file, ip, port):
-    print(f"Data model {file} is being loaded...")
+    print(f"Data model '{file}' is being loaded...")
     dbconfig = get_db_config(ip, port)
     reader = JsonFileReader(file)
     db = MonetDB.from_config(dbconfig)
     data_model_metadata = reader.read()
     AddDataModel(db).execute(data_model_metadata)
-    code = data_model_metadata["code"]
-    version = data_model_metadata["version"]
-    print(f"Data model {code}:{version} was successfully added.")
+    print(f"Data model '{file}' was successfully added.")
 
 
 @entry.command()
-@cl.argument("file", required=True)
+@cl.argument("csv_path", required=True)
 @cl.option(
     "-d",
     "--data-model",
@@ -115,20 +107,16 @@ def add_data_model(file, ip, port):
 @cl.option("-v", "--version", required=True, help="The data model version")
 @ip_port_options
 @handle_errors
-def add_dataset(file, data_model, version, ip, port):
-    print(f"Dataset {file} is being loaded...")
-    reader = CSVFileReader(file)
+def add_dataset(csv_path, data_model, version, ip, port):
+    print(f"CSV '{csv_path}' is being loaded...")
     dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
-    dataset_data = reader.read()
-    ValidateDataset(db).execute(dataset_data, data_model, version)
-    AddDataset(db).execute(dataset_data, data_model, version)
-    dataset = Dataset(dataset_data)
-    print(f"Dataset {dataset.name} was successfully added.")
+    AddDataset(db).execute(csv_path, data_model, version)
+    print(f"CSV '{csv_path}' was successfully added.")
 
 
 @entry.command()
-@cl.argument("file", required=True)
+@cl.argument("csv_path", required=True)
 @cl.option(
     "-d",
     "--data-model",
@@ -138,13 +126,12 @@ def add_dataset(file, data_model, version, ip, port):
 @cl.option("-v", "--version", required=True, help="The data model version")
 @ip_port_options
 @handle_errors
-def validate_dataset(file, data_model, version, ip, port):
-    reader = CSVFileReader(file)
+def validate_dataset(csv_path, data_model, version, ip, port):
+    print(f"Dataset '{csv_path}' is being validated...")
     dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
-    dataset_data = reader.read()
-    ValidateDataset(db).execute(dataset_data, data_model, version)
-    print(f"Dataset {os.path.basename(os.path.normpath(file))} is valid.")
+    ValidateDataset(db).execute(csv_path, data_model, version)
+    print(f"Dataset '{csv_path}' has a valid structure.")
 
 
 @entry.command()
@@ -161,7 +148,7 @@ def validate_dataset(file, data_model, version, ip, port):
 def delete_data_model(name, version, force, ip, port):
     db = MonetDB.from_config(get_db_config(ip, port))
     DeleteDataModel(db).execute(name, version, force)
-    print(f"Data model {name} was successfully removed.")
+    print(f"Data model '{name}' was successfully removed.")
 
 
 @entry.command()
