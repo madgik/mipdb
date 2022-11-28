@@ -18,7 +18,7 @@ pytest = "^6.2.3"
 pytest-xdist = "^2.2.1"
 ipython = "^7.22.0"
 pdbpp = "^0.10.2"
-black = "^20.8b1"
+black = "^22.3.0"
 pre-commit = "^2.11.1"
 coverage = {extras = ["toml"], version = "^5.5"}
 pytest-cov = "^2.12.0"

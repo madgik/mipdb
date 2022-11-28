@@ -5,6 +5,8 @@ import pandas as pd
 
 from mipdb.exceptions import FileContentError
 
+PANDAS_DATAFRAME_CHUNK_SIZE = 500
+
 
 class Reader(ABC):
     @abstractmethod
@@ -30,4 +32,4 @@ class CSVFileReader(Reader):
         self.file = file
 
     def read(self):
-        return pd.read_csv(self.file, dtype=object)
+        return pd.read_csv(self.file, chunksize=PANDAS_DATAFRAME_CHUNK_SIZE)

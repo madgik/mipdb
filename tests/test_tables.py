@@ -1,7 +1,6 @@
 import json
 
 from mipdb.exceptions import DataBaseError
-from mipdb.reader import CSVFileReader
 
 import pytest
 
@@ -14,8 +13,6 @@ from mipdb.tables import (
     PrimaryDataTable,
 )
 from mipdb.dataelements import CommonDataElement, make_cdes
-from mipdb.dataset import Dataset
-from tests.conftest import DATASET_FILE
 from tests.mocks import MonetDBMock
 
 
@@ -203,14 +200,14 @@ class TestPrimaryDataTable:
         primary_data_table.create(db)
         expected = (
             '\nCREATE TABLE "schema:1.0".primary_data ('
-            "\n\t\"row_id\" INTEGER NOT NULL, "
-            "\n\t\"var1\" VARCHAR(255), "
-            "\n\t\"subjectcode\" VARCHAR(255), "
-            "\n\t\"var2\" VARCHAR(255), "
-            "\n\t\"dataset\" VARCHAR(255), "
-            "\n\t\"var3\" FLOAT, "
-            "\n\t\"var4\" INTEGER, "
-            "\n\tPRIMARY KEY (\"row_id\")\n)\n\n"
+            '\n\t"row_id" INTEGER NOT NULL, '
+            '\n\t"var1" VARCHAR(255), '
+            '\n\t"subjectcode" VARCHAR(255), '
+            '\n\t"var2" VARCHAR(255), '
+            '\n\t"dataset" VARCHAR(255), '
+            '\n\t"var3" FLOAT, '
+            '\n\t"var4" INTEGER, '
+            '\n\tPRIMARY KEY ("row_id")\n)\n\n'
         )
         assert db.captured_queries[0] == expected
 
@@ -251,31 +248,3 @@ class TestPrimaryDataTable:
         primary_data_table = PrimaryDataTable.from_db(schema, db)
         column_names = [c.name for c in list(primary_data_table.table.columns)]
         assert column_names != []
-
-    def test_insert_dataset_mockdb(self, cdes):
-        # Setup
-        db = MonetDBMock()
-        DATASET_FILE = "tests/data/success/data_model_v_1_0/dataset.csv"
-        reader = CSVFileReader(DATASET_FILE)
-        dataset = Dataset(reader.read())
-        schema = Schema("schema:1.0")
-        # Test
-        primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
-        primary_data_table.insert_dataset(dataset, db=db)
-        assert 'INSERT INTO "schema:1.0".primary_data' in db.captured_queries[0]
-        assert len(db.captured_multiparams[0][0]) > 0
-
-    @pytest.mark.database
-    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-    def test_insert_dataset_with_db(self, db, cdes):
-        # Setup
-        reader = CSVFileReader(DATASET_FILE)
-        dataset = Dataset(reader.read())
-        schema = Schema("schema:1.0")
-        schema.create(db)
-        primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
-        primary_data_table.create(db)
-        # Test
-        primary_data_table.insert_dataset(dataset, db=db)
-        res = db.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
-        assert res != []

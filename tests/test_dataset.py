@@ -5,8 +5,8 @@ import pytest
 import pandas as pd
 
 from mipdb.dataset import Dataset
-from mipdb.reader import CSVFileReader
 from mipdb.reader import JsonFileReader
+from tests.conftest import DATASET_FILE
 
 
 def test_valid_dataset_name():
@@ -30,18 +30,52 @@ def test_invalid_dataset_no_dataset_field():
         dataset = Dataset(data)
 
 
-def test_to_dict():
-    data = pd.DataFrame(
-        {
-            "var1": [1, 2],
-            "dataset": ["dataset1", "dataset1"],
-        }
-    )
+def test_to_dict(data_model_metadata):
+    data = pd.read_csv(DATASET_FILE)
     dataset = Dataset(data)
     result = dataset.to_dict()
+
     assert result == [
-        {"var1": 1, "dataset": "dataset1"},
-        {"var1": 2, "dataset": "dataset1"},
+        {
+            "subjectcode": 2,
+            "var1": 1,
+            "var2": "l1",
+            "var3": 11,
+            "var4": None,
+            "dataset": "dataset",
+        },
+        {
+            "subjectcode": 2,
+            "var1": 1,
+            "var2": "l2",
+            "var3": 12,
+            "var4": 22.0,
+            "dataset": "dataset",
+        },
+        {
+            "subjectcode": 2,
+            "var1": 1,
+            "var2": "l1",
+            "var3": 13,
+            "var4": 23.0,
+            "dataset": "dataset",
+        },
+        {
+            "subjectcode": 3,
+            "var1": 1,
+            "var2": "l1",
+            "var3": 14,
+            "var4": 24.0,
+            "dataset": "dataset",
+        },
+        {
+            "subjectcode": 3,
+            "var1": 1,
+            "var2": "l2",
+            "var3": 15,
+            "var4": 25.0,
+            "dataset": "dataset",
+        },
     ]
 
 
@@ -309,8 +343,7 @@ def test_invalid_dataset_error_cases(dataset_file, exception_message):
     data_model_metadata = reader.read()
     cdes = make_cdes(data_model_metadata)
 
-    dataset_reader = CSVFileReader(dataset_file)
-    dataset_data = dataset_reader.read()
+    dataset_data = pd.read_csv(dataset_file, dtype=object)
     metadata = {cde.code: cde for cde in cdes}
 
     with pytest.raises(InvalidDatasetError, match=exception_message):

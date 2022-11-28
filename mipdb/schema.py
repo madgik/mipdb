@@ -24,4 +24,6 @@ class Schema:
 
     def _validate_schema_name(self):
         if '"' in self.name:
-            raise UserInputError(f'Data model\'s name: {self.name} contains prohibited character double quotes (")')
+            raise UserInputError(
+                f"Data model's name: {self.name} contains prohibited character double quotes (\")"
+            )

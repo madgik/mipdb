@@ -23,6 +23,10 @@ class CommonDataElement:
             metadata,
         )
 
+    def get_enumerations(self):
+        metadata = json.loads(self.metadata)
+        return metadata["enumerations"] if "enumerations" in metadata else []
+
 
 def make_cdes(schema_data):
     cdes = []

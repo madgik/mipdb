@@ -3,12 +3,14 @@ import json
 from abc import ABC, abstractmethod
 
 import pandas as pa
+import pandas as pd
 
 from mipdb.database import DataBase, Connection
 from mipdb.database import METADATA_SCHEMA
 from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.properties import Properties
+from mipdb.reader import CSVFileReader
 from mipdb.schema import Schema
 from mipdb.dataelements import (
     make_cdes,
@@ -194,9 +196,7 @@ class AddDataset(UseCase):
         self.db = db
         is_db_initialized(db)
 
-    def execute(self, dataset_data, data_model_code, data_model_version) -> None:
-        dataset = Dataset(dataset_data)
-
+    def execute(self, csv_path, data_model_code, data_model_version) -> None:
         data_model_name = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
@@ -207,17 +207,24 @@ class AddDataset(UseCase):
 
         with self.db.begin() as conn:
             metadata_table = MetadataTable.from_db(data_model, conn)
-            dataset_enumerations = json.loads(metadata_table.table["dataset"].metadata)[
-                "enumerations"
-            ]
+            dataset_enumerations = metadata_table.get_dataset_enums()
             dataset_id = self._get_next_dataset_id(conn)
             data_model_id = data_model_table.get_data_model_id(
                 data_model_code, data_model_version, conn
             )
 
             primary_data_table = PrimaryDataTable.from_db(data_model, conn)
-            self._verify_dataset_does_not_exist(data_model_id, dataset, conn)
-            primary_data_table.insert_dataset(dataset, conn)
+            with CSVFileReader(csv_path).read() as reader:
+                for dataset_data in reader:
+                    dataset = Dataset(dataset_data)
+                    self._verify_dataset_does_not_exist(
+                        data_model_id=data_model_id,
+                        dataset_name=dataset.name,
+                        conn=conn,
+                    )
+                    dataset.validate_dataset(metadata_table.table)
+                    values = dataset.to_dict()
+                    primary_data_table.insert_values(values, conn)
             label = dataset_enumerations[dataset.name]
 
             values = dict(
@@ -244,13 +251,14 @@ class AddDataset(UseCase):
         dataset_id = datasets_table.get_next_dataset_id(conn)
         return dataset_id
 
-    def _verify_dataset_does_not_exist(self, data_model_id, dataset, conn):
+    def _verify_dataset_does_not_exist(self, data_model_id, dataset_name, conn):
         metadata = Schema(METADATA_SCHEMA)
         dataset_table = DatasetsTable(schema=metadata)
         datasets = dataset_table.get_datasets(
             db=conn, data_model_id=data_model_id, columns=["code"]
         )
-        if datasets is not None and (dataset.name,) in datasets:
+
+        if datasets and (dataset_name,) in datasets:
             raise UserInputError("Dataset already exists!")
 
 
@@ -259,16 +267,21 @@ class ValidateDataset(UseCase):
         self.db = db
         is_db_initialized(db)
 
-    def execute(self, dataset_data, data_model_code, data_model_version) -> None:
-        dataset = Dataset(dataset_data)
+    def execute(self, csv_path, data_model_code, data_model_version) -> None:
         data_model_name = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
         data_model = Schema(data_model_name)
 
         with self.db.begin() as conn:
-            metadata_table = MetadataTable.from_db(data_model, conn)
-            dataset.validate_dataset(metadata_table.table)
+            self.validate_csv(csv_path, data_model, conn)
+
+    def validate_csv(self, csv_path, data_model, conn):
+        metadata_table = MetadataTable.from_db(data_model, conn)
+        with CSVFileReader(csv_path).read() as reader:
+            for dataset_data in reader:
+                dataset = Dataset(dataset_data)
+                dataset.validate_dataset(metadata_table.table)
 
 
 class DeleteDataset(UseCase):
@@ -277,17 +290,17 @@ class DeleteDataset(UseCase):
         is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version) -> None:
-        data_model_name = get_data_model_fullname(
+        data_model_fullname = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
-        data_model = Schema(data_model_name)
+        data_model = Schema(data_model_fullname)
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
         datasets_table = DatasetsTable(schema=metadata)
 
         with self.db.begin() as conn:
             primary_data_table = PrimaryDataTable.from_db(data_model, conn)
-            primary_data_table.remove_dataset(dataset_code, data_model_name, conn)
+            primary_data_table.remove_dataset(dataset_code, data_model_fullname, conn)
             data_model_id = data_model_table.get_data_model_id(
                 data_model_code, data_model_version, conn
             )
