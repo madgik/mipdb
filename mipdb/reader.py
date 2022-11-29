@@ -5,8 +5,6 @@ import pandas as pd
 
 from mipdb.exceptions import FileContentError
 
-PANDAS_DATAFRAME_CHUNK_SIZE = 500
-
 
 class Reader(ABC):
     @abstractmethod
@@ -25,11 +23,3 @@ class JsonFileReader(Reader):
             except json.JSONDecodeError as exc:
                 orig_msg = exc.args[0]
                 raise FileContentError(f"Unable to decode json file. {orig_msg}")
-
-
-class CSVFileReader(Reader):
-    def __init__(self, file) -> None:
-        self.file = file
-
-    def read(self):
-        return pd.read_csv(self.file, chunksize=PANDAS_DATAFRAME_CHUNK_SIZE)

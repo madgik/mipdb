@@ -25,8 +25,8 @@
                 "sql_type": "text",
                 "description": "",
                 "enumerations": [
-                    {"code": "l1", "label": "Level1"},
-                    {"code": "l2", "label": "Level2"}
+                    {"code": "1", "label": "Leve1"},
+                    {"code": "2.0", "label": "Leve2"}
                 ],
                 "label": "Variable 2",
                 "methodology": ""

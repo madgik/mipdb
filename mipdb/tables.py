@@ -1,7 +1,9 @@
+import numpy as np
 from abc import ABC, abstractmethod
 import json
 from typing import Union, List
 
+import pandas as pd
 import sqlalchemy as sql
 from sqlalchemy import ForeignKey
 from sqlalchemy.ext.compiler import compiles
@@ -334,3 +336,10 @@ class MetadataTable(Table):
 
     def get_dataset_enums(self):
         return json.loads(self.table["dataset"].metadata)["enumerations"]
+
+    def get_pandas_dtype_per_column(self):
+        mapping = {"text": str, "int": pd.Int64Dtype(), "real": np.float64}
+        return {
+            code: mapping.get(json.loads(cde.metadata)["sql_type"].lower())
+            for code, cde in self.table.items()
+        }
