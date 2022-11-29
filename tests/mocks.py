@@ -68,7 +68,7 @@ class MonetDBMock(MonetDB):
         return {
             "var1": '[{"code": "var1", "sql_type": "text", "description": "", "label": "Variable 1", "methodology": "", "is_categorical": false}]',
             "subjectcode": '[{"label": "subjectcode", "code": "subjectcode", "sql_type": "text", "description": "", "methodology": "", "is_categorical": false}]',
-            "var2": '[{"code": "var2", "sql_type": "text", "description": "", "enumerations": {"l1": "Level1", "l2": "Level2"}, "label": "Variable 2", "methodology": "", "is_categorical": true}]',
+            "var2": '[{"code": "var2", "sql_type": "text", "description": "", "enumerations": {"1": "Level1", "2.0": "Level2"}, "label": "Variable 2", "methodology": "", "is_categorical": true}]',
             "dataset": '[{"code": "dataset", "sql_type": "text", "description": "", "enumerations": {"dataset": "Dataset", "dataset1": "Dataset 1", "dataset2": "Dataset 2"}, "label": "Dataset", "methodology": "", "is_categorical": true}]',
             "var3": '[{"code": "var3", "sql_type": "real", "description": "", "label": "Variable 3", "methodology": "", "is_categorical": false, "min": 0, "max": 100}]',
             "var4": '[{"code": "var4", "sql_type": "int", "units": "years", "description": "", "label": "Variable 4", "methodology": "", "is_categorical": false}]',

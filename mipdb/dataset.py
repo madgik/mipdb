@@ -18,7 +18,7 @@ class Dataset:
         self._data = data
         self._data = self._data.astype(object).where(pd.notnull(self._data), None)
         self._verify_dataset_field()
-        self._name = self._data["dataset"][0]
+        self._name = self._data["dataset"].iloc[0]
 
     @property
     def data(self):

@@ -34,12 +34,11 @@ def test_to_dict(data_model_metadata):
     data = pd.read_csv(DATASET_FILE)
     dataset = Dataset(data)
     result = dataset.to_dict()
-
     assert result == [
         {
             "subjectcode": 2,
             "var1": 1,
-            "var2": "l1",
+            "var2": None,
             "var3": 11,
             "var4": None,
             "dataset": "dataset",
@@ -47,7 +46,7 @@ def test_to_dict(data_model_metadata):
         {
             "subjectcode": 2,
             "var1": 1,
-            "var2": "l2",
+            "var2": 2.0,
             "var3": 12,
             "var4": 22.0,
             "dataset": "dataset",
@@ -55,7 +54,7 @@ def test_to_dict(data_model_metadata):
         {
             "subjectcode": 2,
             "var1": 1,
-            "var2": "l1",
+            "var2": 1.0,
             "var3": 13,
             "var4": 23.0,
             "dataset": "dataset",
@@ -63,7 +62,7 @@ def test_to_dict(data_model_metadata):
         {
             "subjectcode": 3,
             "var1": 1,
-            "var2": "l1",
+            "var2": 1.0,
             "var3": 14,
             "var4": 24.0,
             "dataset": "dataset",
@@ -71,7 +70,7 @@ def test_to_dict(data_model_metadata):
         {
             "subjectcode": 3,
             "var1": 1,
-            "var2": "l2",
+            "var2": 2.0,
             "var3": 15,
             "var4": 25.0,
             "dataset": "dataset",
