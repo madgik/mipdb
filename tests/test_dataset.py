@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 
 from mipdb.dataset import Dataset
-from mipdb.reader import JsonFileReader
+from mipdb.reader import CSVDataFrameReader
 from tests.conftest import DATASET_FILE
 
 
@@ -30,52 +30,54 @@ def test_invalid_dataset_no_dataset_field():
         dataset = Dataset(data)
 
 
-def test_to_dict(data_model_metadata):
-    data = pd.read_csv(DATASET_FILE)
-    dataset = Dataset(data)
-    result = dataset.to_dict()
-    assert result == [
-        {
-            "subjectcode": 2,
-            "var1": 1,
-            "var2": None,
-            "var3": 11,
-            "var4": None,
-            "dataset": "dataset",
-        },
-        {
-            "subjectcode": 2,
-            "var1": 1,
-            "var2": 2.0,
-            "var3": 12,
-            "var4": 22.0,
-            "dataset": "dataset",
-        },
-        {
-            "subjectcode": 2,
-            "var1": 1,
-            "var2": 1.0,
-            "var3": 13,
-            "var4": 23.0,
-            "dataset": "dataset",
-        },
-        {
-            "subjectcode": 3,
-            "var1": 1,
-            "var2": 1.0,
-            "var3": 14,
-            "var4": 24.0,
-            "dataset": "dataset",
-        },
-        {
-            "subjectcode": 3,
-            "var1": 1,
-            "var2": 2.0,
-            "var3": 15,
-            "var4": 25.0,
-            "dataset": "dataset",
-        },
-    ]
+def test_to_dict():
+    with CSVDataFrameReader(DATASET_FILE, 5).get_reader() as reader:
+        for dataset_data in reader:
+            dataset = Dataset(dataset_data)
+            result = dataset.to_dict()
+            print(result)
+            assert result == [
+                {
+                    "subjectcode": "2",
+                    "var1": "1",
+                    "var2": None,
+                    "var3": None,
+                    "var4": None,
+                    "dataset": "dataset",
+                },
+                {
+                    "subjectcode": "2",
+                    "var1": "1",
+                    "var2": "2.0",
+                    "var3": "12",
+                    "var4": "22",
+                    "dataset": "dataset",
+                },
+                {
+                    "subjectcode": "2",
+                    "var1": "1",
+                    "var2": "1",
+                    "var3": "13",
+                    "var4": "23",
+                    "dataset": "dataset",
+                },
+                {
+                    "subjectcode": "3",
+                    "var1": "1",
+                    "var2": "1",
+                    "var3": "14",
+                    "var4": "24",
+                    "dataset": "dataset",
+                },
+                {
+                    "subjectcode": "3",
+                    "var1": "1",
+                    "var2": "2.0",
+                    "var3": "15",
+                    "var4": "25",
+                    "dataset": "dataset",
+                },
+            ]
 
 
 def test_validate_with_nan_values_integer_column_with_minValue():
@@ -308,43 +310,197 @@ def test_validate():
     dataset.validate_dataset(metadata)
 
 
-dataset_files = [
-    (
-        "tests/data/fail/data_model_v_1_0/dataset_exceeds_max.csv",
-        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var3'",
+dataframes = [
+    pytest.param(
+        pd.DataFrame(
+            {
+                "var4": [1, 1.1],
+                "dataset": ["dataset1", "dataset1"],
+            }
+        ),
+        "An error occurred while validating the dataset: 'dataset1' and column: 'var4'",
+        id="int with float",
     ),
-    (
-        "tests/data/fail/data_model_v_1_0/dataset_exceeds_min.csv",
-        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var3'",
+    pytest.param(
+        pd.DataFrame(
+            {
+                "var3": [1.1, "not a float"],
+                "dataset": ["dataset1", "dataset1"],
+            }
+        ),
+        "An error occurred while validating the dataset: 'dataset1' and column: 'var3'",
+        id="float with text",
     ),
-    (
-        "tests/data/fail/data_model_v_1_0/invalid_enum.csv",
-        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var2'",
+    pytest.param(
+        pd.DataFrame(
+            {
+                "var4": [1, "not a int"],
+                "dataset": ["dataset1", "dataset1"],
+            }
+        ),
+        "An error occurred while validating the dataset: 'dataset1' and column: 'var4'",
+        id="int with text",
     ),
-    (
-        "tests/data/fail/data_model_v_1_0/invalid_type1.csv",
-        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var3'",
+    pytest.param(
+        pd.DataFrame(
+            {
+                "var2": ["1", "l1"],
+                "dataset": ["dataset1", "dataset1"],
+            }
+        ),
+        "An error occurred while validating the dataset: 'dataset1' and column: 'var2'",
+        id="text with non existing enumeration",
     ),
-    (
-        "tests/data/fail/data_model_v_1_0/invalid_type2.csv",
-        "An error occurred while validating the dataset: 'valid_dataset' and column: 'var4'",
+    pytest.param(
+        pd.DataFrame(
+            {
+                "var5": [1.0, 2.0],
+                "dataset": ["dataset1", "dataset1"],
+            }
+        ),
+        "An error occurred while validating the dataset: 'dataset1' and column: 'var5'",
+        id="text with int/float enumerations(1,2.0)  and 1.0 was given",
     ),
-    (
-        "tests/data/fail/data_model_v_1_0/missing_column_dataset.csv",
+    pytest.param(
+        pd.DataFrame(
+            {
+                "var3": [4, 5],
+                "dataset": ["dataset1", "dataset1"],
+            }
+        ),
+        "An error occurred while validating the dataset: 'dataset1' and column: 'var3'",
+        id="enumeration exceeds min",
+    ),
+    pytest.param(
+        pd.DataFrame(
+            {
+                "var3": [5, 65],
+                "dataset": ["dataset1", "dataset1"],
+            }
+        ),
+        "An error occurred while validating the dataset: 'dataset1' and column: 'var3'",
+        id="enumeration exceeds max",
+    ),
+    pytest.param(
+        pd.DataFrame(
+            {
+                "var4": [1, 2],
+                "dataset": ["dataset2", "dataset1"],
+            }
+        ),
+        "The dataset field contains multiple values.",
+        id="more that one dataset",
+    ),
+    pytest.param(
+        pd.DataFrame(
+            {
+                "var4": [1, None],
+            }
+        ),
         "The 'dataset' column is required to exist in the csv.",
+        id="missing dataset",
     ),
 ]
 
 
-@pytest.mark.parametrize("dataset_file,exception_message", dataset_files)
-def test_invalid_dataset_error_cases(dataset_file, exception_message):
-    reader = JsonFileReader("tests/data/fail/data_model_v_1_0/CDEsMetadata.json")
-    data_model_metadata = reader.read()
+@pytest.mark.parametrize("dataframe,exception_message", dataframes)
+def test_invalid_dataset_error_cases(dataframe, exception_message):
+    data_model_metadata = {
+        "code": "data_model",
+        "label": "The Data Model",
+        "version": "1.0",
+        "variables": [
+            {
+                "isCategorical": False,
+                "code": "var1",
+                "sql_type": "text",
+                "description": "",
+                "label": "Variable 1",
+                "methodology": "",
+            },
+            {
+                "isCategorical": False,
+                "label": "subjectcode",
+                "code": "subjectcode",
+                "sql_type": "text",
+                "description": "",
+                "methodology": "",
+            },
+            {
+                "isCategorical": False,
+                "code": "var2",
+                "sql_type": "text",
+                "description": "",
+                "enumerations": [
+                    {"code": "l1", "label": "Level1"},
+                    {"code": "l2", "label": "Level2"},
+                ],
+                "label": "Variable 2",
+                "methodology": "",
+            },
+            {
+                "isCategorical": True,
+                "code": "dataset",
+                "sql_type": "text",
+                "description": "",
+                "enumerations": [
+                    {"code": "dataset1", "label": "dataset1"},
+                    {"code": "dataset2", "label": "dataset2"},
+                ],
+                "label": "Dataset",
+                "methodology": "",
+            },
+        ],
+        "groups": [
+            {
+                "name": "group",
+                "label": "The Group",
+                "variables": [
+                    {
+                        "isCategorical": False,
+                        "code": "var3",
+                        "sql_type": "real",
+                        "minValue": 5,
+                        "maxValue": 60,
+                        "description": "",
+                        "label": "Variable 3",
+                        "methodology": "",
+                    }
+                ],
+                "groups": [
+                    {
+                        "name": "inner_group",
+                        "label": "The Inner Group",
+                        "variables": [
+                            {
+                                "isCategorical": False,
+                                "code": "var4",
+                                "sql_type": "int",
+                                "units": "years",
+                                "description": "",
+                                "label": "Variable 4",
+                                "methodology": "",
+                            },
+                            {
+                                "isCategorical": False,
+                                "code": "var5",
+                                "sql_type": "text",
+                                "description": "",
+                                "enumerations": [
+                                    {"code": "1", "label": "Level1"},
+                                    {"code": "2.0", "label": "Level2"},
+                                ],
+                                "label": "Variable 5",
+                                "methodology": "",
+                            },
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
     cdes = make_cdes(data_model_metadata)
-
-    dataset_data = pd.read_csv(dataset_file, dtype=object)
     metadata = {cde.code: cde for cde in cdes}
-
     with pytest.raises(InvalidDatasetError, match=exception_message):
-        dataset = Dataset(dataset_data)
+        dataset = Dataset(dataframe)
         dataset.validate_dataset(metadata)

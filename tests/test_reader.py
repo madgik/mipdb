@@ -2,8 +2,9 @@ from unittest.mock import mock_open, patch
 
 import pytest
 
-from mipdb.reader import JsonFileReader
+from mipdb.reader import JsonFileReader, CSVDataFrameReader
 from mipdb.exceptions import FileContentError
+from tests.conftest import DATASET_FILE
 
 
 def test_json_reader():
@@ -19,3 +20,22 @@ def test_json_reader_error():
         reader = JsonFileReader(file="no_file")
         with pytest.raises(FileContentError):
             reader.read()
+
+
+def test_csv_dataframe_reader():
+    with CSVDataFrameReader(DATASET_FILE).get_reader() as reader:
+        for data in reader:
+            assert data.values.shape == (5, 6)
+
+
+def test_csv_dataframe_reader_with_chunks():
+    with CSVDataFrameReader(DATASET_FILE, 1).get_reader() as reader:
+        for data in reader:
+            assert data.values.shape == (1, 6)
+
+
+def test_csv_dataframe_reader_with_chunks_of_two_rows():
+    expected_len_of_each_chunk = [2, 2, 1]
+    with CSVDataFrameReader(DATASET_FILE, 2).get_reader() as reader:
+        for data, expected_length in zip(reader, expected_len_of_each_chunk):
+            assert data.values.shape == (expected_length, 6)
