@@ -10,6 +10,7 @@ from mipdb.database import METADATA_SCHEMA
 from mipdb.exceptions import ForeignKeyError
 from mipdb.exceptions import UserInputError
 from mipdb.properties import Properties
+from mipdb.reader import CSVDataFrameReader
 from mipdb.schema import Schema
 from mipdb.dataelements import (
     make_cdes,
@@ -23,8 +24,6 @@ from mipdb.tables import (
     PrimaryDataTable,
 )
 from mipdb.dataset import Dataset
-
-PANDAS_DATAFRAME_CHUNK_SIZE = 500
 
 
 class UseCase(ABC):
@@ -215,20 +214,19 @@ class AddDataset(UseCase):
             )
 
             primary_data_table = PrimaryDataTable.from_db(data_model, conn)
-            pandas_dtype_per_column = metadata_table.get_pandas_dtype_per_column()
-            with pd.read_csv(
-                csv_path,
-                dtype=pandas_dtype_per_column,
-                chunksize=PANDAS_DATAFRAME_CHUNK_SIZE,
-            ) as reader:
+            with CSVDataFrameReader(csv_path).get_reader() as reader:
                 for dataset_data in reader:
                     dataset = Dataset(dataset_data)
-                    self._verify_dataset_does_not_exist(
-                        data_model_id=data_model_id,
-                        dataset_name=dataset.name,
-                        conn=conn,
-                    )
+
                     dataset.validate_dataset(metadata_table.table)
+            self._verify_dataset_does_not_exist(
+                data_model_id=data_model_id,
+                dataset_name=dataset.name,
+                conn=conn,
+            )
+            with CSVDataFrameReader(csv_path).get_reader() as reader:
+                for dataset_data in reader:
+                    dataset = Dataset(dataset_data)
                     values = dataset.to_dict()
                     primary_data_table.insert_values(values, conn)
             label = dataset_enumerations[dataset.name]
@@ -284,12 +282,7 @@ class ValidateDataset(UseCase):
 
     def validate_csv(self, csv_path, data_model, conn):
         metadata_table = MetadataTable.from_db(data_model, conn)
-        pandas_dtype_per_column = metadata_table.get_pandas_dtype_per_column()
-        with pd.read_csv(
-            csv_path,
-            dtype=pandas_dtype_per_column,
-            chunksize=PANDAS_DATAFRAME_CHUNK_SIZE,
-        ) as reader:
+        with CSVDataFrameReader(csv_path).get_reader() as reader:
             for dataset_data in reader:
                 dataset = Dataset(dataset_data)
                 dataset.validate_dataset(metadata_table.table)
