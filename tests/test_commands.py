@@ -52,7 +52,7 @@ def test_add_data_model(db):
     assert result.exit_code == ExitCode.OK
     assert "data_model:1.0" in db.get_schemas()
     data_models = db.execute(f"select * from mipdb_metadata.data_models").fetchall()
-    data_model_id, code, version, desc, status, _ = data_models[0]
+    data_model_id, code, version, desc, status, properties = data_models[0]
     assert (
         data_model_id == 1
         and code == "data_model"
@@ -60,6 +60,14 @@ def test_add_data_model(db):
         and desc == "The Data Model"
         and status == "ENABLED"
     )
+    assert properties
+    properties = json.loads(properties)
+    assert "tags" in properties
+    assert "properties" in properties
+    assert "cdes" in properties["properties"]
+    cdes = properties["properties"]["cdes"]
+    assert "groups" in cdes or "variables" in cdes
+    assert "code" in cdes and "label" in cdes and "version" in cdes
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[0]
     assert action_id == 1

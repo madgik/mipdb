@@ -1,8 +1,8 @@
+import copy
 import datetime
 import json
 from abc import ABC, abstractmethod
 
-import pandas as pa
 import pandas as pd
 
 from mipdb.database import DataBase, Connection
@@ -90,7 +90,7 @@ class AddDataModel(UseCase):
         code = data_model_metadata["code"]
         version = data_model_metadata["version"]
         name = get_data_model_fullname(code, version)
-        cdes = make_cdes(data_model_metadata)
+        cdes = make_cdes(copy.deepcopy(data_model_metadata))
         validate_dataset_present_on_cdes_with_proper_format(cdes)
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
@@ -732,7 +732,7 @@ class ListDataModels(UseCase):
                 return
 
             data_model_info_columns = data_model_row_columns + ["count"]
-            df = pa.DataFrame(data_models_info, columns=data_model_info_columns)
+            df = pd.DataFrame(data_models_info, columns=data_model_info_columns)
             print(df)
 
 
@@ -785,7 +785,7 @@ class ListDatasets(UseCase):
                 return
 
             dataset_info_columns = dataset_row_columns + ["count"]
-            df = pa.DataFrame(datasets_info, columns=dataset_info_columns)
+            df = pd.DataFrame(datasets_info, columns=dataset_info_columns)
             print(df)
 
 
