@@ -167,6 +167,9 @@ class DatasetsTable(Table):
             raise ValueError(
                 f"The columns: {non_existing_columns} do not exist in the datasets schema"
             )
+        datasets = db.get_datasets(data_model_id, columns)
+        if columns and len(columns) == 1:
+            return [attribute for attribute, *_ in datasets]
         return db.get_datasets(data_model_id, columns)
 
     def get_dataset(self, db, dataset_id=None, columns=None):

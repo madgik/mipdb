@@ -323,8 +323,8 @@ def test_add_dataset(db, data_model_metadata):
 def test_add_dataset_mock(data_model_metadata):
     db = MonetDBMock()
     AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
-    assert "Sequence('dataset_id_seq'" in db.captured_queries[0]
-    assert 'INSERT INTO "data_model:1.0".primary_data' in db.captured_queries[1]
+    assert 'INSERT INTO "data_model:1.0".primary_data' in db.captured_queries[0]
+    assert "Sequence('dataset_id_seq'" in db.captured_queries[1]
     assert "INSERT INTO mipdb_metadata.datasets" in db.captured_queries[2]
     assert "Sequence('action_id_seq'" in db.captured_queries[3]
     assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[4]
@@ -333,14 +333,14 @@ def test_add_dataset_mock(data_model_metadata):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset_with_db(db, data_model_metadata):
+def test_add_dataset_with_db_with_multiple_datasets(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
 
     # Test
     AddDataset(db).execute(
-        csv_path=DATASET_FILE,
+        csv_path="tests/data/success/data_model_v_1_0/dataset.csv",
         data_model_code="data_model",
         data_model_version="1.0",
     )
