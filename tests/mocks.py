@@ -51,7 +51,7 @@ class MonetDBMock(MonetDB):
     def get_executor(self):
         return None
 
-    def get_datasets(self, data_model_id=None, columns=None):
+    def get_values(self, data_model_id=None, columns=None):
         if columns:
             return [list(range(1, len(columns) + 1))]
         return [[1, 2]]

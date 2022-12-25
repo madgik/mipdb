@@ -80,7 +80,7 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def get_datasets(self, data_model_id, columns):
+    def get_values(self, data_model_id, columns):
         pass
 
     @abstractmethod
@@ -216,7 +216,7 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
-    def get_datasets(self, data_model_id, columns):
+    def get_values(self, data_model_id, columns):
         pass
 
     @abstractmethod
@@ -455,7 +455,7 @@ class DBExecutorMixin(ABC):
 
         return list(data_models)
 
-    def get_datasets(self, data_model_id=None, columns=None):
+    def get_values(self, data_model_id=None, columns=None):
         columns_query = ", ".join(columns) if columns else "*"
         data_model_id_clause = (
             f"WHERE data_model_id={data_model_id}" if data_model_id else ""

@@ -90,7 +90,7 @@ def test_get_schemas_with_db(db):
 
 def test_get_datasets():
     db = MonetDBMock()
-    datasets = db.get_datasets()
+    datasets = db.get_values()
     assert datasets == [[1, 2]]
 
 
@@ -108,7 +108,7 @@ def test_get_datasets_with_db(db):
     )
 
     # Check dataset present
-    datasets = db.get_datasets(columns=["code"])
+    datasets = db.get_values(columns=["code"])
     assert ("dataset",) in datasets
     assert len(datasets) == 1
 

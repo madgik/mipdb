@@ -3,7 +3,7 @@ from enum import IntEnum
 from functools import wraps
 from contextlib import contextmanager
 
-# sys.tracebacklimit = 0
+sys.tracebacklimit = 0
 
 
 class DataBaseError(Exception):

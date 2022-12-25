@@ -1,9 +1,7 @@
-import numpy as np
 from abc import ABC, abstractmethod
 import json
 from typing import Union, List
 
-import pandas as pd
 import sqlalchemy as sql
 from sqlalchemy import ForeignKey
 from sqlalchemy.ext.compiler import compiles
@@ -161,13 +159,16 @@ class DatasetsTable(Table):
     def create(self, db: Union[DataBase, Connection]):
         db.create_table(self.table)
 
-    def get_datasets(self, db, data_model_id=None, columns=None):
+    def get_values(self, db, data_model_id=None, columns=None):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
             raise ValueError(
                 f"The columns: {non_existing_columns} do not exist in the datasets schema"
             )
-        return db.get_datasets(data_model_id, columns)
+        datasets = db.get_values(data_model_id, columns)
+        if columns and len(columns) == 1:
+            return [attribute for attribute, *_ in datasets]
+        return db.get_values(data_model_id, columns)
 
     def get_dataset(self, db, dataset_id=None, columns=None):
         if columns and not set(columns).issubset(self.table.columns.keys()):
@@ -336,3 +337,33 @@ class MetadataTable(Table):
 
     def get_dataset_enums(self):
         return json.loads(self.table["dataset"].metadata)["enumerations"]
+
+    def get_sql_type_per_column(self):
+        return {
+            code: json.loads(cde.metadata)["sql_type"]
+            for code, cde in self.table.items()
+        }
+
+    def get_cdes_with_min_max(self, columns):
+        cdes_with_min_max = {}
+        for code, cde in self.table.items():
+            if code not in columns:
+                continue
+            metadata = json.loads(cde.metadata)
+            max_value = metadata["max"] if "max" in metadata else None
+            min_value = metadata["min"] if "min" in metadata else None
+            if code in columns and min_value or max_value:
+                cdes_with_min_max[code] = (min_value, max_value)
+        return cdes_with_min_max
+
+    def get_cdes_with_enumerations(self, columns):
+        return {
+            code: [
+                enum_code
+                for enum_code, enum_label in json.loads(cde.metadata)[
+                    "enumerations"
+                ].items()
+            ]
+            for code, cde in self.table.items()
+            if json.loads(cde.metadata)["is_categorical"] and code in columns
+        }

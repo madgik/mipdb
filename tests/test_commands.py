@@ -112,7 +112,7 @@ def test_add_dataset(db):
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
-    assert not db.get_datasets(columns=["code"])
+    assert not db.get_values(columns=["code"])
 
     # Test
     result = runner.invoke(
@@ -121,7 +121,7 @@ def test_add_dataset(db):
     )
     assert result.exit_code == ExitCode.OK
 
-    assert "dataset" == db.get_datasets(columns=["code"])[0][0]
+    assert "dataset" == db.get_values(columns=["code"])[0][0]
 
     assert result.exit_code == ExitCode.OK
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
@@ -142,7 +142,7 @@ def test_validate_dataset(db):
     # Check dataset not present already
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
-    assert not db.get_datasets(columns=["code"])
+    assert not db.get_values(columns=["code"])
 
     # Test
     result = runner.invoke(
@@ -165,7 +165,7 @@ def test_delete_dataset(db):
         add_dataset,
         [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
     )
-    assert "dataset" == db.get_datasets(columns=["code"])[0][0]
+    assert "dataset" == db.get_values(columns=["code"])[0][0]
 
     # Test
     result = runner.invoke(
@@ -173,7 +173,7 @@ def test_delete_dataset(db):
     )
     assert result.exit_code == ExitCode.OK
 
-    assert not db.get_datasets(columns=["code"])
+    assert not db.get_values(columns=["code"])
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[3]
     assert action_id == 4
@@ -190,7 +190,7 @@ def test_load_folder(db):
 
     # Check dataset not present already
     result = runner.invoke(init, ["--port", PORT])
-    assert not db.get_datasets(columns=["code"])
+    assert not db.get_values(columns=["code"])
 
     # Test
     result = runner.invoke(load_folder, [folder, "--port", PORT])
@@ -202,7 +202,7 @@ def test_load_folder(db):
         "data_model1:1.0",
     } == set(db.get_schemas())
 
-    datasets = db.get_datasets(columns=["code"])
+    datasets = db.get_values(columns=["code"])
     dataset_codes = [code for code, *_ in datasets]
     expected = [
         "dataset",
@@ -228,7 +228,7 @@ def test_load_folder_twice(db):
 
     # Check dataset not present already
     result = runner.invoke(init, ["--port", PORT])
-    assert not db.get_datasets(columns=["code"])
+    assert not db.get_values(columns=["code"])
     result = runner.invoke(load_folder, [folder, "--port", PORT])
     assert result.exit_code == ExitCode.OK
 
@@ -242,7 +242,7 @@ def test_load_folder_twice(db):
         "data_model1:1.0",
     } == set(db.get_schemas())
 
-    datasets = db.get_datasets()
+    datasets = db.get_values()
     dataset_codes = [code for _, _, code, *_ in datasets]
     expected = [
         "dataset",

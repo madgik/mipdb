@@ -50,7 +50,7 @@ def test_get_datasets(metadata):
     db = MonetDBMock()
     # Test
     datasets = DatasetsTable(schema=metadata)
-    datasets.get_datasets(db=db, columns=["dataset_id", "data_model_id"])
+    datasets.get_values(db=db, columns=["dataset_id", "data_model_id"])
 
 
 def test_get_datasets_without_valid_columns(metadata):
@@ -59,7 +59,7 @@ def test_get_datasets_without_valid_columns(metadata):
     # Test
     datasets = DatasetsTable(schema=metadata)
     with pytest.raises(ValueError):
-        datasets.get_datasets(db=db, columns=["dataset_id", "non-existing column"])
+        datasets.get_values(db=db, columns=["dataset_id", "non-existing column"])
 
 
 def test_data_models_table_mockdb(metadata):
