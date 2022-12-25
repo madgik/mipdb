@@ -1,11 +1,8 @@
 import json
-
-import pandas as pd
 import pytest
 
 from mipdb.database import METADATA_SCHEMA
 from mipdb.exceptions import ForeignKeyError
-from mipdb.exceptions import InvalidDatasetError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
 from mipdb.tables import DataModelTable, DatasetsTable, ActionsTable
@@ -344,7 +341,7 @@ def test_add_dataset_with_db_with_multiple_datasets(db, data_model_metadata):
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    datasets = db.get_datasets(columns=["code"])
+    datasets = db.get_values(columns=["code"])
     assert len(datasets) == 1
     assert datasets[0] == ("dataset",)
 
@@ -395,7 +392,7 @@ def test_delete_dataset_with_db(db, data_model_metadata):
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    datasets = db.get_datasets(columns=["code"])
+    datasets = db.get_values(columns=["code"])
     assert len(datasets) == 1
     assert ("dataset",) in datasets
 
@@ -405,7 +402,7 @@ def test_delete_dataset_with_db(db, data_model_metadata):
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    datasets = db.get_datasets(columns=["code"])
+    datasets = db.get_values(columns=["code"])
     assert len(datasets) == 0
     assert ("dataset",) not in datasets
 

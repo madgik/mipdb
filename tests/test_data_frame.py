@@ -19,17 +19,6 @@ def test_valid_dataset_name():
     dataset = DataFrame(data)
 
 
-def test_invalid_dataset_no_dataset_field():
-    data = pd.DataFrame(
-        {
-            "var1": [1, 2],
-            "var2": [3, 4],
-        }
-    )
-    with pytest.raises(InvalidDatasetError):
-        dataset = DataFrame(data)
-
-
 def test_to_dict():
     with CSVDataFrameReader(DATASET_FILE, 5).get_reader() as reader:
         for dataset_data in reader:

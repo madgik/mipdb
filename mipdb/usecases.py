@@ -26,6 +26,8 @@ from mipdb.tables import (
 )
 from mipdb.data_frame import DataFrame
 
+DATASET_COLUMN_NAME = "dataset"
+
 
 class UseCase(ABC):
     """Abstract use case class."""
@@ -168,7 +170,7 @@ class DeleteDataModel(UseCase):
     def _validate_data_model_deletion(self, data_model_name, data_model_id, conn):
         metadata = Schema(METADATA_SCHEMA)
         datasets_table = DatasetsTable(schema=metadata)
-        datasets = datasets_table.get_datasets(conn, data_model_id)
+        datasets = datasets_table.get_values(conn, data_model_id)
         if not len(datasets) == 0:
             raise ForeignKeyError(
                 f"The Data Model:{data_model_name} cannot be deleted because it contains Datasets: {datasets}"
@@ -179,7 +181,7 @@ class DeleteDataModel(UseCase):
         metadata = Schema(METADATA_SCHEMA)
         datasets_table = DatasetsTable(schema=metadata)
         with self.db.begin() as conn:
-            dataset_codes = datasets_table.get_datasets(
+            dataset_codes = datasets_table.get_values(
                 data_model_id=data_model_id, columns=["code"], db=conn
             )
 
@@ -218,7 +220,7 @@ class AddDataset(UseCase):
             imported_datasets = self._import_csv(
                 csv_path=csv_path, data_model=data_model, conn=conn
             )
-            existing_datasets = datasets_table.get_datasets(columns=["code"], db=conn)
+            existing_datasets = datasets_table.get_values(columns=["code"], db=conn)
             for dataset in imported_datasets:
                 if dataset not in existing_datasets:
                     dataset_id = self._get_next_dataset_id(conn)
@@ -269,21 +271,45 @@ class ValidateDataset(UseCase):
         data_model = Schema(data_model_name)
 
         with self.db.begin() as conn:
+            csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
+            if DATASET_COLUMN_NAME not in csv_columns:
+                raise InvalidDatasetError(
+                    "The 'dataset' column is required to exist in the csv."
+                )
             metadata_table = MetadataTable.from_db(data_model, conn)
+            sql_type_per_column = metadata_table.get_sql_type_per_column()
+            cdes_with_min_max = metadata_table.get_cdes_with_min_max(csv_columns)
+            cdes_with_enumerations = metadata_table.get_cdes_with_enumerations(
+                csv_columns
+            )
             dataset_enumerations = metadata_table.get_dataset_enums()
 
-            dataframe_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
-            dataframe_schema = DataFrameSchema(
-                metadata_table=metadata_table.table, columns=dataframe_columns
+            validated_datasets = self.validate_csv(
+                csv_path,
+                sql_type_per_column,
+                cdes_with_min_max,
+                cdes_with_enumerations,
             )
-            with CSVDataFrameReader(csv_path).get_reader() as reader:
-                for dataset_data in reader:
-                    dataframe = DataFrame(dataset_data)
-                    dataframe_schema.validate_dataframe(dataframe.data)
-                    self.verify_datasets_exist_in_enumerations(
-                        datasets=dataframe.datasets,
-                        dataset_enumerations=dataset_enumerations,
-                    )
+            self.verify_datasets_exist_in_enumerations(
+                datasets=validated_datasets,
+                dataset_enumerations=dataset_enumerations,
+            )
+
+    def validate_csv(
+        self, csv_path, sql_type_per_column, cdes_with_min_max, cdes_with_enumerations
+    ):
+        imported_datasets = []
+
+        csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
+        dataframe_schema = DataFrameSchema(
+            sql_type_per_column, cdes_with_min_max, cdes_with_enumerations, csv_columns
+        )
+        with CSVDataFrameReader(csv_path).get_reader() as reader:
+            for dataset_data in reader:
+                dataframe = DataFrame(dataset_data)
+                dataframe_schema.validate_dataframe(dataframe.data)
+                imported_datasets = set(imported_datasets) | set(dataframe.datasets)
+        return imported_datasets
 
     def verify_datasets_exist_in_enumerations(self, datasets, dataset_enumerations):
         non_existing_datasets = [
@@ -754,7 +780,7 @@ class ListDatasets(UseCase):
                 "label",
                 "status",
             ]
-            dataset_rows = dataset_table.get_datasets(conn, columns=dataset_row_columns)
+            dataset_rows = dataset_table.get_values(conn, columns=dataset_row_columns)
 
             data_model_fullname_by_data_model_id = {
                 data_model_id: get_data_model_fullname(code, version)

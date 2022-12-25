@@ -1,32 +1,30 @@
-import json
-
 import pandas as pd
 import pandera as pa
 
 from mipdb.exceptions import InvalidDatasetError
 
-DATASET_COLUMN_NAME = "dataset"
-
 
 class DataFrameSchema:
     _schema: pa.DataFrameSchema
 
-    def __init__(self, metadata_table, columns) -> None:
+    def __init__(
+        self, sql_type_per_column, cdes_with_min_max, cdes_with_enumerations, columns
+    ) -> None:
         pa_columns = {}
         # Validating the dataset has proper values, according to the data model.
 
         # There is a need to construct a DataFrameSchema with all the constraints that the metadata is imposing
         # For each column a pandera Column is created that will contain the constraints for the specific column
-
         for column in columns:
-            if column not in metadata_table:
+            if column not in sql_type_per_column.keys():
                 raise InvalidDatasetError(
                     f"The column: '{column}' does not exist in the metadata"
                 )
-            metadata_column = metadata_table[column].metadata
-            metadata_column_dict = json.loads(metadata_column)
-            checks = self._get_pa_checks(metadata_column_dict)
-            cde_sql_type = metadata_column_dict["sql_type"]
+
+            checks = self._get_pa_checks(
+                cdes_with_min_max, cdes_with_enumerations, column
+            )
+            cde_sql_type = sql_type_per_column[column]
             pa_type = self._pa_type_from_sql_type(cde_sql_type)
             pa_columns[column] = pa.Column(dtype=pa_type, checks=checks, nullable=True)
 
@@ -52,19 +50,17 @@ class DataFrameSchema:
             sql_type
         )
 
-    def _get_pa_checks(self, _metadata):
+    def _get_pa_checks(self, cdes_with_min_max, cdes_with_enumerations, column):
         checks = []
-        if "max" in _metadata:
-            checks.append(pa.Check(lambda s: s <= _metadata["max"]))
-        if "min" in _metadata:
-            checks.append(pa.Check(lambda s: s >= _metadata["min"]))
-        if "enumerations" in _metadata:
+        if column in cdes_with_min_max:
+            min, max = cdes_with_min_max[column]
+            if max:
+                checks.append(pa.Check(lambda s: s <= max))
+            if min:
+                checks.append(pa.Check(lambda s: s >= min))
+
+        if column in cdes_with_enumerations:
             checks.append(
-                pa.Check(
-                    lambda s: s.isin(
-                        [key for key, value in _metadata["enumerations"].items()]
-                        + ["None"]
-                    )
-                )
+                pa.Check(lambda s: s.isin(cdes_with_enumerations[column] + ["None"]))
             )
         return checks
