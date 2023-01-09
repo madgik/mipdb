@@ -96,7 +96,15 @@ class Connection(ABC):
         pass
 
     @abstractmethod
+    def get_row_count(self, table):
+        pass
+
+    @abstractmethod
     def drop_table(self, table):
+        pass
+
+    @abstractmethod
+    def delete_table_values(self, table):
         pass
 
     @abstractmethod
@@ -147,6 +155,10 @@ class Connection(ABC):
     def get_current_user(self):
         pass
 
+    @abstractmethod
+    def copy_csv_in_table(self, offset, table_name):
+        pass
+
 
 class DataBase(ABC):
     """Abstract class representing a database interface."""
@@ -180,7 +192,15 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
+    def get_row_count(self, table):
+        pass
+
+    @abstractmethod
     def drop_table(self, table):
+        pass
+
+    @abstractmethod
+    def delete_table_values(self, table):
         pass
 
     @abstractmethod
@@ -257,6 +277,10 @@ class DataBase(ABC):
 
     @abstractmethod
     def get_executor(self):
+        pass
+
+    @abstractmethod
+    def copy_csv_in_table(self, offset, table_name):
         pass
 
 
@@ -418,6 +442,10 @@ class DBExecutorMixin(ABC):
         )
         return list(res)
 
+    def get_row_count(self, table):
+        res = self.execute(f"select COUNT(*) from {table}").fetchone()
+        return res[0]
+
     def get_dataset(self, dataset_id, columns):
         columns_query = ", ".join(columns) if columns else "*"
 
@@ -499,9 +527,47 @@ class DBExecutorMixin(ABC):
                         WHERE dataset_id = {dataset_id}"""
         self.execute(query)
 
+    def copy_csv_in_table(self, file_location, records, offset, table_name):
+        records_query = ""
+        if records:
+            records_query = f"{records} RECORDS"
+
+        copy_into_query = f"""
+            COPY {records_query} OFFSET {offset} INTO {table_name}
+            FROM '{file_location}'
+            USING DELIMITERS ',', E'\n', '\"'
+            NULL AS '';
+            """
+        self.execute(copy_into_query)
+
+    def copy_data_table_to_another_table(self, copy_into_table, copy_from_table):
+        # row_id is autoincrement, so we do not need to provide values.
+        table_column_names_without_row_id = [
+            column.name
+            for column in list(copy_into_table.table.columns)
+            if column.name != "row_id"
+        ]
+        csv_column_names = [
+            column.name for column in list(copy_from_table.table.columns)
+        ]
+        select_query_columns = [
+            f'"{column}"' if column in csv_column_names else "NULL"
+            for column in table_column_names_without_row_id
+        ]
+        self.execute(
+            f"""
+            INSERT INTO "{copy_into_table.table.schema}".{copy_into_table.table.name} ({','.join([f'"{column}"' for column in table_column_names_without_row_id])})
+            SELECT {', '.join(select_query_columns)}
+            FROM {copy_from_table.table.name};
+        """
+        )
+
     @handle_errors
     def drop_table(self, table):
         table.drop(bind=self._executor)
+
+    def delete_table_values(self, table):
+        self.execute(table.delete())
 
     def insert_values_to_table(self, table, values):
         self.execute(table.insert(), values)

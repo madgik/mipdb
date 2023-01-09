@@ -10,7 +10,7 @@ from mipdb.usecases import AddPropertyToDataset
 from mipdb.usecases import AddPropertyToDataModel
 from mipdb.usecases import (
     AddDataModel,
-    AddDataset,
+    ImportCSV,
     DeleteDataModel,
     DeleteDataset,
     EnableDataModel,
@@ -266,8 +266,11 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_metadata):
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "data_model:1.0" in schemas
-    AddDataset(db).execute(
-        csv_path=DATASET_FILE, data_model_code="data_model", data_model_version="1.0"
+    ImportCSV(db).execute(
+        csv_path=DATASET_FILE,
+        copy_from_file=False,
+        data_model_code="data_model",
+        data_model_version="1.0",
     )
 
     # Test with force False
@@ -288,8 +291,11 @@ def test_delete_data_model_with_datasets_with_db_with_force(db, data_model_metad
     schemas = db.get_schemas()
     assert "mipdb_metadata" in schemas
     assert "data_model:1.0" in schemas
-    AddDataset(db).execute(
-        csv_path=DATASET_FILE, data_model_code="data_model", data_model_version="1.0"
+    ImportCSV(db).execute(
+        csv_path=DATASET_FILE,
+        copy_from_file=False,
+        data_model_code="data_model",
+        data_model_version="1.0",
     )
 
     # Test with force True
@@ -310,16 +316,19 @@ def test_add_dataset(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     # Test success
-    AddDataset(db).execute(
-        csv_path=DATASET_FILE, data_model_code="data_model", data_model_version="1.0"
+    ImportCSV(db).execute(
+        csv_path=DATASET_FILE,
+        copy_from_file=False,
+        data_model_code="data_model",
+        data_model_version="1.0",
     )
     res = db.execute('SELECT * FROM "data_model:1.0".primary_data').fetchall()
     assert res != []
 
 
-def test_add_dataset_mock(data_model_metadata):
+def test_insert_dataset_mock(data_model_metadata):
     db = MonetDBMock()
-    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
+    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
     assert 'INSERT INTO "data_model:1.0".primary_data' in db.captured_queries[0]
     assert "Sequence('dataset_id_seq'" in db.captured_queries[1]
     assert "INSERT INTO mipdb_metadata.datasets" in db.captured_queries[2]
@@ -336,8 +345,9 @@ def test_add_dataset_with_db_with_multiple_datasets(db, data_model_metadata):
     AddDataModel(db).execute(data_model_metadata)
 
     # Test
-    AddDataset(db).execute(
+    ImportCSV(db).execute(
         csv_path="tests/data/success/data_model_v_1_0/dataset.csv",
+        copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -354,7 +364,10 @@ def test_validate_dataset(db, data_model_metadata):
     AddDataModel(db).execute(data_model_metadata)
     # Test success
     ValidateDataset(db).execute(
-        csv_path=DATASET_FILE, data_model_code="data_model", data_model_version="1.0"
+        csv_path=DATASET_FILE,
+        copy_from_file=False,
+        data_model_code="data_model",
+        data_model_version="1.0",
     )
 
 
@@ -387,8 +400,9 @@ def test_delete_dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(
+    ImportCSV(db).execute(
         csv_path=DATASET_FILE,
+        copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -505,8 +519,9 @@ def test_enable_dataset():
 def test_enable_dataset_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(
+    ImportCSV(db).execute(
         csv_path=DATASET_FILE,
+        copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -531,8 +546,9 @@ def test_enable_dataset_with_db(db, data_model_metadata):
 def test_enable_dataset_already_enabled_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(
+    ImportCSV(db).execute(
         csv_path=DATASET_FILE,
+        copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -563,8 +579,9 @@ def test_disable_dataset():
 def test_disable_dataset_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(
+    ImportCSV(db).execute(
         csv_path=DATASET_FILE,
+        copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -584,8 +601,9 @@ def test_disable_dataset_with_db(db, data_model_metadata):
 def test_disable_dataset_already_disabled_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(
+    ImportCSV(db).execute(
         csv_path=DATASET_FILE,
+        copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
@@ -837,7 +855,7 @@ def test_tag_dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
+    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
 
     # Test
     TagDataset(db).execute(
@@ -857,7 +875,7 @@ def test_untag_dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
+    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
     TagDataset(db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
@@ -895,7 +913,7 @@ def test_add_property2dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
+    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
 
     # Test
     AddPropertyToDataset(db).execute(
@@ -917,7 +935,7 @@ def test_remove_property_from_dataset_with_db(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    AddDataset(db).execute(DATASET_FILE, "data_model", "1.0")
+    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
     AddPropertyToDataset(db).execute(
         dataset="dataset",
         data_model_code=data_model_metadata["code"],
