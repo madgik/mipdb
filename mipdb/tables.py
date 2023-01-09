@@ -3,13 +3,14 @@ import json
 from typing import Union, List
 
 import sqlalchemy as sql
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Integer, MetaData
 from sqlalchemy.ext.compiler import compiles
 
 from mipdb.database import DataBase, Connection
 from mipdb.database import METADATA_SCHEMA
 from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
+from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
 
 
@@ -28,6 +29,7 @@ class SQLTYPES:
 
 
 STR2SQLTYPE = {"int": SQLTYPES.INTEGER, "text": SQLTYPES.STRING, "real": SQLTYPES.FLOAT}
+TEMPORARY_TABLE_NAME = "temp"
 
 
 class Table(ABC):
@@ -49,6 +51,12 @@ class Table(ABC):
 
     def insert_values(self, values, db: Union[DataBase, Connection]):
         db.insert_values_to_table(self._table, values)
+
+    def delete(self, db: Union[DataBase, Connection]):
+        db.delete_table_values(self._table)
+
+    def get_row_count(self, db):
+        return db.get_row_count(self.table.fullname)
 
     def drop(self, db: Union[DataBase, Connection]):
         db.drop_table(self._table)
@@ -265,7 +273,6 @@ class PrimaryDataTable(Table):
                 "row_id",
                 SQLTYPES.INTEGER,
                 primary_key=True,
-                autoincrement=True,
                 quote=True,
             ),
         )
@@ -367,3 +374,73 @@ class MetadataTable(Table):
             for code, cde in self.table.items()
             if json.loads(cde.metadata)["is_categorical"] and code in columns
         }
+
+
+class TemporaryTable(Table):
+    def __init__(self, dataframe_sql_type_per_column, db):
+        columns = [
+            sql.Column(name, STR2SQLTYPE[sql_type], quote=True)
+            for name, sql_type in dataframe_sql_type_per_column.items()
+        ]
+
+        self._table = sql.Table(
+            TEMPORARY_TABLE_NAME,
+            MetaData(bind=db.get_executor()),
+            *columns,
+            prefixes=["TEMPORARY"],
+        )
+
+    def validate_data(self, cdes_with_min_max, cdes_with_enumerations, db):
+
+        self._validate_enumerations_restriction(cdes_with_enumerations, db)
+        self._validate_min_max_restriction(cdes_with_min_max, db)
+
+    def _validate_min_max_restriction(self, cdes_with_min_max, db):
+        for cde, min_max in cdes_with_min_max.items():
+            min_value, max_value = min_max
+            cde_invalid_values = db.execute(
+                f"SELECT \"{cde}\" FROM {self.table.fullname} WHERE \"{cde}\" NOT BETWEEN '{min_value}' AND '{max_value}' "
+            ).fetchone()
+            if cde_invalid_values:
+                raise Exception(
+                    f"In the column: '{cde}' the following values are invalid: '{cde_invalid_values}'"
+                )
+
+    def load_csv(
+        self,
+        csv_path,
+        db,
+        records=None,
+        offset=2,
+    ):
+        self._validate_csv_contains_eof(csv_path=csv_path)
+        db.copy_csv_in_table(
+            file_location=csv_path,
+            records=records,
+            offset=offset,
+            table_name=self.table.name,
+        )
+
+    def _validate_csv_contains_eof(self, csv_path):
+        with open(csv_path, "rb") as f:
+            last_line = f.readlines()[-1]
+        if not last_line.endswith(b"\n"):
+            raise UserInputError(f"CSV:'{csv_path}' does not end with a blank line.")
+
+    def _validate_enumerations_restriction(self, cdes_with_enumerations, db):
+        for cde, enumerations in cdes_with_enumerations.items():
+            cde_invalid_values = db.execute(
+                f'SELECT "{cde}" from {self.table.fullname} where "{cde}" not in ({str(enumerations)[1:-1]})'
+            ).fetchone()
+            if cde_invalid_values:
+                raise Exception(
+                    f"In the column: '{cde}' the following values are invalid: '{cde_invalid_values}'"
+                )
+
+    def get_unique_datasets(self, db):
+        return db.execute(
+            f"SELECT DISTINCT(dataset) FROM {self.table.fullname};"
+        ).fetchone()
+
+    def set_table(self, table):
+        self._table = table

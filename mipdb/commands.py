@@ -9,7 +9,7 @@ from mipdb.usecases import AddPropertyToDataModel
 from mipdb.usecases import AddPropertyToDataset
 from mipdb.usecases import DeleteDataModel
 from mipdb.usecases import DeleteDataset
-from mipdb.usecases import AddDataset
+from mipdb.usecases import ImportCSV
 from mipdb.usecases import InitDB
 from mipdb.exceptions import handle_errors
 from mipdb.usecases import DisableDataset
@@ -45,9 +45,16 @@ def entry():
 
 @entry.command()
 @cl.argument("file", required=True)
+@cl.option(
+    "--copy_from_file",
+    required=False,
+    default=True,
+    help="Copy the csvs from the filesystem instead of copying them through sockets."
+    "The same files should exist both in the mipdb script and the db.",
+)
 @ip_port_options
 @handle_errors
-def load_folder(file, ip, port):
+def load_folder(file, copy_from_file, ip, port):
     dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
 
@@ -60,16 +67,16 @@ def load_folder(file, ip, port):
         metadata_path = os.path.join(subdir, "CDEsMetadata.json")
         reader = JsonFileReader(metadata_path)
         data_model_metadata = reader.read()
-        data_model = os.path.basename(os.path.normpath(subdir))
         code = data_model_metadata["code"]
         version = data_model_metadata["version"]
         AddDataModel(db).execute(data_model_metadata)
-        print(f"Data model '{data_model}' was successfully added.")
+        print(f"Data model '{code}' was successfully added.")
 
-        for csv in glob.glob(subdir + "/*.csv"):
-            print(f"CSV '{csv}' is being loaded...")
-            AddDataset(db).execute(csv, code, version)
-            print(f"CSV '{csv}' was successfully added.")
+        for csv_path in glob.glob(subdir + "/*.csv"):
+            print(f"CSV '{csv_path}' is being loaded...")
+            ValidateDataset(db).execute(csv_path, copy_from_file, code, version)
+            ImportCSV(db).execute(csv_path, copy_from_file, code, version)
+            print(f"CSV '{csv_path}' was successfully added.")
 
 
 @entry.command()
@@ -105,13 +112,21 @@ def add_data_model(file, ip, port):
     help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
+@cl.option(
+    "--copy_from_file",
+    required=False,
+    default=True,
+    help="Copy the csvs from the filesystem instead of copying them through sockets."
+    "The same files should exist both in the mipdb script and the db.",
+)
 @ip_port_options
 @handle_errors
-def add_dataset(csv_path, data_model, version, ip, port):
+def add_dataset(csv_path, data_model, version, copy_from_file, ip, port):
     print(f"CSV '{csv_path}' is being loaded...")
     dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
-    AddDataset(db).execute(csv_path, data_model, version)
+    ValidateDataset(db).execute(csv_path, copy_from_file, data_model, version)
+    ImportCSV(db).execute(csv_path, copy_from_file, data_model, version)
     print(f"CSV '{csv_path}' was successfully added.")
 
 
@@ -124,13 +139,20 @@ def add_dataset(csv_path, data_model, version, ip, port):
     help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
+@cl.option(
+    "--copy_from_file",
+    required=False,
+    default=True,
+    help="Copy the csvs from the filesystem instead of copying them through sockets."
+    "The same files should exist both in the mipdb script and the db.",
+)
 @ip_port_options
 @handle_errors
-def validate_dataset(csv_path, data_model, version, ip, port):
+def validate_dataset(csv_path, data_model, version, copy_from_file, ip, port):
     print(f"Dataset '{csv_path}' is being validated...")
     dbconfig = get_db_config(ip, port)
     db = MonetDB.from_config(dbconfig)
-    ValidateDataset(db).execute(csv_path, data_model, version)
+    ValidateDataset(db).execute(csv_path, copy_from_file, data_model, version)
     print(f"Dataset '{csv_path}' has a valid structure.")
 
 

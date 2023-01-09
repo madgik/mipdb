@@ -55,7 +55,18 @@ def update_dataset_status(db):
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+        add_dataset,
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
 
     # Check the status of dataset is disabled
@@ -104,7 +115,18 @@ def test_get_datasets_with_db(db):
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+        add_dataset,
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
 
     # Check dataset present
@@ -165,7 +187,18 @@ def test_get_dataset_id_with_db(db):
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+        add_dataset,
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
 
     # Test
@@ -181,7 +214,18 @@ def test_get_dataset_id_duplication_error(db):
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+        add_dataset,
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
 
     db.execute(

@@ -23,10 +23,12 @@ from mipdb.tables import (
     ActionsTable,
     MetadataTable,
     PrimaryDataTable,
+    TemporaryTable,
 )
 from mipdb.data_frame import DataFrame
 
 DATASET_COLUMN_NAME = "dataset"
+RECORDS_PER_COPY = 100000
 
 
 class UseCase(ABC):
@@ -193,12 +195,14 @@ class DeleteDataModel(UseCase):
             )
 
 
-class AddDataset(UseCase):
+class ImportCSV(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
         is_db_initialized(db)
 
-    def execute(self, csv_path, data_model_code, data_model_version) -> None:
+    def execute(
+        self, csv_path, copy_from_file, data_model_code, data_model_version
+    ) -> None:
         data_model_name = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
@@ -208,38 +212,118 @@ class AddDataset(UseCase):
         datasets_table = DatasetsTable(schema=metadata)
 
         with self.db.begin() as conn:
-            metadata_table = MetadataTable.from_db(data_model, conn)
-            dataset_enumerations = metadata_table.get_dataset_enums()
             data_model_id = data_model_table.get_data_model_id(
                 data_model_code, data_model_version, conn
             )
+            metadata_table = MetadataTable.from_db(data_model, conn)
+            dataset_enumerations = metadata_table.get_dataset_enums()
+            sql_type_per_column = metadata_table.get_sql_type_per_column()
 
-            ValidateDataset(self.db).execute(
-                csv_path, data_model_code, data_model_version
-            )
-            imported_datasets = self._import_csv(
-                csv_path=csv_path, data_model=data_model, conn=conn
-            )
+            if copy_from_file:
+                imported_datasets = self.import_csv_with_volume(
+                    csv_path=csv_path,
+                    sql_type_per_column=sql_type_per_column,
+                    data_model=data_model,
+                    conn=conn,
+                )
+            else:
+                imported_datasets = self._import_csv(
+                    csv_path=csv_path, data_model=data_model, conn=conn
+                )
+
             existing_datasets = datasets_table.get_values(columns=["code"], db=conn)
-            for dataset in imported_datasets:
-                if dataset not in existing_datasets:
-                    dataset_id = self._get_next_dataset_id(conn)
-                    values = dict(
-                        data_model_id=data_model_id,
-                        dataset_id=dataset_id,
-                        code=dataset,
-                        label=dataset_enumerations[dataset],
-                        status="ENABLED",
-                    )
-                    datasets_table.insert_values(values, conn)
-                    data_model_details = _get_data_model_details(data_model_id, conn)
-                    dataset_details = _get_dataset_details(dataset_id, conn)
-                    update_actions(
-                        conn=conn,
-                        action="ADD DATASET",
-                        data_model_details=data_model_details,
-                        dataset_details=dataset_details,
-                    )
+            for dataset in set(imported_datasets) - set(existing_datasets):
+                dataset_id = self._get_next_dataset_id(conn)
+                values = dict(
+                    data_model_id=data_model_id,
+                    dataset_id=dataset_id,
+                    code=dataset,
+                    label=dataset_enumerations[dataset],
+                    status="ENABLED",
+                )
+                datasets_table.insert_values(values, conn)
+                data_model_details = _get_data_model_details(data_model_id, conn)
+                dataset_details = _get_dataset_details(dataset_id, conn)
+                update_actions(
+                    conn=conn,
+                    action="ADD DATASET",
+                    data_model_details=data_model_details,
+                    dataset_details=dataset_details,
+                )
+
+    def _get_next_dataset_id(self, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        datasets_table = DatasetsTable(schema=metadata)
+        dataset_id = datasets_table.get_next_dataset_id(conn)
+        return dataset_id
+
+    def _create_temporary_table(self, dataframe_sql_type_per_column, conn):
+        temporary_table = TemporaryTable(dataframe_sql_type_per_column, conn)
+        temporary_table.create(conn)
+        return temporary_table
+
+    def import_csv_with_volume(self, csv_path, sql_type_per_column, data_model, conn):
+        csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
+        dataframe_sql_type_per_column = {
+            dataframe_column: sql_type_per_column[dataframe_column]
+            for dataframe_column in csv_columns
+        }
+        temporary_table = self._create_temporary_table(
+            dataframe_sql_type_per_column, conn
+        )
+        imported_datasets = self.insert_csv_to_db(
+            csv_path, temporary_table, data_model, conn
+        )
+        temporary_table.drop(conn)
+        return imported_datasets
+
+    # The monetdb copy into prohibites the importion of a csv,
+    # to a table if the csv contains fewer columns than the table.
+    # In our case we need to load the csv a table named 'primary_data'.
+    # Minimal example:
+    # TABLE 'primary_data': col1 col2 | CSV: col1
+    #                       1    2    |      5
+    #                       2    4    |      6
+    #                       3    6    |      7
+    #                       4    8    |      8
+    # We need to create a 'temp' table which will mirror the columns of the csv.
+    # Thus making the copy into a valid choice again.
+    # The workaround for that is that we first copy the value into the 'temp'.
+    # Once the data is loaded in the 'temp',
+    # we can now pass the values of the 'temp' to the 'primary_data' table using a query with the format:
+    # INSERT INTO table1 (columns)
+    # SELECT columns
+    # FROM table2;
+    # What about the missing columns at that the 'primary_data' contains but the 'temp' does not contain,
+    # we will simply add null in place of the missing columns.
+    # In our case the query will have the form:
+    # INSERT INTO 'primary_data' (col1, col2)
+    # SELECT col1, NULL
+    # FROM 'temp'
+
+    def insert_csv_to_db(self, csv_path, temporary_table, data_model, db):
+        primary_data_table = PrimaryDataTable.from_db(data_model, db)
+        offset = 2
+        imported_datasets = []
+        # If we load a csv to 'temp' and then insert them to the 'primary_data' in the case of a big file (3gb),
+        # for a sort period of time will have a spike of memory usage because the data will be stored in both tables.
+        # The workaround for that is to load the csv in batches.
+        while True:
+            temporary_table.load_csv(csv_path=csv_path, records=RECORDS_PER_COPY, db=db)
+            imported_datasets = set(imported_datasets) | set(
+                temporary_table.get_unique_datasets(db)
+            )
+            db.copy_data_table_to_another_table(primary_data_table, temporary_table)
+            temporary_table.delete(db)
+
+            # If the temp contains fewer rows than RECORDS_PER_COPY
+            # that means we have read all the records in the csv and we need to stop the iteration.
+            table_count = temporary_table.get_row_count(db=db)
+            if table_count < RECORDS_PER_COPY:
+                break
+
+            offset += RECORDS_PER_COPY
+        return imported_datasets
 
     def _import_csv(self, csv_path, data_model, conn):
         imported_datasets = []
@@ -252,19 +336,15 @@ class AddDataset(UseCase):
                 primary_data_table.insert_values(values, conn)
         return imported_datasets
 
-    def _get_next_dataset_id(self, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
-        dataset_id = datasets_table.get_next_dataset_id(conn)
-        return dataset_id
-
 
 class ValidateDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
         is_db_initialized(db)
 
-    def execute(self, csv_path, data_model_code, data_model_version) -> None:
+    def execute(
+        self, csv_path, copy_from_file, data_model_code, data_model_version
+    ) -> None:
         data_model_name = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
@@ -283,13 +363,21 @@ class ValidateDataset(UseCase):
                 csv_columns
             )
             dataset_enumerations = metadata_table.get_dataset_enums()
-
-            validated_datasets = self.validate_csv(
-                csv_path,
-                sql_type_per_column,
-                cdes_with_min_max,
-                cdes_with_enumerations,
-            )
+            if copy_from_file:
+                validated_datasets = self.validate_csv_with_volume(
+                    csv_path,
+                    sql_type_per_column,
+                    cdes_with_min_max,
+                    cdes_with_enumerations,
+                    conn,
+                )
+            else:
+                validated_datasets = self.validate_csv(
+                    csv_path,
+                    sql_type_per_column,
+                    cdes_with_min_max,
+                    cdes_with_enumerations,
+                )
             self.verify_datasets_exist_in_enumerations(
                 datasets=validated_datasets,
                 dataset_enumerations=dataset_enumerations,
@@ -310,6 +398,33 @@ class ValidateDataset(UseCase):
                 dataframe_schema.validate_dataframe(dataframe.data)
                 imported_datasets = set(imported_datasets) | set(dataframe.datasets)
         return imported_datasets
+
+    def validate_csv_with_volume(
+        self,
+        csv_path,
+        sql_type_per_column,
+        cdes_with_min_max,
+        cdes_with_enumerations,
+        conn,
+    ):
+        csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
+        dataframe_sql_type_per_column = {
+            dataframe_column: sql_type_per_column[dataframe_column]
+            for dataframe_column in csv_columns
+        }
+        temporary_table = self._create_temporary_table(
+            dataframe_sql_type_per_column, conn
+        )
+        temporary_table.load_csv(csv_path=csv_path, db=conn)
+        validated_datasets = temporary_table.get_unique_datasets(conn)
+        temporary_table.validate_data(cdes_with_min_max, cdes_with_enumerations, conn)
+        temporary_table.drop(conn)
+        return validated_datasets
+
+    def _create_temporary_table(self, dataframe_sql_type_per_column, conn):
+        temporary_table = TemporaryTable(dataframe_sql_type_per_column, conn)
+        temporary_table.create(conn)
+        return temporary_table
 
     def verify_datasets_exist_in_enumerations(self, datasets, dataset_enumerations):
         non_existing_datasets = [

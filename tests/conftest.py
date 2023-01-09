@@ -1,3 +1,4 @@
+import os
 import time
 
 import pytest
@@ -8,6 +9,13 @@ from mipdb.reader import JsonFileReader
 
 DATA_MODEL_FILE = "tests/data/success/data_model_v_1_0/CDEsMetadata.json"
 DATASET_FILE = "tests/data/success/data_model_v_1_0/dataset.csv"
+DATA_FOLDER = "tests/data/"
+SUCCESS_DATA_FOLDER = DATA_FOLDER + "success"
+FAIL_DATA_FOLDER = DATA_FOLDER + "fail"
+ABSOLUTE_PATH_DATA_FOLDER = f"{os.path.dirname(os.path.realpath(__file__))}/data/"
+ABSOLUTE_PATH_DATASET_FILE = f"{os.path.dirname(os.path.realpath(__file__))}/data/success/data_model_v_1_0/dataset.csv"
+ABSOLUTE_PATH_SUCCESS_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "success"
+ABSOLUTE_PATH_FAIL_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "fail"
 PORT = 50123
 
 
@@ -41,6 +49,7 @@ def monetdb_container():
             detach=True,
             ports={"50000/tcp": "50123"},
             name="mipdb-testing",
+            volumes=[f"{ABSOLUTE_PATH_DATA_FOLDER}:{ABSOLUTE_PATH_DATA_FOLDER}"],
             publish_all_ports=True,
         )
     # The time needed to start a monetdb container varies considerably. We need

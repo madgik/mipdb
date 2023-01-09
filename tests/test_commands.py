@@ -19,7 +19,13 @@ from mipdb import list_data_models
 from mipdb import list_datasets
 from mipdb import validate_dataset
 from mipdb.exceptions import ExitCode
-from tests.conftest import DATASET_FILE
+from tests.conftest import (
+    DATASET_FILE,
+    ABSOLUTE_PATH_DATASET_FILE,
+    ABSOLUTE_PATH_SUCCESS_DATA_FOLDER,
+    SUCCESS_DATA_FOLDER,
+    ABSOLUTE_PATH_FAIL_DATA_FOLDER,
+)
 from tests.conftest import DATA_MODEL_FILE
 from tests.conftest import PORT
 
@@ -105,7 +111,7 @@ def test_delete_data_model(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset(db):
+def test_add_dataset_with_volume(db):
     # Setup
     runner = CliRunner()
 
@@ -117,7 +123,15 @@ def test_add_dataset(db):
     # Test
     result = runner.invoke(
         add_dataset,
-        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
+        [
+            ABSOLUTE_PATH_DATASET_FILE,
+            "--data-model",
+            "data_model",
+            "-v",
+            "1.0",
+            "--port",
+            PORT,
+        ],
     )
     assert result.exit_code == ExitCode.OK
 
@@ -135,6 +149,118 @@ def test_add_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_add_dataset(db):
+    # Setup
+    runner = CliRunner()
+
+    # Check dataset not present already
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    assert not db.get_values(columns=["code"])
+
+    # Test
+    result = runner.invoke(
+        add_dataset,
+        [
+            DATASET_FILE,
+            "--data-model",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
+    )
+    assert result.exit_code == ExitCode.OK
+
+    assert "dataset" == db.get_values(columns=["code"])[0][0]
+
+    assert result.exit_code == ExitCode.OK
+    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
+    action_id, action = action_record[2]
+    assert action_id == 3
+    assert action != ""
+    assert json.loads(action)["action"] == "ADD DATASET"
+    data = db.execute(f'select * from "data_model:1.0".primary_data').fetchall()
+    assert len(data) == 5
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_validate_dataset_with_volume(db):
+    # Setup
+    runner = CliRunner()
+
+    # Check dataset not present already
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    assert not db.get_values(columns=["code"])
+
+    # Test
+    result = runner.invoke(
+        validate_dataset,
+        [ABSOLUTE_PATH_DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT],
+    )
+    assert result.exit_code == ExitCode.OK
+
+    dataset_files = [
+        (
+            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/dataset_exceeds_max.csv",
+            "In the column: 'var3' the following values are invalid: '(100.0,)'",
+        ),
+        (
+            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/dataset_exceeds_min.csv",
+            "In the column: 'var3' the following values are invalid: '(0.0,)'",
+        ),
+        (
+            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/invalid_enum.csv",
+            "In the column: 'var2' the following values are invalid: '('l3',)'",
+        ),
+        (
+            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/invalid_type1.csv",
+            "Failed to import table 'temp', line 3 field var3 'double' expected in 'invalid'\n",
+        ),
+        (
+            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/missing_column_dataset.csv",
+            "The 'dataset' column is required to exist in the csv.",
+        ),
+    ]
+
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    @pytest.mark.parametrize("dataset_file,exception_message", dataset_files)
+    def test_invalid_dataset_error_cases(dataset_file, exception_message, cdes, db):
+        runner = CliRunner()
+
+        runner.invoke(init, ["--port", PORT])
+        runner.invoke(
+            add_data_model,
+            [
+                f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/CDEsMetadata.json",
+                "--port",
+                PORT,
+            ],
+        )
+
+        validation_result = runner.invoke(
+            validate_dataset,
+            [
+                dataset_file,
+                "-d",
+                "data_model",
+                "-v",
+                "1.0",
+                "--port",
+                PORT,
+            ],
+        )
+
+        assert validation_result.exception.__str__() == exception_message
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_validate_dataset(db):
     # Setup
     runner = CliRunner()
@@ -147,14 +273,24 @@ def test_validate_dataset(db):
     # Test
     result = runner.invoke(
         validate_dataset,
-        [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT],
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
     assert result.exit_code == ExitCode.OK
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_dataset(db):
+def test_delete_dataset_with_volume(db):
     # Setup
     runner = CliRunner()
 
@@ -163,7 +299,15 @@ def test_delete_dataset(db):
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset,
-        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
+        [
+            ABSOLUTE_PATH_DATASET_FILE,
+            "--data-model",
+            "data_model",
+            "-v",
+            "1.0",
+            "--port",
+            PORT,
+        ],
     )
     assert "dataset" == db.get_values(columns=["code"])[0][0]
 
@@ -183,17 +327,18 @@ def test_delete_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_load_folder(db):
+def test_load_folder_with_volume(db):
     # Setup
     runner = CliRunner()
-    folder = "tests/data/success"
 
     # Check dataset not present already
     result = runner.invoke(init, ["--port", PORT])
     assert not db.get_values(columns=["code"])
 
     # Test
-    result = runner.invoke(load_folder, [folder, "--port", PORT])
+    result = runner.invoke(
+        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER, "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
 
     assert {
@@ -221,19 +366,61 @@ def test_load_folder(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_load_folder_twice(db):
+def test_load_folder(db):
     # Setup
     runner = CliRunner()
-    folder = "tests/data/success"
 
     # Check dataset not present already
     result = runner.invoke(init, ["--port", PORT])
     assert not db.get_values(columns=["code"])
-    result = runner.invoke(load_folder, [folder, "--port", PORT])
+
+    # Test
+    result = runner.invoke(
+        load_folder, [SUCCESS_DATA_FOLDER, "--copy_from_file", False, "--port", PORT]
+    )
+    assert result.exit_code == ExitCode.OK
+
+    assert {
+        "mipdb_metadata",
+        "data_model:1.0",
+        "data_model1:1.0",
+    } == set(db.get_schemas())
+
+    datasets = db.get_values(columns=["code"])
+    dataset_codes = [code for code, *_ in datasets]
+    expected = [
+        "dataset",
+        "dataset1",
+        "dataset2",
+        "dataset10",
+        "dataset20",
+    ]
+    assert set(expected) == set(dataset_codes)
+    ((count, *_), *_) = db.execute(
+        f'select count(*) from "data_model:1.0".primary_data'
+    ).fetchall()
+    row_ids = db.execute(f'select row_id from "data_model:1.0".primary_data').fetchall()
+    assert list(range(1, count + 1)) == [row_id for row_id, *_ in row_ids]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_load_folder_twice_with_volume(db):
+    # Setup
+    runner = CliRunner()
+
+    # Check dataset not present already
+    result = runner.invoke(init, ["--port", PORT])
+    assert not db.get_values(columns=["code"])
+    result = runner.invoke(
+        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER, "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
 
     # Test
-    result = runner.invoke(load_folder, [folder, "--port", PORT])
+    result = runner.invoke(
+        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER, "--port", PORT]
+    )
     assert result.exit_code == ExitCode.OK
 
     assert {
@@ -384,7 +571,17 @@ def test_tag_dataset(db):
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
         add_dataset,
-        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
+        [
+            DATASET_FILE,
+            "--data-model",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
 
     # Test
@@ -416,7 +613,18 @@ def test_untag_dataset(db):
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(
-        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+        add_dataset,
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
@@ -452,7 +660,18 @@ def test_property_dataset_addition(db):
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+        add_dataset,
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
 
     # Test
@@ -484,7 +703,18 @@ def test_property_dataset_deletion(db):
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(
-        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+        add_dataset,
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
@@ -582,7 +812,18 @@ def test_enable_dataset(db):
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+        add_dataset,
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
     result = runner.invoke(
         disable_dataset, ["dataset", "-d", "data_model", "-v", "1.0", "--port", PORT]
@@ -612,7 +853,18 @@ def test_disable_dataset(db):
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
     runner.invoke(
-        add_dataset, [DATASET_FILE, "-d", "data_model", "-v", "1.0", "--port", PORT]
+        add_dataset,
+        [
+            DATASET_FILE,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
     assert _get_status(db, "datasets") == "ENABLED"
 
@@ -643,7 +895,17 @@ def test_list_data_models(db):
     result_with_data_model = runner.invoke(list_data_models, ["--port", PORT])
     runner.invoke(
         add_dataset,
-        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
+        [
+            DATASET_FILE,
+            "--data-model",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
     result_with_data_model_and_dataset = runner.invoke(
         list_data_models, ["--port", PORT]
@@ -684,7 +946,17 @@ def test_list_datasets(db):
     result = runner.invoke(list_datasets, ["--port", PORT])
     runner.invoke(
         add_dataset,
-        [DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--port", PORT],
+        [
+            DATASET_FILE,
+            "--data-model",
+            "data_model",
+            "-v",
+            "1.0",
+            "--copy_from_file",
+            False,
+            "--port",
+            PORT,
+        ],
     )
     result_with_dataset = runner.invoke(list_datasets, ["--port", PORT])
 
