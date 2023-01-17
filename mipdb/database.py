@@ -611,7 +611,7 @@ class MonetDB(DBExecutorMixin, DataBase):
         ip = dbconfig["ip"]
         port = dbconfig["port"]
         dbfarm = dbconfig["dbfarm"]
-        url = f"monetdb://{username}:{password}@{ip}:{port}/{dbfarm}:"
+        url = f"monetdb://{username}:{password}@{ip}:{port}/{dbfarm}"
         return MonetDB(url)
 
     @handle_errors
