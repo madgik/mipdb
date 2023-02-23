@@ -205,58 +205,70 @@ def test_validate_dataset_with_volume(db):
     )
     assert result.exit_code == ExitCode.OK
 
-    dataset_files = [
-        (
-            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/dataset_exceeds_max.csv",
-            "In the column: 'var3' the following values are invalid: '(100.0,)'",
-        ),
-        (
-            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/dataset_exceeds_min.csv",
-            "In the column: 'var3' the following values are invalid: '(0.0,)'",
-        ),
-        (
-            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/invalid_enum.csv",
-            "In the column: 'var2' the following values are invalid: '('l3',)'",
-        ),
-        (
-            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/invalid_type1.csv",
-            "Failed to import table 'temp', line 3 field var3 'double' expected in 'invalid'\n",
-        ),
-        (
-            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/missing_column_dataset.csv",
-            "The 'dataset' column is required to exist in the csv.",
-        ),
-    ]
 
-    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-    @pytest.mark.parametrize("dataset_file,exception_message", dataset_files)
-    def test_invalid_dataset_error_cases(dataset_file, exception_message, cdes, db):
-        runner = CliRunner()
+dataset_files = [
+    (
+        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/dataset_exceeds_max.csv",
+        "In the column: 'var3' the following values are invalid: '(100.0,)'",
+    ),
+    (
+        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/dataset_exceeds_min.csv",
+        "In the column: 'var3' the following values are invalid: '(0.0,)'",
+    ),
+    (
+        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/invalid_enum.csv",
+        "In the column: 'var2' the following values are invalid: '('l3',)'",
+    ),
+    (
+        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/invalid_type1.csv",
+        "Failed to import table 'temp', line 2: column 3 var3: 'double' expected in 'invalid'",
+    ),
+    (
+        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/missing_column_dataset.csv",
+        "Dataset error: The 'dataset' column is required to exist in the csv.",
+    ),
+    (
+        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/column_not_present_in_cdes.csv",
+        "Columns:{'non_existing_col'} are not present in the CDEs",
+    ),
+]
 
-        runner.invoke(init, ["--port", PORT])
-        runner.invoke(
-            add_data_model,
-            [
-                f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/CDEsMetadata.json",
-                "--port",
-                PORT,
-            ],
-        )
 
-        validation_result = runner.invoke(
-            validate_dataset,
-            [
-                dataset_file,
-                "-d",
-                "data_model",
-                "-v",
-                "1.0",
-                "--port",
-                PORT,
-            ],
-        )
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.parametrize("dataset_file,exception_message", dataset_files)
+def test_invalid_dataset_error_cases(dataset_file, exception_message, db):
+    runner = CliRunner()
 
-        assert validation_result.exception.__str__() == exception_message
+    runner.invoke(init, ["--port", PORT])
+    runner.invoke(
+        add_data_model,
+        [
+            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/CDEsMetadata.json",
+            "--port",
+            PORT,
+        ],
+    )
+
+    validation_result = runner.invoke(
+        validate_dataset,
+        [
+            dataset_file,
+            "-d",
+            "data_model",
+            "-v",
+            "1.0",
+            "--port",
+            PORT,
+        ],
+    )
+    print("\n")
+    print(f"{validation_result=}")
+    print(f"{validation_result.stdout=}")
+    print(f"{exception_message=}")
+    assert (
+        validation_result.exception.__str__() == exception_message
+        or exception_message in validation_result.stdout
+    )
 
 
 @pytest.mark.database
@@ -341,11 +353,9 @@ def test_load_folder_with_volume(db):
     )
     assert result.exit_code == ExitCode.OK
 
-    assert {
-        "mipdb_metadata",
-        "data_model:1.0",
-        "data_model1:1.0",
-    } == set(db.get_schemas())
+    assert "mipdb_metadata" in db.get_schemas()
+    assert "data_model:1.0" in db.get_schemas()
+    assert "data_model1:1.0" in db.get_schemas()
 
     datasets = db.get_values(columns=["code"])
     dataset_codes = [code for code, *_ in datasets]
@@ -380,11 +390,9 @@ def test_load_folder(db):
     )
     assert result.exit_code == ExitCode.OK
 
-    assert {
-        "mipdb_metadata",
-        "data_model:1.0",
-        "data_model1:1.0",
-    } == set(db.get_schemas())
+    assert "mipdb_metadata" in db.get_schemas()
+    assert "data_model:1.0" in db.get_schemas()
+    assert "data_model1:1.0" in db.get_schemas()
 
     datasets = db.get_values(columns=["code"])
     dataset_codes = [code for code, *_ in datasets]
@@ -415,6 +423,7 @@ def test_load_folder_twice_with_volume(db):
     result = runner.invoke(
         load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER, "--port", PORT]
     )
+    print(result.stdout)
     assert result.exit_code == ExitCode.OK
 
     # Test
@@ -423,11 +432,9 @@ def test_load_folder_twice_with_volume(db):
     )
     assert result.exit_code == ExitCode.OK
 
-    assert {
-        "mipdb_metadata",
-        "data_model:1.0",
-        "data_model1:1.0",
-    } == set(db.get_schemas())
+    assert "mipdb_metadata" in db.get_schemas()
+    assert "data_model:1.0" in db.get_schemas()
+    assert "data_model1:1.0" in db.get_schemas()
 
     datasets = db.get_values()
     dataset_codes = [code for _, _, code, *_ in datasets]

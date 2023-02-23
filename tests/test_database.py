@@ -8,6 +8,7 @@ import pytest
 import sqlalchemy as sql
 
 from mipdb.exceptions import DataBaseError
+from mipdb.tables import TemporaryTable
 from tests.conftest import DATASET_FILE
 from tests.conftest import DATA_MODEL_FILE
 from tests.conftest import PORT
@@ -89,14 +90,14 @@ def test_get_schemas_with_db(db):
     # Setup
     runner = CliRunner()
     # Check schema not present already
-    assert db.get_schemas() == []
+    assert "data_model:1.0" not in db.get_schemas()
 
     runner.invoke(init, ["--port", PORT])
     runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
 
     # Check schema present
     schemas = db.get_schemas()
-    assert len(schemas) == 2
+    assert "data_model:1.0" in db.get_schemas()
 
 
 def test_get_datasets():
@@ -280,3 +281,11 @@ def test_insert_values_to_table():
     db.insert_values_to_table(table, values)
     assert "INSERT INTO a_table" in db.captured_queries[0]
     assert values == db.captured_multiparams[0][0]
+
+
+def test_grant_select_to_executor():
+    db = MonetDBMock()
+    table = TemporaryTable({"col1": "int", "col2": "int"}, db)
+    table.create(db)
+    assert "CREATE TEMPORARY " in db.captured_queries[0]
+    assert "GRANT SELECT" in db.captured_queries[1]

@@ -9,6 +9,7 @@ from pymonetdb.sql import monetize
 from mipdb.exceptions import DataBaseError
 from mipdb.exceptions import UserInputError
 
+EXECUTOR_USER = "executor"
 METADATA_SCHEMA = "mipdb_metadata"
 METADATA_TABLE = "variables_metadata"
 
@@ -25,17 +26,18 @@ def validate_ip(ip):
         raise UserInputError("Invalid ip provided")
 
 
-def get_db_config(ip, port):
+def get_db_config(ip, port, password):
     if ip:
         validate_ip(ip)
     else:
         ip = "localhost"
+
     config = {
         "ip": ip,
         "port": port if port else 50000,
         "dbfarm": "db",
-        "username": "monetdb",
-        "password": "monetdb",
+        "username": "admin",
+        "password": password if password else "admin",
     }
     return config
 
@@ -133,6 +135,10 @@ class Connection(ABC):
 
     @abstractmethod
     def create_table(self, table):
+        pass
+
+    @abstractmethod
+    def grant_select_to_executor(self, table):
         pass
 
     @abstractmethod
@@ -260,6 +266,10 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
+    def grant_select_to_executor(self, table):
+        pass
+
+    @abstractmethod
     def insert_values_to_table(self, values, table):
         pass
 
@@ -294,6 +304,7 @@ def handle_errors(func):
         try:
             yield
         except sql.exc.OperationalError as exc:
+            print(exc)
             _, msg = exc.orig.args[0].split("!")
             raise DataBaseError(msg)
         except sql.exc.IntegrityError as exc:
@@ -502,6 +513,16 @@ class DBExecutorMixin(ABC):
     @handle_errors
     def create_table(self, table):
         table.create(bind=self._executor)
+
+    @handle_errors
+    def grant_select_to_executor(self, table):
+        fullname = (
+            f'"{table.schema}"."{table.name}"' if table.schema else f'"{table.name}"'
+        )
+        query = (
+            f"GRANT SELECT ON TABLE {fullname} TO {EXECUTOR_USER} WITH GRANT OPTION;"
+        )
+        self.execute(query)
 
     def get_dataset_properties(self, dataset_id):
         (properties, *_), *_ = self.execute(

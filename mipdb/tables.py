@@ -45,6 +45,7 @@ class Table(ABC):
 
     def create(self, db: Union[DataBase, Connection]):
         db.create_table(self._table)
+        db.grant_select_to_executor(self._table)
 
     def exists(self, db: Union[DataBase, Connection]):
         return db.table_exists(self._table)
@@ -86,9 +87,6 @@ class DataModelTable(Table):
     def drop_sequence(self, db: Union[DataBase, Connection]):
         if db.get_executor():
             self.data_model_id_seq.drop(db.get_executor())
-
-    def create(self, db: Union[DataBase, Connection]):
-        db.create_table(self.table)
 
     def get_data_models(self, db, columns: list = None):
         if columns and not set(columns).issubset(self.table.columns.keys()):
@@ -164,9 +162,6 @@ class DatasetsTable(Table):
         if db.get_executor():
             self.dataset_id_seq.drop(db.get_executor())
 
-    def create(self, db: Union[DataBase, Connection]):
-        db.create_table(self.table)
-
     def get_values(self, db, data_model_id=None, columns=None):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
@@ -234,9 +229,6 @@ class ActionsTable(Table):
     def drop_sequence(self, db: Union[DataBase, Connection]):
         if db.get_executor():
             self.action_id_seq.drop(db.get_executor())
-
-    def create(self, db: Union[DataBase, Connection]):
-        db.create_table(self.table)
 
     def insert_values(self, values, db: Union[DataBase, Connection]):
         # Needs to be overridden because sqlalchemy and monetdb are not cooperating

@@ -182,8 +182,16 @@ def test_add_data_model_mock(data_model_metadata):
     AddDataModel(db).execute(data_model_metadata=data_model_metadata)
     assert 'CREATE SCHEMA "data_model:1.0"' in db.captured_queries[1]
     assert 'CREATE TABLE "data_model:1.0".primary_data' in db.captured_queries[2]
-    assert f'CREATE TABLE "data_model:1.0".variables_metadata' in db.captured_queries[3]
-    assert f'INSERT INTO "data_model:1.0".variables_metadata' in db.captured_queries[4]
+    assert (
+        f'GRANT SELECT ON TABLE "data_model:1.0"."primary_data" TO executor WITH GRANT OPTION;'
+        in db.captured_queries[3]
+    )
+    assert f'CREATE TABLE "data_model:1.0".variables_metadata' in db.captured_queries[4]
+    assert (
+        f'GRANT SELECT ON TABLE "data_model:1.0"."variables_metadata" TO executor WITH GRANT OPTION;'
+        in db.captured_queries[5]
+    )
+    assert f'INSERT INTO "data_model:1.0".variables_metadata' in db.captured_queries[6]
     assert len(db.captured_queries) > 5  # verify that handlers issued more queries
 
 

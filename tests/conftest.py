@@ -45,7 +45,7 @@ def monetdb_container():
         container = client.containers.get("mipdb-testing")
     except docker.errors.NotFound:
         container = client.containers.run(
-            "madgik/mipenginedb:latest",
+            "madgik/mipenginedb:testing",
             detach=True,
             ports={"50000/tcp": "50123"},
             name="mipdb-testing",
@@ -68,7 +68,7 @@ def monetdb_container():
 
 @pytest.fixture(scope="function")
 def db():
-    dbconfig = get_db_config(ip=None, port=50123)
+    dbconfig = get_db_config(ip=None, port=50123, password=None)
     return MonetDB.from_config(dbconfig)
 
 
@@ -77,4 +77,5 @@ def cleanup_db(db):
     yield
     schemas = db.get_schemas()
     for schema in schemas:
-        db.drop_schema(schema)
+        if schema not in ["guest", "executor"]:
+            db.drop_schema(schema)
