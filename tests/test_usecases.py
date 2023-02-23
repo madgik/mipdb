@@ -1,8 +1,8 @@
 import json
 import pytest
 
-from mipdb.database import METADATA_SCHEMA
-from mipdb.exceptions import ForeignKeyError
+from mipdb.database import METADATA_SCHEMA, MonetDB
+from mipdb.exceptions import ForeignKeyError, DataBaseError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
 from mipdb.tables import DataModelTable, DatasetsTable, ActionsTable
@@ -182,8 +182,16 @@ def test_add_data_model_mock(data_model_metadata):
     AddDataModel(db).execute(data_model_metadata=data_model_metadata)
     assert 'CREATE SCHEMA "data_model:1.0"' in db.captured_queries[1]
     assert 'CREATE TABLE "data_model:1.0".primary_data' in db.captured_queries[2]
-    assert f'CREATE TABLE "data_model:1.0".variables_metadata' in db.captured_queries[3]
-    assert f'INSERT INTO "data_model:1.0".variables_metadata' in db.captured_queries[4]
+    assert (
+        f'GRANT SELECT ON TABLE "data_model:1.0"."primary_data" TO executor WITH GRANT OPTION;'
+        in db.captured_queries[3]
+    )
+    assert f'CREATE TABLE "data_model:1.0".variables_metadata' in db.captured_queries[4]
+    assert (
+        f'GRANT SELECT ON TABLE "data_model:1.0"."variables_metadata" TO executor WITH GRANT OPTION;'
+        in db.captured_queries[5]
+    )
+    assert f'INSERT INTO "data_model:1.0".variables_metadata' in db.captured_queries[6]
     assert len(db.captured_queries) > 5  # verify that handlers issued more queries
 
 
@@ -973,3 +981,28 @@ def test_remove_property_from_dataset_with_db(db, data_model_metadata):
     assert (
         properties == '{"tags": [], "properties": {"key": "value", "key1": "value1"}}'
     )
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_grant_select_access_rights(db):
+    # Setup
+    InitDB(db).execute()
+
+    # Validation that the user 'executor' can only access data but not drop the data models table
+    executor_config = {
+        "ip": "localhost",
+        "port": 50123,
+        "dbfarm": "db",
+        "username": "executor",
+        "password": "executor",
+    }
+    metadata = Schema(METADATA_SCHEMA)
+    data_model_table = DataModelTable(schema=metadata)
+    db_connected_by_executor = MonetDB.from_config(executor_config)
+    result = db_connected_by_executor.execute(
+        f"select * from {METADATA_SCHEMA}.data_models"
+    )
+    assert result.fetchall() == []
+    with pytest.raises(DataBaseError):
+        data_model_table.drop(db_connected_by_executor)

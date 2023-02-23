@@ -1,11 +1,14 @@
 import os
 import time
+from unittest import mock
 
 import pytest
 import docker
 
-from mipdb.database import MonetDB, get_db_config
+from mipdb.commands import get_db_config
+from mipdb.database import MonetDB
 from mipdb.reader import JsonFileReader
+from mipdb.tables import User
 
 DATA_MODEL_FILE = "tests/data/success/data_model_v_1_0/CDEsMetadata.json"
 DATASET_FILE = "tests/data/success/data_model_v_1_0/dataset.csv"
@@ -17,6 +20,13 @@ ABSOLUTE_PATH_DATASET_FILE = f"{os.path.dirname(os.path.realpath(__file__))}/dat
 ABSOLUTE_PATH_SUCCESS_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "success"
 ABSOLUTE_PATH_FAIL_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "fail"
 PORT = 50123
+ADMIN_PASSWORD = "admin"
+DEFAULT_OPTIONS = [
+    "--port",
+    PORT,
+    "--password",
+    ADMIN_PASSWORD,
+]
 
 
 @pytest.fixture
@@ -45,9 +55,9 @@ def monetdb_container():
         container = client.containers.get("mipdb-testing")
     except docker.errors.NotFound:
         container = client.containers.run(
-            "madgik/mipenginedb:latest",
+            "madgik/mipenginedb:testing",
             detach=True,
-            ports={"50000/tcp": "50123"},
+            ports={"50000/tcp": PORT},
             name="mipdb-testing",
             volumes=[f"{ABSOLUTE_PATH_DATA_FOLDER}:{ABSOLUTE_PATH_DATA_FOLDER}"],
             publish_all_ports=True,
@@ -68,7 +78,7 @@ def monetdb_container():
 
 @pytest.fixture(scope="function")
 def db():
-    dbconfig = get_db_config(ip=None, port=50123)
+    dbconfig = get_db_config(ip="127.0.0.1", port=PORT, password=ADMIN_PASSWORD)
     return MonetDB.from_config(dbconfig)
 
 
@@ -77,4 +87,5 @@ def cleanup_db(db):
     yield
     schemas = db.get_schemas()
     for schema in schemas:
-        db.drop_schema(schema)
+        if schema not in [user.value for user in User]:
+            db.drop_schema(schema)

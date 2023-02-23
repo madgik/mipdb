@@ -18,28 +18,6 @@ class Status:
     DISABLED = "DISABLED"
 
 
-def validate_ip(ip):
-    try:
-        ipaddress.ip_address(ip)
-    except ValueError:
-        raise UserInputError("Invalid ip provided")
-
-
-def get_db_config(ip, port):
-    if ip:
-        validate_ip(ip)
-    else:
-        ip = "localhost"
-    config = {
-        "ip": ip,
-        "port": port if port else 50000,
-        "dbfarm": "db",
-        "username": "monetdb",
-        "password": "monetdb",
-    }
-    return config
-
-
 class Connection(ABC):
     """Abstract class representing a database connection interface."""
 
@@ -133,6 +111,10 @@ class Connection(ABC):
 
     @abstractmethod
     def create_table(self, table):
+        pass
+
+    @abstractmethod
+    def grant_select_access_rights(self, table, user):
         pass
 
     @abstractmethod
@@ -257,6 +239,10 @@ class DataBase(ABC):
 
     @abstractmethod
     def create_table(self, table):
+        pass
+
+    @abstractmethod
+    def grant_select_access_rights(self, table, user):
         pass
 
     @abstractmethod
@@ -503,6 +489,14 @@ class DBExecutorMixin(ABC):
     def create_table(self, table):
         table.create(bind=self._executor)
 
+    @handle_errors
+    def grant_select_access_rights(self, table, user):
+        fullname = (
+            f'"{table.schema}"."{table.name}"' if table.schema else f'"{table.name}"'
+        )
+        query = f"GRANT SELECT ON TABLE {fullname} TO {user} WITH GRANT OPTION;"
+        self.execute(query)
+
     def get_dataset_properties(self, dataset_id):
         (properties, *_), *_ = self.execute(
             f"SELECT properties FROM {METADATA_SCHEMA}.datasets WHERE dataset_id = {dataset_id}"
@@ -611,6 +605,7 @@ class MonetDB(DBExecutorMixin, DataBase):
         ip = dbconfig["ip"]
         port = dbconfig["port"]
         dbfarm = dbconfig["dbfarm"]
+
         url = f"monetdb://{username}:{password}@{ip}:{port}/{dbfarm}"
         return MonetDB(url)
 

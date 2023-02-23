@@ -408,10 +408,9 @@ class ValidateDataset(UseCase):
         conn,
     ):
         csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
-        dataframe_sql_type_per_column = {
-            dataframe_column: sql_type_per_column[dataframe_column]
-            for dataframe_column in csv_columns
-        }
+        dataframe_sql_type_per_column = self._get_dataframe_sql_type_per_column(
+            csv_columns, sql_type_per_column
+        )
         temporary_table = self._create_temporary_table(
             dataframe_sql_type_per_column, conn
         )
@@ -420,6 +419,16 @@ class ValidateDataset(UseCase):
         temporary_table.validate_data(cdes_with_min_max, cdes_with_enumerations, conn)
         temporary_table.drop(conn)
         return validated_datasets
+
+    def _get_dataframe_sql_type_per_column(self, csv_columns, sql_type_per_column):
+        if set(csv_columns) <= set(sql_type_per_column.keys()):
+            return {
+                dataframe_column: sql_type_per_column[dataframe_column]
+                for dataframe_column in csv_columns
+            }
+        raise InvalidDatasetError(
+            f"Columns:{set(csv_columns) - set(sql_type_per_column.keys()) - {'row_id'}} are not present in the CDEs"
+        )
 
     def _create_temporary_table(self, dataframe_sql_type_per_column, conn):
         temporary_table = TemporaryTable(dataframe_sql_type_per_column, conn)
