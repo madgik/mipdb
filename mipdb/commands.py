@@ -1,8 +1,10 @@
+import ipaddress
+
 import click as cl
 import os
 import glob
 
-from mipdb.database import MonetDB, get_db_config
+from mipdb.database import MonetDB
 from mipdb.reader import JsonFileReader
 from mipdb.usecases import AddDataModel, Cleanup
 from mipdb.usecases import AddPropertyToDataModel
@@ -11,7 +13,7 @@ from mipdb.usecases import DeleteDataModel
 from mipdb.usecases import DeleteDataset
 from mipdb.usecases import ImportCSV
 from mipdb.usecases import InitDB
-from mipdb.exceptions import handle_errors
+from mipdb.exceptions import handle_errors, UserInputError
 from mipdb.usecases import DisableDataset
 from mipdb.usecases import DisableDataModel
 from mipdb.usecases import EnableDataset
@@ -27,12 +29,40 @@ from mipdb.usecases import UntagDataset
 from mipdb.usecases import ValidateDataset
 
 _db_configs_options = [
-    cl.option("--ip", "ip", required=False, help="The ip of the database"),
-    cl.option("--port", "port", required=False, help="The port of the database"),
     cl.option(
-        "--password", "password", required=False, help="The password for the database"
+        "--ip", "ip", required=False, default="127.0.0.1", help="The ip of the database"
+    ),
+    cl.option(
+        "--port",
+        "port",
+        required=False,
+        default="50000",
+        help="The port of the database",
+    ),
+    cl.option(
+        "--password",
+        "password",
+        required=False,
+        default=os.getenv("ADMIN_PASSWORD"),
+        help="The password for the database",
     ),
 ]
+
+
+def get_db_config(ip, port, password):
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        raise UserInputError("Invalid ip provided")
+
+    config = {
+        "ip": ip,
+        "port": port,
+        "dbfarm": "db",
+        "username": "admin",
+        "password": password,
+    }
+    return config
 
 
 def db_configs_options(func):
@@ -124,9 +154,7 @@ def add_data_model(file, ip, port, password):
 )
 @db_configs_options
 @handle_errors
-def add_dataset(
-    csv_path, data_model, version, copy_from_file, ip, port, password
-):
+def add_dataset(csv_path, data_model, version, copy_from_file, ip, port, password):
     print(f"CSV '{csv_path}' is being loaded...")
     dbconfig = get_db_config(ip, port, password)
     db = MonetDB.from_config(dbconfig)
@@ -153,9 +181,7 @@ def add_dataset(
 )
 @db_configs_options
 @handle_errors
-def validate_dataset(
-    csv_path, data_model, version, copy_from_file, ip, port, password
-):
+def validate_dataset(csv_path, data_model, version, copy_from_file, ip, port, password):
     print(f"Dataset '{csv_path}' is being validated...")
     dbconfig = get_db_config(ip, port, password)
     db = MonetDB.from_config(dbconfig)
@@ -328,9 +354,7 @@ def tag_data_model(name, version, tag, remove, force, ip, port, password):
 )
 @db_configs_options
 @handle_errors
-def tag_dataset(
-    dataset, data_model, version, tag, remove, force, ip, port, password
-):
+def tag_dataset(dataset, data_model, version, tag, remove, force, ip, port, password):
     db = MonetDB.from_config(get_db_config(ip, port, password))
     if "=" in tag:
         key, value = tag.split("=")

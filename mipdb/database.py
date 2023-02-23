@@ -9,7 +9,6 @@ from pymonetdb.sql import monetize
 from mipdb.exceptions import DataBaseError
 from mipdb.exceptions import UserInputError
 
-EXECUTOR_USER = "executor"
 METADATA_SCHEMA = "mipdb_metadata"
 METADATA_TABLE = "variables_metadata"
 
@@ -17,29 +16,6 @@ METADATA_TABLE = "variables_metadata"
 class Status:
     ENABLED = "ENABLED"
     DISABLED = "DISABLED"
-
-
-def validate_ip(ip):
-    try:
-        ipaddress.ip_address(ip)
-    except ValueError:
-        raise UserInputError("Invalid ip provided")
-
-
-def get_db_config(ip, port, password):
-    if ip:
-        validate_ip(ip)
-    else:
-        ip = "localhost"
-
-    config = {
-        "ip": ip,
-        "port": port if port else 50000,
-        "dbfarm": "db",
-        "username": "admin",
-        "password": password if password else "admin",
-    }
-    return config
 
 
 class Connection(ABC):
@@ -138,7 +114,7 @@ class Connection(ABC):
         pass
 
     @abstractmethod
-    def grant_select_to_executor(self, table):
+    def grant_select_access_rights(self, table, user):
         pass
 
     @abstractmethod
@@ -266,7 +242,7 @@ class DataBase(ABC):
         pass
 
     @abstractmethod
-    def grant_select_to_executor(self, table):
+    def grant_select_access_rights(self, table, user):
         pass
 
     @abstractmethod
@@ -304,7 +280,6 @@ def handle_errors(func):
         try:
             yield
         except sql.exc.OperationalError as exc:
-            print(exc)
             _, msg = exc.orig.args[0].split("!")
             raise DataBaseError(msg)
         except sql.exc.IntegrityError as exc:
@@ -515,13 +490,11 @@ class DBExecutorMixin(ABC):
         table.create(bind=self._executor)
 
     @handle_errors
-    def grant_select_to_executor(self, table):
+    def grant_select_access_rights(self, table, user):
         fullname = (
             f'"{table.schema}"."{table.name}"' if table.schema else f'"{table.name}"'
         )
-        query = (
-            f"GRANT SELECT ON TABLE {fullname} TO {EXECUTOR_USER} WITH GRANT OPTION;"
-        )
+        query = f"GRANT SELECT ON TABLE {fullname} TO {user} WITH GRANT OPTION;"
         self.execute(query)
 
     def get_dataset_properties(self, dataset_id):
@@ -632,6 +605,7 @@ class MonetDB(DBExecutorMixin, DataBase):
         ip = dbconfig["ip"]
         port = dbconfig["port"]
         dbfarm = dbconfig["dbfarm"]
+
         url = f"monetdb://{username}:{password}@{ip}:{port}/{dbfarm}"
         return MonetDB(url)
 

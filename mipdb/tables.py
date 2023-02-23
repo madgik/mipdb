@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import json
+from enum import Enum
 from typing import Union, List
 
 import sqlalchemy as sql
@@ -12,6 +13,11 @@ from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
+
+
+class User(Enum):
+    executor = "executor"
+    admin = "admin"
 
 
 @compiles(sql.types.JSON, "monetdb")
@@ -45,7 +51,7 @@ class Table(ABC):
 
     def create(self, db: Union[DataBase, Connection]):
         db.create_table(self._table)
-        db.grant_select_to_executor(self._table)
+        db.grant_select_access_rights(self._table, User.executor.value)
 
     def exists(self, db: Union[DataBase, Connection]):
         return db.table_exists(self._table)

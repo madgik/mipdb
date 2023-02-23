@@ -9,9 +9,8 @@ import sqlalchemy as sql
 
 from mipdb.exceptions import DataBaseError
 from mipdb.tables import TemporaryTable
-from tests.conftest import DATASET_FILE
+from tests.conftest import DATASET_FILE, DEFAULT_OPTIONS
 from tests.conftest import DATA_MODEL_FILE
-from tests.conftest import PORT
 from tests.mocks import MonetDBMock
 
 
@@ -32,8 +31,8 @@ def test_get_schemas():
 def test_update_data_model_status(db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     # Check the status of data model is disabled
     res = db.execute(
         'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
@@ -53,8 +52,8 @@ def test_update_data_model_status(db):
 def update_dataset_status(db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -65,9 +64,7 @@ def update_dataset_status(db):
             "1.0",
             "--copy_from_file",
             False,
-            "--port",
-            PORT,
-        ],
+        ] + DEFAULT_OPTIONS,
     )
 
     # Check the status of dataset is disabled
@@ -92,8 +89,8 @@ def test_get_schemas_with_db(db):
     # Check schema not present already
     assert "data_model:1.0" not in db.get_schemas()
 
-    runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
 
     # Check schema present
     schemas = db.get_schemas()
@@ -113,8 +110,8 @@ def test_get_datasets_with_db(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -125,9 +122,7 @@ def test_get_datasets_with_db(db):
             "1.0",
             "--copy_from_file",
             False,
-            "--port",
-            PORT,
-        ],
+        ] + DEFAULT_OPTIONS,
     )
 
     # Check dataset present
@@ -141,8 +136,8 @@ def test_get_datasets_with_db(db):
 def test_get_data_model_id_with_db(db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
 
     # Test success
     data_model_id = db.get_data_model_id("data_model", "1.0")
@@ -154,7 +149,7 @@ def test_get_data_model_id_with_db(db):
 def test_get_data_model_id_not_found_error(db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, ["--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
 
     # Test when there is no schema in the database with the specific code and version
     with pytest.raises(DataBaseError):
@@ -166,8 +161,8 @@ def test_get_data_model_id_not_found_error(db):
 def test_get_data_model_id_duplication_error(db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     db.execute(
         sql.text(
             'INSERT INTO "mipdb_metadata".data_models (data_model_id, code, version, status)'
@@ -185,8 +180,8 @@ def test_get_data_model_id_duplication_error(db):
 def test_get_dataset_id_with_db(db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -197,9 +192,7 @@ def test_get_dataset_id_with_db(db):
             "1.0",
             "--copy_from_file",
             False,
-            "--port",
-            PORT,
-        ],
+        ] + DEFAULT_OPTIONS,
     )
 
     # Test
@@ -212,8 +205,8 @@ def test_get_dataset_id_with_db(db):
 def test_get_dataset_id_duplication_error(db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -224,9 +217,7 @@ def test_get_dataset_id_duplication_error(db):
             "1.0",
             "--copy_from_file",
             False,
-            "--port",
-            PORT,
-        ],
+        ] + DEFAULT_OPTIONS,
     )
 
     db.execute(
@@ -246,8 +237,8 @@ def test_get_dataset_id_duplication_error(db):
 def test_get_dataset_id_not_found_error(db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, ["--port", PORT])
-    runner.invoke(add_data_model, [DATA_MODEL_FILE, "--port", PORT])
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
 
     # Test when there is no dataset in the database with the specific code and data_model_id
     with pytest.raises(DataBaseError):
@@ -283,7 +274,7 @@ def test_insert_values_to_table():
     assert values == db.captured_multiparams[0][0]
 
 
-def test_grant_select_to_executor():
+def test_grant_select_access_rights():
     db = MonetDBMock()
     table = TemporaryTable({"col1": "int", "col2": "int"}, db)
     table.create(db)

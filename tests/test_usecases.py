@@ -1,8 +1,8 @@
 import json
 import pytest
 
-from mipdb.database import METADATA_SCHEMA
-from mipdb.exceptions import ForeignKeyError
+from mipdb.database import METADATA_SCHEMA, MonetDB
+from mipdb.exceptions import ForeignKeyError, DataBaseError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
 from mipdb.tables import DataModelTable, DatasetsTable, ActionsTable
@@ -981,3 +981,28 @@ def test_remove_property_from_dataset_with_db(db, data_model_metadata):
     assert (
         properties == '{"tags": [], "properties": {"key": "value", "key1": "value1"}}'
     )
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_grant_select_access_rights(db):
+    # Setup
+    InitDB(db).execute()
+
+    # Validation that the user 'executor' can only access data but not drop the data models table
+    executor_config = {
+        "ip": "localhost",
+        "port": 50123,
+        "dbfarm": "db",
+        "username": "executor",
+        "password": "executor",
+    }
+    metadata = Schema(METADATA_SCHEMA)
+    data_model_table = DataModelTable(schema=metadata)
+    db_connected_by_executor = MonetDB.from_config(executor_config)
+    result = db_connected_by_executor.execute(
+        f"select * from {METADATA_SCHEMA}.data_models"
+    )
+    assert result.fetchall() == []
+    with pytest.raises(DataBaseError):
+        data_model_table.drop(db_connected_by_executor)
