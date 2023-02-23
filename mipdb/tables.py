@@ -18,6 +18,7 @@ from mipdb.schema import Schema
 class User(Enum):
     executor = "executor"
     admin = "admin"
+    guest = "guest"
 
 
 @compiles(sql.types.JSON, "monetdb")

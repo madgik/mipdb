@@ -78,7 +78,7 @@ def monetdb_container():
 
 @pytest.fixture(scope="function")
 def db():
-    dbconfig = get_db_config(ip="127.0.0.1", port=PORT, password="admin")
+    dbconfig = get_db_config(ip="127.0.0.1", port=PORT, password=ADMIN_PASSWORD)
     return MonetDB.from_config(dbconfig)
 
 
