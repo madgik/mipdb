@@ -19,13 +19,23 @@ ABSOLUTE_PATH_DATA_FOLDER = f"{os.path.dirname(os.path.realpath(__file__))}/data
 ABSOLUTE_PATH_DATASET_FILE = f"{os.path.dirname(os.path.realpath(__file__))}/data/success/data_model_v_1_0/dataset.csv"
 ABSOLUTE_PATH_SUCCESS_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "success"
 ABSOLUTE_PATH_FAIL_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "fail"
+IP = "127.0.0.1"
 PORT = 50123
-ADMIN_PASSWORD = "admin"
+USERNAME = "admin"
+PASSWORD = "admin"
+DB_NAME = "db"
+
 DEFAULT_OPTIONS = [
+    "--ip",
+    IP,
     "--port",
     PORT,
+    "--username",
+    USERNAME,
     "--password",
-    ADMIN_PASSWORD,
+    PASSWORD,
+    "--db_name",
+    DB_NAME,
 ]
 
 
@@ -78,7 +88,7 @@ def monetdb_container():
 
 @pytest.fixture(scope="function")
 def db():
-    dbconfig = get_db_config(ip="127.0.0.1", port=PORT, password=ADMIN_PASSWORD)
+    dbconfig = get_db_config(IP, PORT, USERNAME, PASSWORD, DB_NAME)
     return MonetDB.from_config(dbconfig)
 
 

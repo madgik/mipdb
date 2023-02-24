@@ -28,28 +28,63 @@ from mipdb.usecases import TagDataset
 from mipdb.usecases import UntagDataset
 from mipdb.usecases import ValidateDataset
 
+
+class NotRequiredIf(cl.Option):
+    def __init__(self, *args, **kwargs):
+        option_to_env_var = {
+            "--ip": os.getenv("DB_IP"),
+            "--port": os.getenv("DB_PORT"),
+            "--username": os.getenv("DB_USERNAME"),
+            "--password": os.getenv("DB_PASSWORD"),
+            "--db_name": os.getenv("DB_NAME"),
+        }
+        option = args[0][0]
+        if option_to_env_var[option]:
+            kwargs["required"] = False
+            kwargs["default"] = option_to_env_var[option]
+        super(NotRequiredIf, self).__init__(*args, **kwargs)
+
+
 _db_configs_options = [
     cl.option(
-        "--ip", "ip", required=False, default="127.0.0.1", help="The ip of the database"
+        "--ip",
+        "ip",
+        required=True,
+        help="The ip of the database",
+        cls=NotRequiredIf,
     ),
     cl.option(
         "--port",
         "port",
-        required=False,
-        default="50000",
-        help="The port of the database",
+        required=True,
+        help="The port for the database",
+        cls=NotRequiredIf,
+    ),
+    cl.option(
+        "--username",
+        "username",
+        required=True,
+        help="The username for the database",
+        cls=NotRequiredIf,
     ),
     cl.option(
         "--password",
         "password",
-        required=False,
-        default=os.getenv("ADMIN_PASSWORD"),
+        required=True,
         help="The password for the database",
+        cls=NotRequiredIf,
+    ),
+    cl.option(
+        "--db_name",
+        "db_name",
+        required=True,
+        help="The name of the database",
+        cls=NotRequiredIf,
     ),
 ]
 
 
-def get_db_config(ip, port, password):
+def get_db_config(ip, port, username, password, db_name):
     try:
         ipaddress.ip_address(ip)
     except ValueError:
@@ -58,8 +93,8 @@ def get_db_config(ip, port, password):
     config = {
         "ip": ip,
         "port": port,
-        "dbfarm": "db",
-        "username": "admin",
+        "dbfarm": db_name,
+        "username": username,
         "password": password,
     }
     return config
@@ -87,8 +122,8 @@ def entry():
 )
 @db_configs_options
 @handle_errors
-def load_folder(file, copy_from_file, ip, port, password):
-    dbconfig = get_db_config(ip, port, password)
+def load_folder(file, copy_from_file, ip, port, username, password, db_name):
+    dbconfig = get_db_config(ip, port, username, password, db_name)
     db = MonetDB.from_config(dbconfig)
 
     Cleanup(db).execute()
@@ -115,8 +150,8 @@ def load_folder(file, copy_from_file, ip, port, password):
 @entry.command()
 @db_configs_options
 @handle_errors
-def init(ip, port, password):
-    dbconfig = get_db_config(ip, port, password)
+def init(ip, port, username, password, db_name):
+    dbconfig = get_db_config(ip, port, username, password, db_name)
     db = MonetDB.from_config(dbconfig)
     InitDB(db).execute()
     print("Database initialized")
@@ -126,9 +161,9 @@ def init(ip, port, password):
 @cl.argument("file", required=True)
 @db_configs_options
 @handle_errors
-def add_data_model(file, ip, port, password):
+def add_data_model(file, ip, port, username, password, db_name):
     print(f"Data model '{file}' is being loaded...")
-    dbconfig = get_db_config(ip, port, password)
+    dbconfig = get_db_config(ip, port, username, password, db_name)
     reader = JsonFileReader(file)
     db = MonetDB.from_config(dbconfig)
     data_model_metadata = reader.read()
@@ -154,9 +189,11 @@ def add_data_model(file, ip, port, password):
 )
 @db_configs_options
 @handle_errors
-def add_dataset(csv_path, data_model, version, copy_from_file, ip, port, password):
+def add_dataset(
+    csv_path, data_model, version, copy_from_file, ip, port, username, password, db_name
+):
     print(f"CSV '{csv_path}' is being loaded...")
-    dbconfig = get_db_config(ip, port, password)
+    dbconfig = get_db_config(ip, port, username, password, db_name)
     db = MonetDB.from_config(dbconfig)
     ValidateDataset(db).execute(csv_path, copy_from_file, data_model, version)
     ImportCSV(db).execute(csv_path, copy_from_file, data_model, version)
@@ -181,9 +218,11 @@ def add_dataset(csv_path, data_model, version, copy_from_file, ip, port, passwor
 )
 @db_configs_options
 @handle_errors
-def validate_dataset(csv_path, data_model, version, copy_from_file, ip, port, password):
+def validate_dataset(
+    csv_path, data_model, version, copy_from_file, ip, port, username, password, db_name
+):
     print(f"Dataset '{csv_path}' is being validated...")
-    dbconfig = get_db_config(ip, port, password)
+    dbconfig = get_db_config(ip, port, username, password, db_name)
     db = MonetDB.from_config(dbconfig)
     ValidateDataset(db).execute(csv_path, copy_from_file, data_model, version)
     print(f"Dataset '{csv_path}' has a valid structure.")
@@ -200,8 +239,8 @@ def validate_dataset(csv_path, data_model, version, copy_from_file, ip, port, pa
 )
 @db_configs_options
 @handle_errors
-def delete_data_model(name, version, force, ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def delete_data_model(name, version, force, ip, port, username, password, db_name):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     DeleteDataModel(db).execute(name, version, force)
     print(f"Data model '{name}' was successfully removed.")
 
@@ -217,8 +256,8 @@ def delete_data_model(name, version, force, ip, port, password):
 @cl.option("-v", "--version", required=True, help="The data model version")
 @db_configs_options
 @handle_errors
-def delete_dataset(dataset, data_model, version, ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def delete_dataset(dataset, data_model, version, ip, port, username, password, db_name):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     DeleteDataset(db).execute(dataset, data_model, version)
     print(f"Dataset {dataset} was successfully removed.")
 
@@ -228,8 +267,8 @@ def delete_dataset(dataset, data_model, version, ip, port, password):
 @cl.option("-v", "--version", required=True, help="The data model version")
 @db_configs_options
 @handle_errors
-def enable_data_model(name, version, ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def enable_data_model(name, version, ip, port, username, password, db_name):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     EnableDataModel(db).execute(name, version)
     print(f"Data model {name} was successfully enabled.")
 
@@ -239,8 +278,8 @@ def enable_data_model(name, version, ip, port, password):
 @cl.option("-v", "--version", required=True, help="The data model version")
 @db_configs_options
 @handle_errors
-def disable_data_model(name, version, ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def disable_data_model(name, version, ip, port, username, password, db_name):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     DisableDataModel(db).execute(name, version)
     print(f"Data model {name} was successfully disabled.")
 
@@ -256,8 +295,8 @@ def disable_data_model(name, version, ip, port, password):
 @cl.option("-v", "--version", required=True, help="The data model version")
 @db_configs_options
 @handle_errors
-def enable_dataset(dataset, data_model, version, ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def enable_dataset(dataset, data_model, version, ip, port, username, password, db_name):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     EnableDataset(db).execute(dataset, data_model, version)
     print(f"Dataset {dataset} was successfully enabled.")
 
@@ -273,8 +312,10 @@ def enable_dataset(dataset, data_model, version, ip, port, password):
 @cl.option("-v", "--version", required=True, help="The data model version")
 @db_configs_options
 @handle_errors
-def disable_dataset(dataset, data_model, version, ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def disable_dataset(
+    dataset, data_model, version, ip, port, username, password, db_name
+):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     DisableDataset(db).execute(dataset, data_model, version)
     print(f"Dataset {dataset} was successfully disabled.")
 
@@ -304,8 +345,10 @@ def disable_dataset(dataset, data_model, version, ip, port, password):
 )
 @db_configs_options
 @handle_errors
-def tag_data_model(name, version, tag, remove, force, ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def tag_data_model(
+    name, version, tag, remove, force, ip, port, username, password, db_name
+):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     if "=" in tag:
         key, value = tag.split("=")
         if remove:
@@ -354,8 +397,20 @@ def tag_data_model(name, version, tag, remove, force, ip, port, password):
 )
 @db_configs_options
 @handle_errors
-def tag_dataset(dataset, data_model, version, tag, remove, force, ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def tag_dataset(
+    dataset,
+    data_model,
+    version,
+    tag,
+    remove,
+    force,
+    ip,
+    port,
+    username,
+    password,
+    db_name,
+):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     if "=" in tag:
         key, value = tag.split("=")
         if remove:
@@ -380,14 +435,14 @@ def tag_dataset(dataset, data_model, version, tag, remove, force, ip, port, pass
 @entry.command()
 @db_configs_options
 @handle_errors
-def list_data_models(ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def list_data_models(ip, port, username, password, db_name):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     ListDataModels(db).execute()
 
 
 @entry.command()
 @db_configs_options
 @handle_errors
-def list_datasets(ip, port, password):
-    db = MonetDB.from_config(get_db_config(ip, port, password))
+def list_datasets(ip, port, username, password, db_name):
+    db = MonetDB.from_config(get_db_config(ip, port, username, password, db_name))
     ListDatasets(db).execute()

@@ -64,7 +64,8 @@ def update_dataset_status(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
 
     # Check the status of dataset is disabled
@@ -122,7 +123,8 @@ def test_get_datasets_with_db(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
 
     # Check dataset present
@@ -192,7 +194,8 @@ def test_get_dataset_id_with_db(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
 
     # Test
@@ -217,7 +220,8 @@ def test_get_dataset_id_duplication_error(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
 
     db.execute(

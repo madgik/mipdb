@@ -28,7 +28,6 @@ from tests.conftest import (
     DEFAULT_OPTIONS,
 )
 from tests.conftest import DATA_MODEL_FILE
-from tests.conftest import PORT
 
 
 @pytest.mark.database
@@ -39,7 +38,7 @@ def test_init(db):
     # Check data_model not present already
     assert "mipdb_metadata" not in db.get_schemas()
     # Test
-    result = runner.invoke(init,  DEFAULT_OPTIONS)
+    result = runner.invoke(init, DEFAULT_OPTIONS)
     assert result.exit_code == ExitCode.OK
     assert "mipdb_metadata" in db.get_schemas()
     assert db.execute(f"select * from mipdb_metadata.data_models").fetchall() == []
@@ -53,11 +52,9 @@ def test_add_data_model(db):
     runner = CliRunner()
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     # Test
-    result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS
-    )
+    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     assert result.exit_code == ExitCode.OK
     assert "data_model:1.0" in db.get_schemas()
     data_models = db.execute(f"select * from mipdb_metadata.data_models").fetchall()
@@ -96,7 +93,7 @@ def test_delete_data_model(db):
     runner = CliRunner()
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
 
     # Test
@@ -120,7 +117,7 @@ def test_add_dataset_with_volume(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     assert not db.get_values(columns=["code"])
 
@@ -133,7 +130,8 @@ def test_add_dataset_with_volume(db):
             "data_model",
             "-v",
             "1.0",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -156,7 +154,7 @@ def test_add_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     assert not db.get_values(columns=["code"])
 
@@ -171,7 +169,8 @@ def test_add_dataset(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -194,7 +193,7 @@ def test_validate_dataset_with_volume(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     assert not db.get_values(columns=["code"])
 
@@ -207,7 +206,8 @@ def test_validate_dataset_with_volume(db):
             "data_model",
             "-v",
             "1.0",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -245,12 +245,13 @@ dataset_files = [
 def test_invalid_dataset_error_cases(dataset_file, exception_message, db):
     runner = CliRunner()
 
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(
         add_data_model,
         [
             f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/CDEsMetadata.json",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
 
     validation_result = runner.invoke(
@@ -261,7 +262,8 @@ def test_invalid_dataset_error_cases(dataset_file, exception_message, db):
             "data_model",
             "-v",
             "1.0",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert (
         validation_result.exception.__str__() == exception_message
@@ -276,7 +278,7 @@ def test_validate_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     assert not db.get_values(columns=["code"])
 
@@ -291,7 +293,8 @@ def test_validate_dataset(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -303,7 +306,7 @@ def test_delete_dataset_with_volume(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
@@ -313,7 +316,8 @@ def test_delete_dataset_with_volume(db):
             "data_model",
             "-v",
             "1.0",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert "dataset" == db.get_values(columns=["code"])[0][0]
 
@@ -339,7 +343,7 @@ def test_load_folder_with_volume(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    result = runner.invoke(init,  DEFAULT_OPTIONS)
+    result = runner.invoke(init, DEFAULT_OPTIONS)
     assert not db.get_values(columns=["code"])
 
     # Test
@@ -376,7 +380,7 @@ def test_load_folder(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    result = runner.invoke(init,  DEFAULT_OPTIONS)
+    result = runner.invoke(init, DEFAULT_OPTIONS)
     assert not db.get_values(columns=["code"])
 
     # Test
@@ -414,7 +418,7 @@ def test_load_folder_twice_with_volume(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    result = runner.invoke(init,  DEFAULT_OPTIONS)
+    result = runner.invoke(init, DEFAULT_OPTIONS)
     assert not db.get_values(columns=["code"])
     result = runner.invoke(
         load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + DEFAULT_OPTIONS
@@ -455,7 +459,7 @@ def test_tag_data_model(db):
     # Setup
     runner = CliRunner()
 
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
 
     # Test
@@ -482,7 +486,7 @@ def test_untag_data_model(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         tag_data_model,
@@ -513,7 +517,7 @@ def test_property_data_model_addition(db):
     # Setup
     runner = CliRunner()
 
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
 
     # Test
@@ -543,7 +547,7 @@ def test_property_data_model_deletion(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         tag_data_model,
@@ -560,7 +564,8 @@ def test_property_data_model_deletion(db):
             "-v",
             "1.0",
             "-r",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -582,7 +587,7 @@ def test_tag_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
@@ -594,7 +599,8 @@ def test_tag_dataset(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
 
     # Test
@@ -608,7 +614,8 @@ def test_tag_dataset(db):
             "data_model",
             "-v",
             "1.0",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -629,10 +636,8 @@ def test_untag_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
-    result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS
-    )
+    runner.invoke(init, DEFAULT_OPTIONS)
+    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(
@@ -645,7 +650,8 @@ def test_untag_dataset(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
@@ -658,7 +664,8 @@ def test_untag_dataset(db):
             "data_model",
             "-v",
             "1.0",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -674,7 +681,8 @@ def test_untag_dataset(db):
             "-v",
             "1.0",
             "-r",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -695,7 +703,7 @@ def test_property_dataset_addition(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
@@ -707,7 +715,8 @@ def test_property_dataset_addition(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
 
     # Test
@@ -721,7 +730,8 @@ def test_property_dataset_addition(db):
             "data_model",
             "-v",
             "1.0",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -742,10 +752,8 @@ def test_property_dataset_deletion(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
-    result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS
-    )
+    runner.invoke(init, DEFAULT_OPTIONS)
+    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(
@@ -758,7 +766,8 @@ def test_property_dataset_deletion(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
@@ -771,7 +780,8 @@ def test_property_dataset_deletion(db):
             "data_model",
             "-v",
             "1.0",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -787,7 +797,8 @@ def test_property_dataset_deletion(db):
             "-v",
             "1.0",
             "-r",
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
@@ -808,7 +819,7 @@ def test_enable_data_model(db):
     runner = CliRunner()
 
     # Check status is disabled
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     result = runner.invoke(
         disable_data_model, ["data_model", "-v", "1.0"] + DEFAULT_OPTIONS
@@ -835,7 +846,7 @@ def test_disable_data_model(db):
     runner = CliRunner()
 
     # Check status is enabled
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     assert _get_status(db, "data_models") == "ENABLED"
 
@@ -859,7 +870,7 @@ def test_enable_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
@@ -871,7 +882,8 @@ def test_enable_dataset(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     result = runner.invoke(
         disable_dataset,
@@ -900,7 +912,7 @@ def test_disable_dataset(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
@@ -912,7 +924,8 @@ def test_disable_dataset(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     assert _get_status(db, "datasets") == "ENABLED"
 
@@ -938,12 +951,10 @@ def test_list_data_models(db):
 
     # Check data_model not present already
     assert "data_model:1.0" not in db.get_schemas()
-    runner.invoke(init,  DEFAULT_OPTIONS)
-    result = runner.invoke(list_data_models,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
+    result = runner.invoke(list_data_models, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
-    result_with_data_model = runner.invoke(
-        list_data_models,  DEFAULT_OPTIONS
-    )
+    result_with_data_model = runner.invoke(list_data_models, DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -954,10 +965,11 @@ def test_list_data_models(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
     result_with_data_model_and_dataset = runner.invoke(
-        list_data_models,  DEFAULT_OPTIONS
+        list_data_models, DEFAULT_OPTIONS
     )
 
     # Test
@@ -990,9 +1002,9 @@ def test_list_datasets(db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init,  DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
-    result = runner.invoke(list_datasets,  DEFAULT_OPTIONS)
+    result = runner.invoke(list_datasets, DEFAULT_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -1003,9 +1015,10 @@ def test_list_datasets(db):
             "1.0",
             "--copy_from_file",
             False,
-        ] + DEFAULT_OPTIONS,
+        ]
+        + DEFAULT_OPTIONS,
     )
-    result_with_dataset = runner.invoke(list_datasets,  DEFAULT_OPTIONS)
+    result_with_dataset = runner.invoke(list_datasets, DEFAULT_OPTIONS)
 
     # Test
     assert result.exit_code == ExitCode.OK
