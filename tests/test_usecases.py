@@ -1,4 +1,6 @@
 import json
+from unittest.mock import patch
+
 import pytest
 
 from mipdb.database import METADATA_SCHEMA, MonetDB
@@ -354,14 +356,32 @@ def test_add_dataset_with_db_with_multiple_datasets(db, data_model_metadata):
 
     # Test
     ImportCSV(db).execute(
-        csv_path="tests/data/success/data_model_v_1_0/dataset.csv",
+        csv_path="tests/data/success/data_model_v_1_0/dataset10.csv",
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    datasets = db.get_values(columns=["code"])
-    assert len(datasets) == 1
-    assert datasets[0] == ("dataset",)
+    datasets = db.get_values(columns=["data_model_id", "code"])
+    assert len(datasets) == 2
+    assert all(code in ["dataset2", "dataset10"] for dmi, code in datasets)
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_add_dataset_with_small_record_copy(db, data_model_metadata):
+    # Setup
+    InitDB(db).execute()
+    AddDataModel(db).execute(data_model_metadata)
+    with patch('mipdb.tables.RECORDS_PER_COPY', 1):
+        # Test
+        ImportCSV(db).execute(
+            csv_path=DATASET_FILE,
+            copy_from_file=False,
+            data_model_code="data_model",
+            data_model_version="1.0",
+        )
+    records = db.execute(f"SELECT count(*) FROM \"data_model:1.0\".primary_data").fetchall()
+    assert 5 == records[0][0]
 
 
 @pytest.mark.database

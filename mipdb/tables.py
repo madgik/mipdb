@@ -13,6 +13,7 @@ from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
+RECORDS_PER_COPY = 1000000
 
 
 class User(Enum):
@@ -389,10 +390,30 @@ class TemporaryTable(Table):
             prefixes=["TEMPORARY"],
         )
 
-    def validate_data(self, cdes_with_min_max, cdes_with_enumerations, db):
+    def validate_csv(self, csv_path, cdes_with_min_max, cdes_with_enumerations, db):
+        validated_datasets = []
+        offset = 2
 
-        self._validate_enumerations_restriction(cdes_with_enumerations, db)
-        self._validate_min_max_restriction(cdes_with_min_max, db)
+        while True:
+            self.load_csv(csv_path=csv_path, records=RECORDS_PER_COPY, db=db)
+            validated_datasets = set(validated_datasets) | set(
+                self.get_unique_datasets(db)
+            )
+
+            self._validate_enumerations_restriction(cdes_with_enumerations, db)
+            self._validate_min_max_restriction(cdes_with_min_max, db)
+
+            # If the temp contains fewer rows than RECORDS_PER_COPY
+            # that means we have read all the records in the csv and we need to stop the iteration.
+            table_count = self.get_row_count(db=db)
+            self.delete(db)
+
+            if table_count < RECORDS_PER_COPY:
+                break
+
+            offset += RECORDS_PER_COPY
+        return validated_datasets
+
 
     def _validate_min_max_restriction(self, cdes_with_min_max, db):
         for cde, min_max in cdes_with_min_max.items():
@@ -412,6 +433,7 @@ class TemporaryTable(Table):
         records=None,
         offset=2,
     ):
+
         self._validate_csv_contains_eof(csv_path=csv_path)
         db.copy_csv_in_table(
             file_location=csv_path,
