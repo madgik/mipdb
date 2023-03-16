@@ -13,7 +13,7 @@ from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
-RECORDS_PER_COPY = 1000000
+RECORDS_PER_COPY = 100000
 
 
 class User(Enum):
@@ -433,7 +433,6 @@ class TemporaryTable(Table):
         records=None,
         offset=2,
     ):
-
         self._validate_csv_contains_eof(csv_path=csv_path)
         db.copy_csv_in_table(
             file_location=csv_path,
