@@ -23,12 +23,11 @@ from mipdb.tables import (
     ActionsTable,
     MetadataTable,
     PrimaryDataTable,
-    TemporaryTable,
+    TemporaryTable, RECORDS_PER_COPY,
 )
 from mipdb.data_frame import DataFrame
 
 DATASET_COLUMN_NAME = "dataset"
-RECORDS_PER_COPY = 100000
 
 
 class UseCase(ABC):
@@ -231,7 +230,7 @@ class ImportCSV(UseCase):
                     csv_path=csv_path, data_model=data_model, conn=conn
                 )
 
-            existing_datasets = datasets_table.get_values(columns=["code"], db=conn)
+            existing_datasets = datasets_table.get_values(columns=["code"], data_model_id=data_model_id, db=conn)
             for dataset in set(imported_datasets) - set(existing_datasets):
                 dataset_id = self._get_next_dataset_id(conn)
                 values = dict(
@@ -314,11 +313,12 @@ class ImportCSV(UseCase):
                 temporary_table.get_unique_datasets(db)
             )
             db.copy_data_table_to_another_table(primary_data_table, temporary_table)
-            temporary_table.delete(db)
 
             # If the temp contains fewer rows than RECORDS_PER_COPY
             # that means we have read all the records in the csv and we need to stop the iteration.
             table_count = temporary_table.get_row_count(db=db)
+            temporary_table.delete(db)
+
             if table_count < RECORDS_PER_COPY:
                 break
 
@@ -414,9 +414,8 @@ class ValidateDataset(UseCase):
         temporary_table = self._create_temporary_table(
             dataframe_sql_type_per_column, conn
         )
-        temporary_table.load_csv(csv_path=csv_path, db=conn)
-        validated_datasets = temporary_table.get_unique_datasets(conn)
-        temporary_table.validate_data(cdes_with_min_max, cdes_with_enumerations, conn)
+
+        validated_datasets = temporary_table.validate_csv(csv_path, cdes_with_min_max, cdes_with_enumerations, conn)
         temporary_table.drop(conn)
         return validated_datasets
 

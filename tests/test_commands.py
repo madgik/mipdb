@@ -188,6 +188,44 @@ def test_add_dataset(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_add_two_datasets_with_same_name_different_data_model(db):
+    # Setup
+    runner = CliRunner()
+
+    # Check dataset not present already
+    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
+    runner.invoke(add_data_model, ["tests/data/success/data_model1_v_1_0/CDEsMetadata.json"] + DEFAULT_OPTIONS)
+
+    # Test
+    result = runner.invoke(
+        add_dataset,
+        [
+            ABSOLUTE_PATH_SUCCESS_DATA_FOLDER + "/data_model_v_1_0/dataset10.csv",
+            "--data-model",
+            "data_model",
+            "-v",
+            "1.0",
+        ]
+        + DEFAULT_OPTIONS,
+    )
+    result = runner.invoke(
+        add_dataset,
+        [
+            ABSOLUTE_PATH_SUCCESS_DATA_FOLDER + "/data_model1_v_1_0/dataset10.csv",
+            "--data-model",
+            "data_model1",
+            "-v",
+            "1.0",
+        ]
+        + DEFAULT_OPTIONS,
+    )
+    assert result.exit_code == ExitCode.OK
+    assert [(1, 'dataset10'), (2, 'dataset10')] == db.get_values(columns=["data_model_id", "code"])
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_validate_dataset_with_volume(db):
     # Setup
     runner = CliRunner()
