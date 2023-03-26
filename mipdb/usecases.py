@@ -308,7 +308,7 @@ class ImportCSV(UseCase):
         # for a sort period of time will have a spike of memory usage because the data will be stored in both tables.
         # The workaround for that is to load the csv in batches.
         while True:
-            temporary_table.load_csv(csv_path=csv_path, records=RECORDS_PER_COPY, db=db)
+            temporary_table.load_csv(csv_path=csv_path, offset=offset, records=RECORDS_PER_COPY, db=db)
             imported_datasets = set(imported_datasets) | set(
                 temporary_table.get_unique_datasets(db)
             )
