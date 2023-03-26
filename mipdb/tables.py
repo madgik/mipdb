@@ -395,7 +395,7 @@ class TemporaryTable(Table):
         offset = 2
 
         while True:
-            self.load_csv(csv_path=csv_path, records=RECORDS_PER_COPY, db=db)
+            self.load_csv(csv_path=csv_path, offset=offset, records=RECORDS_PER_COPY, db=db)
             validated_datasets = set(validated_datasets) | set(
                 self.get_unique_datasets(db)
             )
@@ -407,7 +407,6 @@ class TemporaryTable(Table):
             # that means we have read all the records in the csv and we need to stop the iteration.
             table_count = self.get_row_count(db=db)
             self.delete(db)
-
             if table_count < RECORDS_PER_COPY:
                 break
 
