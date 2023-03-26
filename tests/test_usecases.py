@@ -404,6 +404,24 @@ def test_add_dataset_with_small_record_copy_with_volume(db, data_model_metadata)
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_csv_legnth_equals_records_per_copy(db, data_model_metadata):
+    # Setup
+    InitDB(db).execute()
+    AddDataModel(db).execute(data_model_metadata)
+    with patch('mipdb.tables.RECORDS_PER_COPY', 5):
+        # Test
+        ImportCSV(db).execute(
+            csv_path=ABSOLUTE_PATH_DATASET_FILE,
+            copy_from_file=True,
+            data_model_code="data_model",
+            data_model_version="1.0",
+        )
+    records = db.execute(f"SELECT count(*) FROM \"data_model:1.0\".primary_data").fetchall()
+    assert 5 == records[0][0]
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_validate_dataset(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
