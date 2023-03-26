@@ -309,20 +309,23 @@ class ImportCSV(UseCase):
         # The workaround for that is to load the csv in batches.
         while True:
             temporary_table.load_csv(csv_path=csv_path, offset=offset, records=RECORDS_PER_COPY, db=db)
+            offset += RECORDS_PER_COPY
+
+            table_count = temporary_table.get_row_count(db=db)
+            if not table_count:
+                break
+
             imported_datasets = set(imported_datasets) | set(
                 temporary_table.get_unique_datasets(db)
             )
             db.copy_data_table_to_another_table(primary_data_table, temporary_table)
+            temporary_table.delete(db)
 
             # If the temp contains fewer rows than RECORDS_PER_COPY
             # that means we have read all the records in the csv and we need to stop the iteration.
-            table_count = temporary_table.get_row_count(db=db)
-            temporary_table.delete(db)
-
             if table_count < RECORDS_PER_COPY:
                 break
 
-            offset += RECORDS_PER_COPY
         return imported_datasets
 
     def _import_csv(self, csv_path, data_model, conn):
@@ -414,7 +417,6 @@ class ValidateDataset(UseCase):
         temporary_table = self._create_temporary_table(
             dataframe_sql_type_per_column, conn
         )
-
         validated_datasets = temporary_table.validate_csv(csv_path, cdes_with_min_max, cdes_with_enumerations, conn)
         temporary_table.drop(conn)
         return validated_datasets
