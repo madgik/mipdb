@@ -3,6 +3,8 @@ name: Mirror to Ebrains
 on:
   push:
     branches: [ main ]
+    tags:
+    - '*'
 
 jobs:
   to_ebrains:
