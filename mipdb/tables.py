@@ -447,7 +447,7 @@ class TemporaryTable(Table):
         with open(csv_path, "rb") as f:
             last_line = f.readlines()[-1]
         if not last_line.endswith(b"\n"):
-            raise UserInputError(f"CSV:'{csv_path}' does not end with a blank line.")
+            raise UserInputError(f"CSV:'{csv_path}' does not end with a valid EOF delimiter.")
 
     def _validate_enumerations_restriction(self, cdes_with_enumerations, db):
         for cde, enumerations in cdes_with_enumerations.items():
