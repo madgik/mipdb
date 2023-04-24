@@ -1,6 +1,5 @@
 import os
 import time
-from unittest import mock
 
 import pytest
 import docker

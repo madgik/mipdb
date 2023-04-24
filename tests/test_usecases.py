@@ -1,14 +1,18 @@
 import json
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 
 from mipdb.database import METADATA_SCHEMA, MonetDB
-from mipdb.exceptions import ForeignKeyError, DataBaseError
+from mipdb.exceptions import ForeignKeyError, DataBaseError, InvalidDatasetError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
 from mipdb.tables import DataModelTable, DatasetsTable, ActionsTable
-from mipdb.usecases import AddPropertyToDataset
+from mipdb.usecases import (
+    AddPropertyToDataset,
+    check_unique_longitudinal_dataset_primary_keys,
+)
 from mipdb.usecases import AddPropertyToDataModel
 from mipdb.usecases import (
     AddDataModel,
@@ -372,7 +376,7 @@ def test_add_dataset_with_small_record_copy(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    with patch('mipdb.tables.RECORDS_PER_COPY', 1):
+    with patch("mipdb.tables.RECORDS_PER_COPY", 1):
         # Test
         ImportCSV(db).execute(
             csv_path=DATASET_FILE,
@@ -380,7 +384,9 @@ def test_add_dataset_with_small_record_copy(db, data_model_metadata):
             data_model_code="data_model",
             data_model_version="1.0",
         )
-    records = db.execute(f"SELECT count(*) FROM \"data_model:1.0\".primary_data").fetchall()
+    records = db.execute(
+        f'SELECT count(*) FROM "data_model:1.0".primary_data'
+    ).fetchall()
     assert 5 == records[0][0]
 
 
@@ -390,7 +396,7 @@ def test_add_dataset_with_small_record_copy_with_volume(db, data_model_metadata)
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    with patch('mipdb.tables.RECORDS_PER_COPY', 1):
+    with patch("mipdb.tables.RECORDS_PER_COPY", 1):
         # Test
         ImportCSV(db).execute(
             csv_path=ABSOLUTE_PATH_DATASET_FILE,
@@ -398,7 +404,9 @@ def test_add_dataset_with_small_record_copy_with_volume(db, data_model_metadata)
             data_model_code="data_model",
             data_model_version="1.0",
         )
-    records = db.execute(f"SELECT count(*) FROM \"data_model:1.0\".primary_data").fetchall()
+    records = db.execute(
+        f'SELECT count(*) FROM "data_model:1.0".primary_data'
+    ).fetchall()
     assert 5 == records[0][0]
 
 
@@ -408,7 +416,7 @@ def test_csv_legnth_equals_records_per_copy(db, data_model_metadata):
     # Setup
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    with patch('mipdb.tables.RECORDS_PER_COPY', 5):
+    with patch("mipdb.tables.RECORDS_PER_COPY", 5):
         # Test
         ImportCSV(db).execute(
             csv_path=ABSOLUTE_PATH_DATASET_FILE,
@@ -416,8 +424,23 @@ def test_csv_legnth_equals_records_per_copy(db, data_model_metadata):
             data_model_code="data_model",
             data_model_version="1.0",
         )
-    records = db.execute(f"SELECT count(*) FROM \"data_model:1.0\".primary_data").fetchall()
+    records = db.execute(
+        f'SELECT count(*) FROM "data_model:1.0".primary_data'
+    ).fetchall()
     assert 5 == records[0][0]
+
+
+def test_check_duplicate_pairs_success():
+    df = pd.DataFrame({"visitid": [1, 2, 3, 4], "subjectid": [10, 20, 30, 40]})
+    check_unique_longitudinal_dataset_primary_keys(df)
+
+
+def test_check_duplicate_pairs_fail():
+    df = pd.DataFrame({"visitid": [1, 2, 3, 3, 3, 4], "subjectid": [10, 20, 20, 30, 30, 40]})
+    expected_output = "Invalid csv: the following visitid and subjectid pairs are duplicated:\n   visitid  subjectid\n3        3         30\n4        3         30"
+
+    with pytest.raises(InvalidDatasetError, match=expected_output):
+        check_unique_longitudinal_dataset_primary_keys(df)
 
 
 @pytest.mark.database
