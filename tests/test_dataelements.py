@@ -4,6 +4,7 @@ from mipdb.dataelements import (
     make_cdes,
     CommonDataElement,
     validate_dataset_present_on_cdes_with_proper_format,
+    validate_longitudinal_data_model,
 )
 from mipdb.exceptions import InvalidDataModelError
 
@@ -113,3 +114,74 @@ def test_is_categorical_without_enumerations():
     }
     with pytest.raises(InvalidDataModelError):
         CommonDataElement.from_metadata(metadata)
+
+
+@pytest.mark.parametrize(
+    "cdes",
+    [
+        pytest.param(
+            [],
+            id="subjectid and visitid are missing",
+        ),
+        pytest.param(
+            [
+                CommonDataElement(
+                    code="visitid",
+                    metadata='{"code": "visitid", "sql_type": "text", "description": "", "enumerations": {"BL": "Base line", "FL1": "Follow up 1", "FL2": "Follow up 2"}, "label": "visitid", "methodology": "", "is_categorical": true}',
+                )
+            ],
+            id="subjectid is missing",
+        ),
+        pytest.param(
+            [
+                CommonDataElement(
+                    code="subjectid",
+                    metadata='{"code": "subjectid", "sql_type": "text", "description": "", "label": "subjectid", "methodology": "", "is_categorical": false}',
+                )
+            ],
+            id="visitid is missing",
+        ),
+        pytest.param(
+            [
+                CommonDataElement(
+                    code="subjectid",
+                    metadata='{"code": "subjectid", "sql_type": "text", "description": "", "label": "subjectid", "methodology": "", "is_categorical": false}',
+                ),
+                CommonDataElement(
+                    code="visitid",
+                    metadata='{"code": "visitid", "sql_type": "text", "description": "", "label": "visitid", "methodology": "", "is_categorical": false}',
+                ),
+            ],
+            id="visitid is not categorical",
+        ),
+        pytest.param(
+            [
+                CommonDataElement(
+                    code="subjectid",
+                    metadata='{"code": "subjectid", "sql_type": "text", "description": "", "label": "subjectid", "methodology": "", "is_categorical": false}',
+                ),
+                CommonDataElement(
+                    code="visitid",
+                    metadata='{"code": "visitid", "sql_type": "int", "description": "", "enumerations": {"BL": "Base line", "FL1": "Follow up 1", "FL2": "Follow up 2"}, "label": "visitid", "methodology": "", "is_categorical": true}',
+                ),
+            ],
+            id="visitid's sql type is not 'text'",
+        ),
+        pytest.param(
+            [
+                CommonDataElement(
+                    code="subjectid",
+                    metadata='{"code": "subjectid", "sql_type": "text", "description": "", "label": "subjectid", "methodology": "", "is_categorical": false}',
+                ),
+                CommonDataElement(
+                    code="visitid",
+                    metadata='{"code": "visitid", "sql_type": "text", "description": "", "label": "visitid", "methodology": "", "is_categorical": true}',
+                ),
+            ],
+            id="visitid is categorical but it does not contain enumerations",
+        ),
+    ],
+)
+def test_validate_longitudinal_data_model(cdes):
+    with pytest.raises(InvalidDataModelError):
+        validate_longitudinal_data_model(cdes)

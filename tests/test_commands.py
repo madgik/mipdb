@@ -195,7 +195,10 @@ def test_add_two_datasets_with_same_name_different_data_model(db):
     # Check dataset not present already
     runner.invoke(init, DEFAULT_OPTIONS)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, ["tests/data/success/data_model1_v_1_0/CDEsMetadata.json"] + DEFAULT_OPTIONS)
+    runner.invoke(
+        add_data_model,
+        ["tests/data/success/data_model1_v_1_0/CDEsMetadata.json"] + DEFAULT_OPTIONS,
+    )
 
     # Test
     result = runner.invoke(
@@ -221,7 +224,9 @@ def test_add_two_datasets_with_same_name_different_data_model(db):
         + DEFAULT_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
-    assert [(1, 'dataset10'), (2, 'dataset10')] == db.get_values(columns=["data_model_id", "code"])
+    assert [(1, "dataset10"), (2, "dataset10")] == db.get_values(
+        columns=["data_model_id", "code"]
+    )
 
 
 @pytest.mark.database
@@ -252,57 +257,76 @@ def test_validate_dataset_with_volume(db):
 
 dataset_files = [
     (
-        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/dataset_exceeds_max.csv",
+        "data_model",
+        "dataset_exceeds_max.csv",
         "In the column: 'var3' the following values are invalid: '(100.0,)'",
     ),
     (
-        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/dataset_exceeds_min.csv",
+        "data_model",
+        "dataset_exceeds_min.csv",
         "In the column: 'var3' the following values are invalid: '(0.0,)'",
     ),
     (
-        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/invalid_enum.csv",
+        "data_model",
+        "invalid_enum.csv",
         "In the column: 'var2' the following values are invalid: '('l3',)'",
     ),
     (
-        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/invalid_type1.csv",
+        "data_model",
+        "invalid_type1.csv",
         "Failed to import table 'temp', line 2: column 3 var3: 'double' expected in 'invalid'",
     ),
     (
-        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/missing_column_dataset.csv",
+        "data_model",
+        "missing_column_dataset.csv",
         "Dataset error: The 'dataset' column is required to exist in the csv.",
     ),
     (
-        f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/column_not_present_in_cdes.csv",
+        "data_model",
+        "column_not_present_in_cdes.csv",
         "Columns:{'non_existing_col'} are not present in the CDEs",
+    ),
+    (
+        "data_model_longitudinal",
+        "dataset.csv",
+        """Dataset error: Invalid csv: the following visitid and subjectid pairs are duplicated:
+    subjectid visitid
+1  subjectid2     FL1
+2  subjectid2     FL1""",
     ),
 ]
 
 
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-@pytest.mark.parametrize("dataset_file,exception_message", dataset_files)
-def test_invalid_dataset_error_cases(dataset_file, exception_message, db):
+@pytest.mark.parametrize("data_model,dataset,exception_message", dataset_files)
+def test_invalid_dataset_error_cases(data_model, dataset, exception_message, db):
     runner = CliRunner()
 
     runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(
+    result = runner.invoke(
         add_data_model,
         [
-            f"{ABSOLUTE_PATH_FAIL_DATA_FOLDER}/data_model_v_1_0/CDEsMetadata.json",
+            ABSOLUTE_PATH_FAIL_DATA_FOLDER
+            + "/"
+            + data_model
+            + "_v_1_0/CDEsMetadata.json",
         ]
         + DEFAULT_OPTIONS,
     )
+    assert result.exit_code == ExitCode.OK
 
     validation_result = runner.invoke(
         validate_dataset,
         [
-            dataset_file,
+            ABSOLUTE_PATH_FAIL_DATA_FOLDER + "/" + data_model + "_v_1_0/" + dataset,
             "-d",
-            "data_model",
+            data_model,
             "-v",
             "1.0",
         ]
         + DEFAULT_OPTIONS,
     )
+
     assert (
         validation_result.exception.__str__() == exception_message
         or exception_message in validation_result.stdout
@@ -402,6 +426,7 @@ def test_load_folder_with_volume(db):
         "dataset2",
         "dataset10",
         "dataset20",
+        "dataset_longitudinal",
     ]
     assert set(expected) == set(dataset_codes)
     ((count, *_), *_) = db.execute(
@@ -440,6 +465,7 @@ def test_load_folder(db):
         "dataset2",
         "dataset10",
         "dataset20",
+        "dataset_longitudinal",
     ]
     assert set(expected) == set(dataset_codes)
     ((count, *_), *_) = db.execute(
@@ -461,7 +487,6 @@ def test_load_folder_twice_with_volume(db):
     result = runner.invoke(
         load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + DEFAULT_OPTIONS
     )
-    print(result.stdout)
     assert result.exit_code == ExitCode.OK
 
     # Test
@@ -482,6 +507,7 @@ def test_load_folder_twice_with_volume(db):
         "dataset2",
         "dataset10",
         "dataset20",
+        "dataset_longitudinal",
     ]
     assert set(expected) == set(dataset_codes)
     ((count, *_), *_) = db.execute(

@@ -59,6 +59,43 @@ def validate_dataset_present_on_cdes_with_proper_format(cdes):
         )
 
 
+def validate_longitudinal_data_model(cdes):
+    subject_id_metadata = None
+    visit_id_metadata = None
+
+    for cde in cdes:
+        if cde.code == "subjectid":
+            subject_id_metadata = json.loads(cde.metadata)
+        elif cde.code == "visitid":
+            visit_id_metadata = json.loads(cde.metadata)
+
+    if not subject_id_metadata:
+        raise InvalidDataModelError(
+            "There is no 'subjectid' CDE in the longitudinal data model."
+        )
+    if not visit_id_metadata:
+        raise InvalidDataModelError(
+            "There is no 'visitid' CDE in the longitudinal data model."
+        )
+
+    validate_visitid_cde(visit_id_metadata)
+
+
+def validate_visitid_cde(metadata):
+    if not metadata["is_categorical"]:
+        raise InvalidDataModelError(
+            "CDE 'visitid' must have the 'isCategorical' property equal to 'true'."
+        )
+    if metadata["sql_type"] != "text":
+        raise InvalidDataModelError(
+            "CDE 'visitid' must have the 'sql_type' property equal to 'text'."
+        )
+    if "enumerations" not in metadata:
+        raise InvalidDataModelError(
+            "CDE 'visitid' must contain the 'enumerations' property."
+        )
+
+
 def reformat_metadata(metadata):
     new_key_assign = {
         "isCategorical": "is_categorical",

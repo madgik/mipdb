@@ -16,6 +16,7 @@ from mipdb.schema import Schema
 from mipdb.dataelements import (
     make_cdes,
     validate_dataset_present_on_cdes_with_proper_format,
+    validate_longitudinal_data_model,
 )
 from mipdb.tables import (
     DataModelTable,
@@ -23,11 +24,13 @@ from mipdb.tables import (
     ActionsTable,
     MetadataTable,
     PrimaryDataTable,
-    TemporaryTable, RECORDS_PER_COPY,
+    TemporaryTable,
+    RECORDS_PER_COPY,
 )
 from mipdb.data_frame import DataFrame
 
 DATASET_COLUMN_NAME = "dataset"
+LONGITUDINAL = "longitudinal"
 
 
 class UseCase(ABC):
@@ -125,6 +128,14 @@ class AddDataModel(UseCase):
                 value=data_model_metadata,
                 force=True,
             )
+            if (
+                LONGITUDINAL in data_model_metadata
+                and data_model_metadata[LONGITUDINAL]
+            ):
+                validate_longitudinal_data_model(cdes)
+                TagDataModel(self.db).execute(
+                    code=code, version=version, tag=LONGITUDINAL
+                )
 
     def _create_schema(self, name, conn):
         schema = Schema(name)
@@ -230,7 +241,9 @@ class ImportCSV(UseCase):
                     csv_path=csv_path, data_model=data_model, conn=conn
                 )
 
-            existing_datasets = datasets_table.get_values(columns=["code"], data_model_id=data_model_id, db=conn)
+            existing_datasets = datasets_table.get_values(
+                columns=["code"], data_model_id=data_model_id, db=conn
+            )
             for dataset in set(imported_datasets) - set(existing_datasets):
                 dataset_id = self._get_next_dataset_id(conn)
                 values = dict(
@@ -308,7 +321,9 @@ class ImportCSV(UseCase):
         # for a sort period of time will have a spike of memory usage because the data will be stored in both tables.
         # The workaround for that is to load the csv in batches.
         while True:
-            temporary_table.load_csv(csv_path=csv_path, offset=offset, records=RECORDS_PER_COPY, db=db)
+            temporary_table.load_csv(
+                csv_path=csv_path, offset=offset, records=RECORDS_PER_COPY, db=db
+            )
             offset += RECORDS_PER_COPY
 
             table_count = temporary_table.get_row_count(db=db)
@@ -340,7 +355,38 @@ class ImportCSV(UseCase):
         return imported_datasets
 
 
+def are_data_valid_longitudinal(csv_path):
+    df = pd.read_csv(csv_path, usecols=["subjectid", "visitid"])
+    check_unique_longitudinal_dataset_primary_keys(df)
+    check_subjectid_is_full(df)
+    check_visitid_is_full(df)
+
+
+def check_unique_longitudinal_dataset_primary_keys(df):
+    duplicates = df[df.duplicated(subset=["visitid", "subjectid"], keep=False)]
+    if not duplicates.empty:
+        raise InvalidDatasetError(
+            f"Invalid csv: the following visitid and subjectid pairs are duplicated:\n{duplicates}"
+        )
+
+
+def check_subjectid_is_full(df):
+    if df["subjectid"].isnull().any():
+        raise InvalidDatasetError("Column 'subjectid' should never contain null values")
+
+
+def check_visitid_is_full(df):
+    if df["visitid"].isnull().any():
+        raise InvalidDatasetError("Column 'visitid' should never contain null values")
+
+
 class ValidateDataset(UseCase):
+    """
+    We separate the data validation from the importation to make sure that a csv is valid as a whole before committing it to the main table.
+    In the data validation we use chunking in order to reduce the memory footprint of the process.
+    Database constraints must NOT be used as part of the validation process since that could result in partially imported csvs.
+    """
+
     def __init__(self, db: DataBase) -> None:
         self.db = db
         is_db_initialized(db)
@@ -366,6 +412,12 @@ class ValidateDataset(UseCase):
                 csv_columns
             )
             dataset_enumerations = metadata_table.get_dataset_enums()
+            if self.is_data_model_longitudinal(
+                data_model_code, data_model_version, conn
+            ):
+                print("is_data_model_longitudinal")
+                are_data_valid_longitudinal(csv_path)
+
             if copy_from_file:
                 validated_datasets = self.validate_csv_with_volume(
                     csv_path,
@@ -385,6 +437,15 @@ class ValidateDataset(UseCase):
                 datasets=validated_datasets,
                 dataset_enumerations=dataset_enumerations,
             )
+
+    def is_data_model_longitudinal(self, data_model_code, data_model_version, conn):
+        metadata = Schema(METADATA_SCHEMA)
+        data_model_table = DataModelTable(schema=metadata)
+        data_model_id = data_model_table.get_data_model_id(
+            data_model_code, data_model_version, conn
+        )
+        properties = data_model_table.get_data_model_properties(data_model_id, conn)
+        return "longitudinal" in json.loads(properties)["tags"]
 
     def validate_csv(
         self, csv_path, sql_type_per_column, cdes_with_min_max, cdes_with_enumerations
@@ -417,7 +478,9 @@ class ValidateDataset(UseCase):
         temporary_table = self._create_temporary_table(
             dataframe_sql_type_per_column, conn
         )
-        validated_datasets = temporary_table.validate_csv(csv_path, cdes_with_min_max, cdes_with_enumerations, conn)
+        validated_datasets = temporary_table.validate_csv(
+            csv_path, cdes_with_min_max, cdes_with_enumerations, conn
+        )
         temporary_table.drop(conn)
         return validated_datasets
 

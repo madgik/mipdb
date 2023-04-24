@@ -13,6 +13,7 @@ from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
+
 RECORDS_PER_COPY = 100000
 
 
@@ -395,7 +396,9 @@ class TemporaryTable(Table):
         offset = 2
 
         while True:
-            self.load_csv(csv_path=csv_path, offset=offset, records=RECORDS_PER_COPY, db=db)
+            self.load_csv(
+                csv_path=csv_path, offset=offset, records=RECORDS_PER_COPY, db=db
+            )
             offset += RECORDS_PER_COPY
 
             table_count = self.get_row_count(db=db)
@@ -415,7 +418,6 @@ class TemporaryTable(Table):
                 break
 
         return validated_datasets
-
 
     def _validate_min_max_restriction(self, cdes_with_min_max, db):
         for cde, min_max in cdes_with_min_max.items():
@@ -447,7 +449,9 @@ class TemporaryTable(Table):
         with open(csv_path, "rb") as f:
             last_line = f.readlines()[-1]
         if not last_line.endswith(b"\n"):
-            raise UserInputError(f"CSV:'{csv_path}' does not end with a valid EOF delimiter.")
+            raise UserInputError(
+                f"CSV:'{csv_path}' does not end with a valid EOF delimiter."
+            )
 
     def _validate_enumerations_restriction(self, cdes_with_enumerations, db):
         for cde, enumerations in cdes_with_enumerations.items():
