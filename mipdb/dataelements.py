@@ -44,6 +44,40 @@ def make_cdes(schema_data):
     return cdes
 
 
+def get_sql_type_per_column(cdes):
+    return {code: json.loads(cde.metadata)["sql_type"] for code, cde in cdes.items()}
+
+
+def get_cdes_with_min_max(cdes, columns):
+    cdes_with_min_max = {}
+    for code, cde in cdes.items():
+        if code not in columns:
+            continue
+        metadata = json.loads(cde.metadata)
+        max_value = metadata["max"] if "max" in metadata else None
+        min_value = metadata["min"] if "min" in metadata else None
+        if code in columns and min_value or max_value:
+            cdes_with_min_max[code] = (min_value, max_value)
+    return cdes_with_min_max
+
+
+def get_cdes_with_enumerations(cdes, columns):
+    return {
+        code: [
+            enum_code
+            for enum_code, enum_label in json.loads(cde.metadata)[
+                "enumerations"
+            ].items()
+        ]
+        for code, cde in cdes.items()
+        if json.loads(cde.metadata)["is_categorical"] and code in columns
+    }
+
+
+def get_dataset_enums(cdes):
+    return json.loads(cdes["dataset"].metadata)["enumerations"]
+
+
 def validate_dataset_present_on_cdes_with_proper_format(cdes):
     dataset_cde = [cde for cde in cdes if cde.code == "dataset"]
     if not dataset_cde:

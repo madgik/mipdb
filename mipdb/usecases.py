@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from mipdb.database import DataBase, Connection
+from mipdb.database import DataBase
 from mipdb.database import METADATA_SCHEMA
 from mipdb.data_frame_schema import DataFrameSchema
 from mipdb.exceptions import ForeignKeyError, InvalidDatasetError
@@ -17,6 +17,10 @@ from mipdb.dataelements import (
     make_cdes,
     validate_dataset_present_on_cdes_with_proper_format,
     validate_longitudinal_data_model,
+    get_sql_type_per_column,
+    get_cdes_with_min_max,
+    get_cdes_with_enumerations,
+    get_dataset_enums,
 )
 from mipdb.tables import (
     DataModelTable,
@@ -153,6 +157,14 @@ class AddDataModel(UseCase):
         metadata_table.insert_values(values, conn)
 
 
+class ValidateDataModel(UseCase):
+    def execute(self, data_model_metadata) -> None:
+        cdes = make_cdes(copy.deepcopy(data_model_metadata))
+        validate_dataset_present_on_cdes_with_proper_format(cdes)
+        if LONGITUDINAL in data_model_metadata and data_model_metadata[LONGITUDINAL]:
+            validate_longitudinal_data_model(cdes)
+
+
 class DeleteDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
@@ -226,8 +238,9 @@ class ImportCSV(UseCase):
                 data_model_code, data_model_version, conn
             )
             metadata_table = MetadataTable.from_db(data_model, conn)
-            dataset_enumerations = metadata_table.get_dataset_enums()
-            sql_type_per_column = metadata_table.get_sql_type_per_column()
+            cdes = metadata_table.table
+            dataset_enumerations = get_dataset_enums(cdes)
+            sql_type_per_column = get_sql_type_per_column(cdes)
 
             if copy_from_file:
                 imported_datasets = self.import_csv_with_volume(
@@ -406,16 +419,14 @@ class ValidateDataset(UseCase):
                     "The 'dataset' column is required to exist in the csv."
                 )
             metadata_table = MetadataTable.from_db(data_model, conn)
-            sql_type_per_column = metadata_table.get_sql_type_per_column()
-            cdes_with_min_max = metadata_table.get_cdes_with_min_max(csv_columns)
-            cdes_with_enumerations = metadata_table.get_cdes_with_enumerations(
-                csv_columns
-            )
-            dataset_enumerations = metadata_table.get_dataset_enums()
+            cdes = metadata_table.table
+            sql_type_per_column = get_sql_type_per_column(cdes)
+            cdes_with_min_max = get_cdes_with_min_max(cdes, csv_columns)
+            cdes_with_enumerations = get_cdes_with_enumerations(cdes, csv_columns)
+            dataset_enumerations = get_dataset_enums(cdes)
             if self.is_data_model_longitudinal(
                 data_model_code, data_model_version, conn
             ):
-                print("is_data_model_longitudinal")
                 are_data_valid_longitudinal(csv_path)
 
             if copy_from_file:
@@ -498,6 +509,65 @@ class ValidateDataset(UseCase):
         temporary_table = TemporaryTable(dataframe_sql_type_per_column, conn)
         temporary_table.create(conn)
         return temporary_table
+
+    def verify_datasets_exist_in_enumerations(self, datasets, dataset_enumerations):
+        non_existing_datasets = [
+            dataset for dataset in datasets if dataset not in dataset_enumerations
+        ]
+        if non_existing_datasets:
+            raise InvalidDatasetError(
+                f"The values:'{non_existing_datasets}' are not present in the enumerations of the CDE 'dataset'."
+            )
+
+
+class ValidateDatasetNoDatabase(UseCase):
+    """
+    We separate the data validation from the importation to make sure that a csv is valid as a whole before committing it to the main table.
+    In the data validation we use chunking in order to reduce the memory footprint of the process.
+    Database constraints must NOT be used as part of the validation process since that could result in partially imported csvs.
+    """
+
+    def execute(self, csv_path, data_model_metadata) -> None:
+
+        csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
+        if DATASET_COLUMN_NAME not in csv_columns:
+            raise InvalidDatasetError(
+                "The 'dataset' column is required to exist in the csv."
+            )
+        cdes = make_cdes(copy.deepcopy(data_model_metadata))
+        cdes = {cde.code: cde for cde in cdes}
+        sql_type_per_column = get_sql_type_per_column(cdes)
+        cdes_with_min_max = get_cdes_with_min_max(cdes, csv_columns)
+        cdes_with_enumerations = get_cdes_with_enumerations(cdes, csv_columns)
+        dataset_enumerations = get_dataset_enums(cdes)
+        if "longitudinal" in data_model_metadata:
+            are_data_valid_longitudinal(csv_path)
+        validated_datasets = self.validate_csv(
+            csv_path,
+            sql_type_per_column,
+            cdes_with_min_max,
+            cdes_with_enumerations,
+        )
+        self.verify_datasets_exist_in_enumerations(
+            datasets=validated_datasets,
+            dataset_enumerations=dataset_enumerations,
+        )
+
+    def validate_csv(
+        self, csv_path, sql_type_per_column, cdes_with_min_max, cdes_with_enumerations
+    ):
+        imported_datasets = []
+
+        csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
+        dataframe_schema = DataFrameSchema(
+            sql_type_per_column, cdes_with_min_max, cdes_with_enumerations, csv_columns
+        )
+        with CSVDataFrameReader(csv_path).get_reader() as reader:
+            for dataset_data in reader:
+                dataframe = DataFrame(dataset_data)
+                dataframe_schema.validate_dataframe(dataframe.data)
+                imported_datasets = set(imported_datasets) | set(dataframe.datasets)
+        return imported_datasets
 
     def verify_datasets_exist_in_enumerations(self, datasets, dataset_enumerations):
         non_existing_datasets = [

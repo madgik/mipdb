@@ -436,7 +436,9 @@ def test_check_duplicate_pairs_success():
 
 
 def test_check_duplicate_pairs_fail():
-    df = pd.DataFrame({"visitid": [1, 2, 3, 3, 3, 4], "subjectid": [10, 20, 20, 30, 30, 40]})
+    df = pd.DataFrame(
+        {"visitid": [1, 2, 3, 3, 3, 4], "subjectid": [10, 20, 20, 30, 30, 40]}
+    )
     expected_output = "Invalid csv: the following visitid and subjectid pairs are duplicated:\n   visitid  subjectid\n3        3         30\n4        3         30"
 
     with pytest.raises(InvalidDatasetError, match=expected_output):

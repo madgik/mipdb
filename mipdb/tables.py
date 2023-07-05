@@ -343,39 +343,6 @@ class MetadataTable(Table):
         )
         db.execute(query, values)
 
-    def get_dataset_enums(self):
-        return json.loads(self.table["dataset"].metadata)["enumerations"]
-
-    def get_sql_type_per_column(self):
-        return {
-            code: json.loads(cde.metadata)["sql_type"]
-            for code, cde in self.table.items()
-        }
-
-    def get_cdes_with_min_max(self, columns):
-        cdes_with_min_max = {}
-        for code, cde in self.table.items():
-            if code not in columns:
-                continue
-            metadata = json.loads(cde.metadata)
-            max_value = metadata["max"] if "max" in metadata else None
-            min_value = metadata["min"] if "min" in metadata else None
-            if code in columns and min_value or max_value:
-                cdes_with_min_max[code] = (min_value, max_value)
-        return cdes_with_min_max
-
-    def get_cdes_with_enumerations(self, columns):
-        return {
-            code: [
-                enum_code
-                for enum_code, enum_label in json.loads(cde.metadata)[
-                    "enumerations"
-                ].items()
-            ]
-            for code, cde in self.table.items()
-            if json.loads(cde.metadata)["is_categorical"] and code in columns
-        }
-
 
 class TemporaryTable(Table):
     def __init__(self, dataframe_sql_type_per_column, db):
