@@ -15,12 +15,12 @@ class DataFrameSchema:
 
         # There is a need to construct a DataFrameSchema with all the constraints that the metadata is imposing
         # For each column a pandera Column is created that will contain the constraints for the specific column
-        for column in columns:
-            if column not in sql_type_per_column.keys():
-                raise InvalidDatasetError(
-                    f"The column: '{column}' does not exist in the metadata"
-                )
+        if not set(columns) <= set(sql_type_per_column.keys()):
+            raise InvalidDatasetError(
+                f"Columns:{set(columns) - set(sql_type_per_column.keys()) - {'row_id'} } are not present in the CDEs"
+            )
 
+        for column in columns:
             checks = self._get_pa_checks(
                 cdes_with_min_max, cdes_with_enumerations, column
             )

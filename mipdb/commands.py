@@ -6,7 +6,12 @@ import glob
 
 from mipdb.database import MonetDB
 from mipdb.reader import JsonFileReader
-from mipdb.usecases import AddDataModel, Cleanup
+from mipdb.usecases import (
+    AddDataModel,
+    Cleanup,
+    ValidateDatasetNoDatabase,
+    ValidateDataModel,
+)
 from mipdb.usecases import AddPropertyToDataModel
 from mipdb.usecases import AddPropertyToDataset
 from mipdb.usecases import DeleteDataModel
@@ -145,6 +150,27 @@ def load_folder(file, copy_from_file, ip, port, username, password, db_name):
             ValidateDataset(db).execute(csv_path, copy_from_file, code, version)
             ImportCSV(db).execute(csv_path, copy_from_file, code, version)
             print(f"CSV '{csv_path}' was successfully added.")
+
+
+@entry.command()
+@cl.argument("file", required=True)
+@handle_errors
+def validate_folder(file):
+    for subdir, dirs, files in os.walk(file):
+        if dirs:
+            continue
+        print(f"Data model '{subdir}' is being validated...")
+        metadata_path = os.path.join(subdir, "CDEsMetadata.json")
+        reader = JsonFileReader(metadata_path)
+        data_model_metadata = reader.read()
+        code = data_model_metadata["code"]
+        ValidateDataModel().execute(data_model_metadata)
+        print(f"Data model '{code}' was successfully validated.")
+
+        for csv_path in glob.glob(subdir + "/*.csv"):
+            print(f"CSV '{csv_path}' is being validated...")
+            ValidateDatasetNoDatabase().execute(csv_path, data_model_metadata)
+            print(f"CSV '{csv_path}' was successfully validated.")
 
 
 @entry.command()

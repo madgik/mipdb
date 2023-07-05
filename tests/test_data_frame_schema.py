@@ -106,7 +106,7 @@ invalid_dataframes = [
                 "dataset": ["dataset1", "dataset1"],
             }
         ),
-        "The column: 'var5' does not exist in the metadata",
+        "Columns:{'var5'} are not present in the CDEs",
         id="text with int/float enumerations(1,2.0)  and 1.0 was given",
     ),
     pytest.param(
