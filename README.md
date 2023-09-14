@@ -11,10 +11,10 @@ Before you begin, ensure you have met the following requirements:
 
 ## Installation
 
-You can easily install mipdb using `pip`:
+You can easily install mipdb using `pip` on python3.8:
 
 ```bash
-pip install mipdb
+python3.8 -m pip install mipdb
 ```
 
 ## Usage
