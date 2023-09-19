@@ -39,8 +39,8 @@ class NotRequiredIf(cl.Option):
         option_to_env_var = {
             "--ip": os.getenv("DB_IP"),
             "--port": os.getenv("DB_PORT"),
-            "--username": os.getenv("DB_USERNAME"),
-            "--password": os.getenv("DB_PASSWORD"),
+            "--username": os.getenv("MONETDB_ADMIN_USERNAME"),
+            "--password": os.getenv("MONETDB_LOCAL_PASSWORD"),
             "--db_name": os.getenv("DB_NAME"),
         }
         option = args[0][0]

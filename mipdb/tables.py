@@ -1,3 +1,4 @@
+import os
 from abc import ABC, abstractmethod
 import json
 from enum import Enum
@@ -18,9 +19,9 @@ RECORDS_PER_COPY = 100000
 
 
 class User(Enum):
-    executor = "executor"
-    admin = "admin"
-    guest = "guest"
+    executor = os.getenv('MONETDB_LOCAL_USERNAME', 'executor')
+    admin = os.getenv('MONETDB_ADMIN_USERNAME','admin')
+    guest = os.getenv('MONETDB_PUBLIC_USERNAME','guest')
 
 
 @compiles(sql.types.JSON, "monetdb")
