@@ -1,7 +1,7 @@
 import pytest
 
 from mipdb.dataelements import (
-    make_cdes,
+    flatten_cdes,
     CommonDataElement,
     validate_dataset_present_on_cdes_with_proper_format,
     validate_longitudinal_data_model,
@@ -11,23 +11,23 @@ from mipdb.exceptions import InvalidDataModelError
 
 def test_make_cdes_empty():
     root = []
-    cdes = make_cdes(root)
+    cdes = flatten_cdes(root)
     assert cdes == []
 
 
 def test_make_cdes(data_model_metadata):
-    cdes = make_cdes(data_model_metadata)
+    cdes = flatten_cdes(data_model_metadata)
     assert all(isinstance(cde, CommonDataElement) for cde in cdes)
     assert len(cdes) == 6
 
 
 def test_validate_dataset_present_on_cdes_with_proper_format(data_model_metadata):
-    cdes = make_cdes(data_model_metadata)
+    cdes = flatten_cdes(data_model_metadata)
     validate_dataset_present_on_cdes_with_proper_format(cdes)
 
 
 def test_validate_dataset_is_not_present_on_cdes(data_model_metadata):
-    cdes = make_cdes(data_model_metadata)
+    cdes = flatten_cdes(data_model_metadata)
     cdes = [cde for cde in cdes if cde.code != "dataset"]
     with pytest.raises(InvalidDataModelError):
         validate_dataset_present_on_cdes_with_proper_format(cdes)
@@ -58,7 +58,7 @@ def test_validate_dataset_is_present_on_cdes_with_invalid_is_categorical(
 
 
 def test_make_cdes_full_schema(data_model_metadata):
-    cdes = make_cdes(data_model_metadata)
+    cdes = flatten_cdes(data_model_metadata)
     assert all(isinstance(cde, CommonDataElement) for cde in cdes)
 
 

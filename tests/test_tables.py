@@ -12,7 +12,7 @@ from mipdb.tables import (
     MetadataTable,
     PrimaryDataTable,
 )
-from mipdb.dataelements import CommonDataElement, make_cdes
+from mipdb.dataelements import CommonDataElement, flatten_cdes
 from tests.mocks import MonetDBMock
 
 
@@ -23,7 +23,7 @@ def metadata():
 
 @pytest.fixture
 def cdes(data_model_metadata):
-    return make_cdes(data_model_metadata)
+    return flatten_cdes(data_model_metadata)
 
 
 def test_get_data_models(metadata):
@@ -147,7 +147,7 @@ class TestVariablesMetadataTable:
         metadata_table = MetadataTable(schema)
         metadata_table.create(db)
         # Test
-        values = metadata_table.get_values_from_cdes(make_cdes(data_model_metadata))
+        values = metadata_table.get_values_from_cdes(flatten_cdes(data_model_metadata))
         metadata_table.insert_values(values, db)
         res = db.execute(
             "SELECT code, json.filter(metadata, '$.is_categorical') "
@@ -166,7 +166,7 @@ class TestVariablesMetadataTable:
     def test_get_values_from_cdes_full_schema_data(self, data_model_metadata):
         # Setup
         metadata_table = MetadataTable(Schema("schema:1.0"))
-        cdes = make_cdes(data_model_metadata)
+        cdes = flatten_cdes(data_model_metadata)
         # Test
         result = metadata_table.get_values_from_cdes(cdes)
         assert len(result) == 6
@@ -179,7 +179,7 @@ class TestVariablesMetadataTable:
         schema.create(db)
         metadata_table = MetadataTable(schema)
         metadata_table.create(db)
-        values = metadata_table.get_values_from_cdes(make_cdes(data_model_metadata))
+        values = metadata_table.get_values_from_cdes(flatten_cdes(data_model_metadata))
         metadata_table.insert_values(values, db)
         # Test
         schema = Schema("schema:1.0")
