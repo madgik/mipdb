@@ -14,7 +14,7 @@ from mipdb.properties import Properties
 from mipdb.reader import CSVDataFrameReader
 from mipdb.schema import Schema
 from mipdb.dataelements import (
-    make_cdes,
+    flatten_cdes,
     validate_dataset_present_on_cdes_with_proper_format,
     validate_longitudinal_data_model,
     get_sql_type_per_column,
@@ -100,8 +100,7 @@ class AddDataModel(UseCase):
         code = data_model_metadata["code"]
         version = data_model_metadata["version"]
         name = get_data_model_fullname(code, version)
-        cdes = make_cdes(copy.deepcopy(data_model_metadata))
-        validate_dataset_present_on_cdes_with_proper_format(cdes)
+        cdes = flatten_cdes(copy.deepcopy(data_model_metadata))
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
 
@@ -136,7 +135,6 @@ class AddDataModel(UseCase):
                 LONGITUDINAL in data_model_metadata
                 and data_model_metadata[LONGITUDINAL]
             ):
-                validate_longitudinal_data_model(cdes)
                 TagDataModel(self.db).execute(
                     code=code, version=version, tag=LONGITUDINAL
                 )
@@ -159,10 +157,17 @@ class AddDataModel(UseCase):
 
 class ValidateDataModel(UseCase):
     def execute(self, data_model_metadata) -> None:
-        cdes = make_cdes(copy.deepcopy(data_model_metadata))
+        if "version" not in data_model_metadata:
+            raise UserInputError("You need to include a version on the CDEsMetadata.json")
+
+        cdes = flatten_cdes(copy.deepcopy(data_model_metadata))
         validate_dataset_present_on_cdes_with_proper_format(cdes)
-        if LONGITUDINAL in data_model_metadata and data_model_metadata[LONGITUDINAL]:
-            validate_longitudinal_data_model(cdes)
+        if LONGITUDINAL in data_model_metadata:
+            longitudinal = data_model_metadata[LONGITUDINAL]
+            if not isinstance(longitudinal, bool):
+                raise UserInputError(f"Longitudinal flag should be boolean, value given: {longitudinal}")
+            if longitudinal:
+                validate_longitudinal_data_model(cdes)
 
 
 class DeleteDataModel(UseCase):
@@ -534,7 +539,7 @@ class ValidateDatasetNoDatabase(UseCase):
             raise InvalidDatasetError(
                 "The 'dataset' column is required to exist in the csv."
             )
-        cdes = make_cdes(copy.deepcopy(data_model_metadata))
+        cdes = flatten_cdes(copy.deepcopy(data_model_metadata))
         cdes = {cde.code: cde for cde in cdes}
         sql_type_per_column = get_sql_type_per_column(cdes)
         cdes_with_min_max = get_cdes_with_min_max(cdes, csv_columns)

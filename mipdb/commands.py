@@ -193,6 +193,7 @@ def add_data_model(file, ip, port, username, password, db_name):
     reader = JsonFileReader(file)
     db = MonetDB.from_config(dbconfig)
     data_model_metadata = reader.read()
+    ValidateDataModel().execute(data_model_metadata)
     AddDataModel(db).execute(data_model_metadata)
     print(f"Data model '{file}' was successfully added.")
 

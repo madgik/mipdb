@@ -28,7 +28,7 @@ class CommonDataElement:
         return metadata["enumerations"] if "enumerations" in metadata else []
 
 
-def make_cdes(schema_data):
+def flatten_cdes(schema_data):
     cdes = []
 
     if "variables" in schema_data:
@@ -39,7 +39,7 @@ def make_cdes(schema_data):
         cdes += [
             metadata
             for group_data in schema_data["groups"]
-            for metadata in make_cdes(group_data)
+            for metadata in flatten_cdes(group_data)
         ]
     return cdes
 
