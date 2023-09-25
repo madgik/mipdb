@@ -5,10 +5,10 @@ from enum import Enum
 from typing import Union, List
 
 import sqlalchemy as sql
-from sqlalchemy import ForeignKey, Integer, MetaData
+from sqlalchemy import ForeignKey, MetaData
 from sqlalchemy.ext.compiler import compiles
 
-from mipdb.database import DataBase, Connection
+from mipdb.database import DataBase, Connection, credentials_from_config
 from mipdb.database import METADATA_SCHEMA
 from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
@@ -19,9 +19,10 @@ RECORDS_PER_COPY = 100000
 
 
 class User(Enum):
-    executor = os.getenv('MONETDB_LOCAL_USERNAME', 'executor')
-    admin = os.getenv('MONETDB_ADMIN_USERNAME','admin')
-    guest = os.getenv('MONETDB_PUBLIC_USERNAME','guest')
+    credentials = credentials_from_config()
+    executor = credentials['MONETDB_LOCAL_USERNAME'] if credentials['MONETDB_LOCAL_USERNAME'] else "executor"
+    admin = credentials['MONETDB_ADMIN_USERNAME'] if credentials['MONETDB_ADMIN_USERNAME'] else "admin"
+    guest = credentials['MONETDB_PUBLIC_USERNAME'] if credentials['MONETDB_PUBLIC_USERNAME'] else "guest"
 
 
 @compiles(sql.types.JSON, "monetdb")
