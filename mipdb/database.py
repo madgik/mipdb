@@ -4,14 +4,15 @@ from contextlib import contextmanager
 from typing import Union
 
 import sqlalchemy as sql
+import toml
 from pymonetdb.sql import monetize
 
 from mipdb.exceptions import DataBaseError
-from mipdb.exceptions import UserInputError
 
 METADATA_SCHEMA = "mipdb_metadata"
 METADATA_TABLE = "variables_metadata"
 
+CONFIG = "/opt/credentials/config.toml"
 
 class Status:
     ENABLED = "ENABLED"
@@ -589,6 +590,22 @@ class MonetDBConnection(DBExecutorMixin, Connection):
         returns None when the result is empty, instead of [] which make more
         sense and agrees with sqlite behaviour."""
         return self._executor.execute(query, *args, **kwargs) or []
+
+
+def credentials_from_config():
+    try:
+        return toml.load(CONFIG)
+    except FileNotFoundError:
+        return {
+            "DB_IP":"",
+            "DB_PORT": "",
+            "MONETDB_ADMIN_USERNAME":"",
+            "MONETDB_LOCAL_USERNAME":"",
+            "MONETDB_LOCAL_PASSWORD":"",
+            "MONETDB_PUBLIC_USERNAME":"",
+            "MONETDB_PUBLIC_PASSWORD":"",
+            "DB_NAME": "",
+        }
 
 
 class MonetDB(DBExecutorMixin, DataBase):

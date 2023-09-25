@@ -4,9 +4,8 @@ import click as cl
 import os
 import glob
 
-import toml
 
-from mipdb.database import MonetDB
+from mipdb.database import MonetDB, credentials_from_config
 from mipdb.reader import JsonFileReader
 from mipdb.usecases import (
     AddDataModel,
@@ -36,28 +35,16 @@ from mipdb.usecases import UntagDataset
 from mipdb.usecases import ValidateDataset
 
 
-def load_credentials_options_from_config():
-    try:
-        config = toml.load("/opt/credentials/config.toml")
-        return {
-            "--ip": config["DB_IP"],
-            "--port": config["DB_PORT"],
-            "--username": config["MONETDB_ADMIN_USERNAME"],
-            "--password": config["MONETDB_LOCAL_PASSWORD"],
-            "--db_name": config["DB_NAME"],
-        }
-    except FileNotFoundError:
-        return {
-            "--ip": "",
-            "--port": "",
-            "--username": "",
-            "--password": "",
-            "--db_name": "",
-        }
-
 class NotRequiredIf(cl.Option):
     def __init__(self, *args, **kwargs):
-        option_to_env_var = load_credentials_options_from_config()
+        credentials = credentials_from_config()
+        option_to_env_var = {
+            "--ip": credentials["DB_IP"],
+            "--port": credentials["DB_PORT"],
+            "--username": credentials["MONETDB_ADMIN_USERNAME"],
+            "--password": credentials["MONETDB_LOCAL_PASSWORD"],
+            "--db_name": credentials["DB_NAME"],
+        }
         option = args[0][0]
         if option_to_env_var[option]:
             kwargs["required"] = False
