@@ -12,7 +12,7 @@ from mipdb.exceptions import DataBaseError
 METADATA_SCHEMA = "mipdb_metadata"
 METADATA_TABLE = "variables_metadata"
 
-CONFIG = "/opt/credentials/config.toml"
+CONFIG = "/home/config.toml"
 
 class Status:
     ENABLED = "ENABLED"
