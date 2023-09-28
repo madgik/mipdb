@@ -131,13 +131,14 @@ class AddDataModel(UseCase):
                 value=data_model_metadata,
                 force=True,
             )
-            if (
-                LONGITUDINAL in data_model_metadata
-                and data_model_metadata[LONGITUDINAL]
-            ):
-                TagDataModel(self.db).execute(
-                    code=code, version=version, tag=LONGITUDINAL
-                )
+            if LONGITUDINAL in data_model_metadata:
+                longitudinal = data_model_metadata[LONGITUDINAL]
+                if not isinstance(longitudinal, bool):
+                    raise UserInputError(f"Longitudinal flag should be boolean, value given: {longitudinal}")
+                if longitudinal:
+                    TagDataModel(self.db).execute(
+                        code=code, version=version, tag=LONGITUDINAL
+                    )
 
     def _create_schema(self, name, conn):
         schema = Schema(name)
@@ -534,7 +535,7 @@ class ValidateDatasetNoDatabase(UseCase):
 
     def execute(self, csv_path, data_model_metadata) -> None:
 
-        csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
+        csv_columns = pd.read_csv(csv_path, nrows=0, delimiter=";").columns.tolist()
         if DATASET_COLUMN_NAME not in csv_columns:
             raise InvalidDatasetError(
                 "The 'dataset' column is required to exist in the csv."
@@ -545,8 +546,12 @@ class ValidateDatasetNoDatabase(UseCase):
         cdes_with_min_max = get_cdes_with_min_max(cdes, csv_columns)
         cdes_with_enumerations = get_cdes_with_enumerations(cdes, csv_columns)
         dataset_enumerations = get_dataset_enums(cdes)
-        if "longitudinal" in data_model_metadata:
-            are_data_valid_longitudinal(csv_path)
+        if LONGITUDINAL in data_model_metadata:
+            longitudinal = data_model_metadata[LONGITUDINAL]
+            if not isinstance(longitudinal, bool):
+                raise UserInputError(f"Longitudinal flag should be boolean, value given: {longitudinal}")
+            if longitudinal:
+                are_data_valid_longitudinal(csv_path)
         validated_datasets = self.validate_csv(
             csv_path,
             sql_type_per_column,
