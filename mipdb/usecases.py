@@ -535,7 +535,7 @@ class ValidateDatasetNoDatabase(UseCase):
 
     def execute(self, csv_path, data_model_metadata) -> None:
 
-        csv_columns = pd.read_csv(csv_path, nrows=0, delimiter=";").columns.tolist()
+        csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
         if DATASET_COLUMN_NAME not in csv_columns:
             raise InvalidDatasetError(
                 "The 'dataset' column is required to exist in the csv."
