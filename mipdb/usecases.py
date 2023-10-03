@@ -31,9 +31,8 @@ from mipdb.tables import (
     TemporaryTable,
     RECORDS_PER_COPY,
 )
-from mipdb.data_frame import DataFrame
+from mipdb.data_frame import DataFrame, DATASET_COLUMN_NAME
 
-DATASET_COLUMN_NAME = "dataset"
 LONGITUDINAL = "longitudinal"
 
 
@@ -350,7 +349,7 @@ class ImportCSV(UseCase):
                 break
 
             imported_datasets = set(imported_datasets) | set(
-                temporary_table.get_unique_datasets(db)
+                temporary_table.get_column_distinct(DATASET_COLUMN_NAME, db)
             )
             db.copy_data_table_to_another_table(primary_data_table, temporary_table)
             temporary_table.delete(db)

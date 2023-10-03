@@ -1,14 +1,15 @@
-import os
 from abc import ABC, abstractmethod
 import json
 from enum import Enum
 from typing import Union, List
 
 import sqlalchemy as sql
-from sqlalchemy import ForeignKey, MetaData
+from sqlalchemy import ForeignKey, Integer, MetaData
 from sqlalchemy.ext.compiler import compiles
 
 from mipdb.database import DataBase, Connection, credentials_from_config
+from mipdb.data_frame import DATASET_COLUMN_NAME
+from mipdb.database import DataBase, Connection
 from mipdb.database import METADATA_SCHEMA
 from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
@@ -69,6 +70,9 @@ class Table(ABC):
 
     def get_row_count(self, db):
         return db.get_row_count(self.table.fullname)
+
+    def get_column_distinct(self, column, db):
+        return db.get_column_distinct(column, self.table.fullname)
 
     def drop(self, db: Union[DataBase, Connection]):
         db.drop_table(self._table)
@@ -375,7 +379,7 @@ class TemporaryTable(Table):
                 break
 
             validated_datasets = set(validated_datasets) | set(
-                self.get_unique_datasets(db)
+                self.get_column_distinct(DATASET_COLUMN_NAME, db)
             )
             self._validate_enumerations_restriction(cdes_with_enumerations, db)
             self._validate_min_max_restriction(cdes_with_min_max, db)
@@ -431,11 +435,6 @@ class TemporaryTable(Table):
                 raise Exception(
                     f"In the column: '{cde}' the following values are invalid: '{cde_invalid_values}'"
                 )
-
-    def get_unique_datasets(self, db):
-        return db.execute(
-            f"SELECT DISTINCT(dataset) FROM {self.table.fullname};"
-        ).fetchone()
 
     def set_table(self, table):
         self._table = table
