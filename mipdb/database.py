@@ -433,6 +433,13 @@ class DBExecutorMixin(ABC):
         res = self.execute(f"select COUNT(*) from {table}").fetchone()
         return res[0]
 
+    def get_column_distinct(self, column, table):
+        datasets = list(self.execute(
+            f"SELECT DISTINCT({column}) FROM {table};"
+        ))
+        datasets = [dataset[0] for dataset in datasets]
+        return datasets
+
     def get_dataset(self, dataset_id, columns):
         columns_query = ", ".join(columns) if columns else "*"
 

@@ -25,7 +25,7 @@ from tests.conftest import (
     ABSOLUTE_PATH_SUCCESS_DATA_FOLDER,
     SUCCESS_DATA_FOLDER,
     ABSOLUTE_PATH_FAIL_DATA_FOLDER,
-    DEFAULT_OPTIONS,
+    DEFAULT_OPTIONS, ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET,
 )
 from tests.conftest import DATA_MODEL_FILE
 
@@ -1072,13 +1072,13 @@ def test_list_datasets(db):
     runner.invoke(
         add_dataset,
         [
-            DATASET_FILE,
+            ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET,
             "--data-model",
             "data_model",
             "-v",
             "1.0",
             "--copy_from_file",
-            False,
+            True,
         ]
         + DEFAULT_OPTIONS,
     )
@@ -1089,12 +1089,20 @@ def test_list_datasets(db):
     assert result.stdout == "There are no datasets.\n"
     assert result_with_dataset.exit_code == ExitCode.OK
     assert (
-        "dataset_id  data_model_id     code    label   status  count"
-        in result_with_dataset.stdout
+        "dataset_id  data_model_id      code      label   status  count".strip(" ")
+        in result_with_dataset.stdout.strip(" ")
     )
     assert (
-        "0           1              1  dataset  Dataset  ENABLED      5"
-        in result_with_dataset.stdout
+        "dataset2  Dataset 2  ENABLED      2".strip(" ")
+        in result_with_dataset.stdout.strip(" ")
+    )
+    assert (
+        "dataset1  Dataset 1  ENABLED      2".strip(" ")
+        in result_with_dataset.stdout.strip(" ")
+    )
+    assert (
+        "dataset    Dataset  ENABLED      1".strip(" ")
+        in result_with_dataset.stdout.strip(" ")
     )
 
 

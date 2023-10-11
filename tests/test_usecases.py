@@ -360,14 +360,14 @@ def test_add_dataset_with_db_with_multiple_datasets(db, data_model_metadata):
 
     # Test
     ImportCSV(db).execute(
-        csv_path="tests/data/success/data_model_v_1_0/dataset10.csv",
+        csv_path="tests/data/success/data_model_v_1_0/dataset123.csv",
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
     datasets = db.get_values(columns=["data_model_id", "code"])
-    assert len(datasets) == 2
-    assert all(code in ["dataset2", "dataset10"] for dmi, code in datasets)
+    assert len(datasets) == 3
+    assert all(code in ["dataset", "dataset1", "dataset2"] for dmi, code in datasets)
 
 
 @pytest.mark.database
