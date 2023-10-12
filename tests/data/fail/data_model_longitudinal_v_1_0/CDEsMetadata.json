@@ -13,7 +13,8 @@
                     {"code": "dataset_longitudinal", "label": "Dataset Longitudinal"}
                 ],
                 "label": "Dataset",
-                "methodology": ""
+                "methodology": "",
+                "type": "nominal"
             },
             {
                 "isCategorical": false,
@@ -21,7 +22,8 @@
                 "sql_type": "text",
                 "description": "",
                 "label": "subjectid",
-                "methodology": ""
+                "methodology": "",
+                "type": "nominal"
             },
             {
                 "isCategorical": true,
@@ -34,7 +36,8 @@
                     {"code": "FL2", "label": "Follow up 2"}
                 ],
                 "description": "",
-                "methodology": ""
+                "methodology": "",
+                "type": "nominal"
             }
         ],
         "groups": [

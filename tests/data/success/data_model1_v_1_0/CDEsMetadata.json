@@ -9,7 +9,8 @@
                 "sql_type": "text",
                 "description": "",
                 "label": "Variable 1",
-                "methodology": ""
+                "methodology": "",
+                "type": "nominal"
             },
             {
                 "isCategorical": false,
@@ -17,7 +18,8 @@
                 "code": "subjectcode",
                 "sql_type": "text",
                 "description": "",
-                "methodology": ""
+                "methodology": "",
+                "type": "nominal"
             },
             {
                 "isCategorical": true,
@@ -29,7 +31,8 @@
                     {"code": "l20", "label": "Level20"}
                 ],
                 "label": "Variable 2",
-                "methodology": ""
+                "methodology": "",
+                "type": "nominal"
             },
             {
                 "isCategorical": true,
@@ -41,7 +44,8 @@
                     {"code": "dataset20", "label": "Dataset 20"}
                 ],
                 "label": "Dataset",
-                "methodology": ""
+                "methodology": "",
+                "type": "nominal"
             }
         ],
         "groups": [
@@ -57,7 +61,8 @@
                         "maxValue": 100,
                         "description": "",
                         "label": "Variable 3",
-                        "methodology": ""
+                        "methodology": "",
+                        "type": "nominal"
                     }
                 ],
                 "groups": [
@@ -72,7 +77,8 @@
                                 "units": "years",
                                 "description": "",
                                 "label": "Variable 4",
-                                "methodology": ""
+                                "methodology": "",
+                                "type": "nominal"
                             }
                         ]
                     }

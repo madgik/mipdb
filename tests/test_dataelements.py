@@ -4,9 +4,15 @@ from mipdb.dataelements import (
     flatten_cdes,
     CommonDataElement,
     validate_dataset_present_on_cdes_with_proper_format,
-    validate_longitudinal_data_model,
+    validate_longitudinal_data_model, validate_metadata,
 )
 from mipdb.exceptions import InvalidDataModelError
+
+
+def test_dataelements_type_is_not_valid():
+    with pytest.raises(InvalidDataModelError):
+        metadata = {"code": "dataset", "sql_type": "int", "description": "", "enumerations": {"dataset": "Dataset", "dataset1": "Dataset 1", "dataset2": "Dataset 2"}, "label": "Dataset", "methodology": "", "is_categorical": True}
+        validate_metadata("dataset", metadata)
 
 
 def test_make_cdes_empty():
@@ -70,6 +76,7 @@ def test_make_cde():
         "description": "",
         "label": "",
         "methodology": "",
+        "type": "nominal"
     }
     cde = CommonDataElement.from_metadata(metadata)
     assert hasattr(cde, "code")
