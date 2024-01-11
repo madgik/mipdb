@@ -955,7 +955,7 @@ def test_tag_dataset_with_db(db, data_model_metadata):
     )
 
     properties = db.get_dataset_properties(1)
-    assert properties == '{"tags": ["tag"], "properties": {}}'
+    assert properties == '{"tags":["tag"],"properties":{}}'
 
 
 @pytest.mark.database
@@ -993,7 +993,7 @@ def test_untag_dataset_with_db(db, data_model_metadata):
     )
 
     properties = db.get_dataset_properties(1)
-    assert properties == '{"tags": ["tag2", "tag3"], "properties": {}}'
+    assert properties == '{"tags":["tag2","tag3"],"properties":{}}'
 
 
 @pytest.mark.database
@@ -1015,7 +1015,7 @@ def test_add_property2dataset_with_db(db, data_model_metadata):
     )
 
     properties = db.get_dataset_properties(1)
-    assert properties == '{"tags": [], "properties": {"key": "value"}}'
+    assert properties == '{"tags":[],"properties":{"key":"value"}}'
 
 
 @pytest.mark.database
@@ -1060,7 +1060,7 @@ def test_remove_property_from_dataset_with_db(db, data_model_metadata):
     )
     properties = db.get_dataset_properties(1)
     assert (
-        properties == '{"tags": [], "properties": {"key": "value", "key1": "value1"}}'
+        properties == '{"tags":[],"properties":{"key":"value","key1":"value1"}}'
     )
 
 

@@ -155,12 +155,12 @@ class TestVariablesMetadataTable:
         )
         result = [(name, json.loads(val)) for name, val in res.fetchall()]
         assert result == [
-            ("var1", [False]),
-            ("subjectcode", [False]),
-            ("var2", [True]),
-            ("dataset", [True]),
-            ("var3", [False]),
-            ("var4", [False]),
+            ("var1", False),
+            ("subjectcode", False),
+            ("var2", True),
+            ("dataset", True),
+            ("var3", False),
+            ("var4", False),
         ]
 
     def test_get_values_from_cdes_full_schema_data(self, data_model_metadata):

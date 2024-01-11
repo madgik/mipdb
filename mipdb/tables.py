@@ -331,7 +331,7 @@ class MetadataTable(Table):
         new_table = cls(schema)
         new_table.set_table(
             {
-                code: CommonDataElement.from_metadata(json.loads(metadata)[0])
+                code: CommonDataElement.from_metadata(json.loads(metadata))
                 for code, metadata in res.items()
             }
         )

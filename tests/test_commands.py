@@ -685,7 +685,7 @@ def test_tag_dataset(db):
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
-    assert '{"tags": ["tag"], "properties": {}}' == properties
+    assert '{"tags":["tag"],"properties":{}}' == properties
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[3]
     assert action_id == 4
@@ -752,7 +752,7 @@ def test_untag_dataset(db):
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
-    assert '{"tags": [], "properties": {}}' == properties
+    assert '{"tags":[],"properties":{}}' == properties
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[3]
     assert action_id == 4
@@ -801,7 +801,7 @@ def test_property_dataset_addition(db):
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
-    assert '{"tags": [], "properties": {"key": "value"}}' == properties
+    assert '{"tags":[],"properties":{"key":"value"}}' == properties
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[3]
     assert action_id == 4
@@ -868,7 +868,7 @@ def test_property_dataset_deletion(db):
     (properties, *_), *_ = db.execute(
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
-    assert '{"tags": [], "properties": {}}' == properties
+    assert '{"tags":[],"properties":{}}' == properties
     action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
     action_id, action = action_record[3]
     assert action_id == 4

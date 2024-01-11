@@ -22,7 +22,7 @@ ABSOLUTE_PATH_FAIL_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "fail"
 IP = "127.0.0.1"
 PORT = 50123
 USERNAME = "admin"
-PASSWORD = "admin"
+PASSWORD = "executor"
 DB_NAME = "db"
 
 DEFAULT_OPTIONS = [
@@ -65,7 +65,7 @@ def monetdb_container():
         container = client.containers.get("mipdb-testing")
     except docker.errors.NotFound:
         container = client.containers.run(
-            "madgik/mipenginedb:dev",
+            "madgik/exareme2_db:latest",
             detach=True,
             ports={"50000/tcp": PORT},
             name="mipdb-testing",
