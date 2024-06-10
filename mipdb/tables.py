@@ -170,6 +170,7 @@ class DatasetsTable(Table):
             sql.Column("code", SQLTYPES.STRING, nullable=False),
             sql.Column("label", SQLTYPES.STRING),
             sql.Column("status", SQLTYPES.STRING, nullable=False),
+            sql.Column("csv_path", SQLTYPES.STRING, nullable=False),
             sql.Column("properties", SQLTYPES.JSON),
         )
 

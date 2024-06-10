@@ -226,8 +226,8 @@ def test_get_dataset_id_duplication_error(db):
 
     db.execute(
         sql.text(
-            'INSERT INTO "mipdb_metadata".datasets (dataset_id, data_model_id, code, status)'
-            "VALUES (2, 1, 'dataset', 'DISABLED')"
+            'INSERT INTO "mipdb_metadata".datasets (dataset_id, data_model_id, code, csv_path, status)'
+            "VALUES (2, 1, 'dataset', '/opt/data/data_model/dataset.csv', 'DISABLED')"
         )
     )
 

@@ -336,6 +336,8 @@ def test_add_dataset(db, data_model_metadata):
         data_model_code="data_model",
         data_model_version="1.0",
     )
+    (code, csv_path), *_ = db.execute(f"SELECT code, csv_path FROM mipdb_metadata.datasets").fetchall()
+    assert "dataset.csv" in csv_path
     res = db.execute('SELECT * FROM "data_model:1.0".primary_data').fetchall()
     assert res != []
 

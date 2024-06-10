@@ -269,6 +269,7 @@ class ImportCSV(UseCase):
                     dataset_id=dataset_id,
                     code=dataset,
                     label=dataset_enumerations[dataset],
+                    csv_path=csv_path,
                     status="ENABLED",
                 )
                 datasets_table.insert_values(values, conn)
