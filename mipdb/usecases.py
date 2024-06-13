@@ -1,6 +1,7 @@
 import copy
 import datetime
 import json
+import os
 from abc import ABC, abstractmethod
 
 import pandas as pd
@@ -246,6 +247,8 @@ class ImportCSV(UseCase):
             cdes = metadata_table.table
             dataset_enumerations = get_dataset_enums(cdes)
             sql_type_per_column = get_sql_type_per_column(cdes)
+            # In case the DATA_PATH is empty it will return the whole path.
+            relative_csv_path = csv_path.split(os.getenv("DATA_PATH"))[-1]
 
             if copy_from_file:
                 imported_datasets = self.import_csv_with_volume(
@@ -256,7 +259,7 @@ class ImportCSV(UseCase):
                 )
             else:
                 imported_datasets = self._import_csv(
-                    csv_path=csv_path, data_model=data_model, conn=conn
+                    csv_path=relative_csv_path, data_model=data_model, conn=conn
                 )
 
             existing_datasets = datasets_table.get_values(
@@ -269,7 +272,7 @@ class ImportCSV(UseCase):
                     dataset_id=dataset_id,
                     code=dataset,
                     label=dataset_enumerations[dataset],
-                    csv_path=csv_path,
+                    csv_path=relative_csv_path,
                     status="ENABLED",
                 )
                 datasets_table.insert_values(values, conn)

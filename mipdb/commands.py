@@ -134,6 +134,12 @@ def load_folder(file, copy_from_file, ip, port, username, password, db_name):
     db = MonetDB.from_config(dbconfig)
 
     Cleanup(db).execute()
+    if not os.path.exists(file):
+        print(f"The path {file} does not exist.")
+        return
+    elif not os.listdir(file):
+        print(f"The directory {file} is empty.")
+        return
 
     for subdir, dirs, files in os.walk(file):
         if dirs:
@@ -158,6 +164,13 @@ def load_folder(file, copy_from_file, ip, port, username, password, db_name):
 @cl.argument("file", required=True)
 @handle_errors
 def validate_folder(file):
+    if not os.path.exists(file):
+        print(f"The path {file} does not exist.")
+        return
+    elif not os.listdir(file):
+        print(f"The directory {file} is empty.")
+        return
+
     for subdir, dirs, files in os.walk(file):
         if dirs:
             continue
