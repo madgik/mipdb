@@ -14,61 +14,55 @@ from mipdb.tables import (
 from mipdb.dataelements import CommonDataElement, flatten_cdes
 from tests.mocks import MonetDBMock
 
-
-@pytest.fixture
-def metadata():
-    return Schema("mipdb_metadata")
-
-
 @pytest.fixture
 def cdes(data_model_metadata):
     return flatten_cdes(data_model_metadata)
 
 
-def test_get_data_models(metadata):
+def test_get_data_models():
     # Setup
     db = MonetDBMock()
     # Test
-    data_models = DataModelTable(schema=metadata)
+    data_models = DataModelTable()
     data_models.get_data_models(db=db, columns=["data_model_id", "code"])
 
 
-def test_get_data_models_without_valid_columns(metadata):
+def test_get_data_models_without_valid_columns():
     # Setup
     db = MonetDBMock()
     # Test
-    data_models = DataModelTable(schema=metadata)
+    data_models = DataModelTable()
     with pytest.raises(ValueError):
         data_models.get_data_models(
             db=db, columns=["data_model_id", "non-existing column"]
         )
 
 
-def test_get_datasets(metadata):
+def test_get_datasets():
     # Setup
     db = MonetDBMock()
     # Test
-    datasets = DatasetsTable(schema=metadata)
+    datasets = DatasetsTable()
     datasets.get_values(db=db, columns=["dataset_id", "data_model_id"])
 
 
-def test_get_datasets_without_valid_columns(metadata):
+def test_get_datasets_without_valid_columns():
     # Setup
     db = MonetDBMock()
     # Test
-    datasets = DatasetsTable(schema=metadata)
+    datasets = DatasetsTable()
     with pytest.raises(ValueError):
         datasets.get_values(db=db, columns=["dataset_id", "non-existing column"])
 
 
-def test_data_models_table_mockdb(metadata):
+def test_data_models_table_mockdb():
     # Setup
     db = MonetDBMock()
     # Test
-    DataModelTable(schema=metadata).create(db)
-    assert f"CREATE SEQUENCE mipdb_metadata.data_model_id_seq" == db.captured_queries[0]
+    DataModelTable().create(db)
+    assert f"CREATE SEQUENCE data_model_id_seq" == db.captured_queries[0]
     expected_create = (
-        f"\nCREATE TABLE mipdb_metadata.data_models ("
+        f"\nCREATE TABLE data_models ("
         "\n\tdata_model_id INTEGER NOT NULL, "
         "\n\tcode VARCHAR(255) NOT NULL, "
         "\n\tversion VARCHAR(255) NOT NULL, "
@@ -88,7 +82,7 @@ def test_data_models_table_realdb(db):
     schema = Schema("schema")
     schema.create(db)
     # Test
-    DataModelTable(schema=schema).create(db)
+    DataModelTable().create(db)
     res = db.execute(
         "SELECT name, type FROM sys.columns WHERE "
         "table_id=(SELECT id FROM sys.tables "
@@ -96,13 +90,13 @@ def test_data_models_table_realdb(db):
     )
     assert res.fetchall() != []
 
-def test_delete_schema(metadata):
+def test_delete_schema():
     # Setup
     db = MonetDBMock()
-    data_models_table = DataModelTable(schema=metadata)
+    data_models_table = DataModelTable()
     # Test
     data_models_table.delete_data_model(code="schema", version="1.0", db=db)
-    expected = f"DELETE FROM mipdb_metadata.data_models WHERE code = :code AND version = :version "
+    expected = f"DELETE FROM data_models WHERE code = :code AND version = :version "
     assert expected in db.captured_queries[0]
 
 

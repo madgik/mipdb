@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from mipdb.database import METADATA_SCHEMA, MonetDB
+from mipdb.database import MonetDB
 from mipdb.exceptions import ForeignKeyError, DataBaseError, InvalidDatasetError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
@@ -50,12 +50,11 @@ from tests.mocks import MonetDBMock
 def test_init_with_db(db):
     # Setup
     InitDB(db).execute()
-    metadata = Schema(METADATA_SCHEMA)
-    data_model_table = DataModelTable(schema=metadata)
-    datasets_table = DatasetsTable(schema=metadata)
+    data_model_table = DataModelTable()
+    datasets_table = DatasetsTable()
 
     # Test
-    assert "mipdb_metadata" in db.get_schemas()
+
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
 
@@ -79,13 +78,11 @@ def test_is_db_initialized_with_db_fail(db):
 def test_init_with_db(db):
     # Setup
     InitDB(db).execute()
-    metadata = Schema(METADATA_SCHEMA)
-    data_model_table = DataModelTable(schema=metadata)
-    datasets_table = DatasetsTable(schema=metadata)
     InitDB(db).execute()
-
+    data_model_table = DataModelTable()
+    datasets_table = DatasetsTable()
     # Test
-    assert "mipdb_metadata" in db.get_schemas()
+
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
 
@@ -95,15 +92,12 @@ def test_init_with_db(db):
 def test_re_init_with_missing_schema_with_db(db):
     # Setup
     InitDB(db).execute()
-    metadata = Schema(METADATA_SCHEMA)
-    data_model_table = DataModelTable(schema=metadata)
-    datasets_table = DatasetsTable(schema=metadata)
-    db.execute(f'DROP SCHEMA "mipdb_metadata" CASCADE')
-    assert "mipdb_metadata" not in db.get_schemas()
+    data_model_table = DataModelTable()
+    datasets_table = DatasetsTable()
     InitDB(db).execute()
 
     # Test
-    assert "mipdb_metadata" in db.get_schemas()
+
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
 
@@ -113,16 +107,15 @@ def test_re_init_with_missing_schema_with_db(db):
 def test_re_init_with_missing_actions_table_with_db(db):
     # Setup
     InitDB(db).execute()
-    metadata = Schema(METADATA_SCHEMA)
-    data_model_table = DataModelTable(schema=metadata)
-    datasets_table = DatasetsTable(schema=metadata)
-    assert "mipdb_metadata" in db.get_schemas()
+    data_model_table = DataModelTable()
+    datasets_table = DatasetsTable()
+
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
     InitDB(db).execute()
 
     # Test
-    assert "mipdb_metadata" in db.get_schemas()
+
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
 
@@ -132,17 +125,16 @@ def test_re_init_with_missing_actions_table_with_db(db):
 def test_re_init_with_missing_data_models_table_with_db(db):
     # Setup
     InitDB(db).execute()
-    metadata = Schema(METADATA_SCHEMA)
-    data_model_table = DataModelTable(schema=metadata)
-    datasets_table = DatasetsTable(schema=metadata)
-    db.execute(f'DROP TABLE "mipdb_metadata".data_models CASCADE')
-    assert "mipdb_metadata" in db.get_schemas()
+    data_model_table = DataModelTable()
+    datasets_table = DatasetsTable()
+    db.execute(f'DROP TABLE data_models CASCADE')
+
     assert not data_model_table.exists(db)
     assert datasets_table.exists(db)
     InitDB(db).execute()
 
     # Test
-    assert "mipdb_metadata" in db.get_schemas()
+
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
 
@@ -152,17 +144,17 @@ def test_re_init_with_missing_data_models_table_with_db(db):
 def test_re_init_with_missing_datasets_table_with_db(db):
     # Setup
     InitDB(db).execute()
-    metadata = Schema(METADATA_SCHEMA)
-    data_model_table = DataModelTable(schema=metadata)
-    datasets_table = DatasetsTable(schema=metadata)
-    db.execute(f'DROP TABLE "mipdb_metadata".datasets')
-    assert "mipdb_metadata" in db.get_schemas()
+    
+    data_model_table = DataModelTable()
+    datasets_table = DatasetsTable()
+    db.execute(f'DROP TABLE datasets')
+
     assert data_model_table.exists(db)
     assert not datasets_table.exists(db)
     InitDB(db).execute()
 
     # Test
-    assert "mipdb_metadata" in db.get_schemas()
+
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
 
@@ -194,7 +186,7 @@ def test_add_data_model_with_db(db, data_model_metadata):
 
     # Test
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+
     assert "data_model:1.0" in schemas
 
 
@@ -206,9 +198,9 @@ def test_delete_data_model():
     DeleteDataModel(db).execute(code=code, version=version, force=force)
 
     assert 'DELETE FROM "data_model:1.0"."primary_data"' in db.captured_queries[0]
-    assert "DELETE FROM mipdb_metadata.datasets" in db.captured_queries[1]
+    assert "DELETE FROM datasets" in db.captured_queries[1]
     assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[2]
-    assert "DELETE FROM mipdb_metadata.data_models" in db.captured_queries[3]
+    assert "DELETE FROM data_models" in db.captured_queries[3]
 
 
 @pytest.mark.database
@@ -218,7 +210,7 @@ def test_delete_data_model_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata=data_model_metadata)
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+
     assert "data_model:1.0" in schemas
 
     # Test with force False
@@ -228,7 +220,7 @@ def test_delete_data_model_with_db(db, data_model_metadata):
         force=False,
     )
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+
     assert "data_model:1.0" not in schemas
 
 
@@ -239,7 +231,7 @@ def test_delete_data_model_with_db_with_force(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata=data_model_metadata)
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+
     assert "data_model:1.0" in schemas
 
     # Test with force True
@@ -249,7 +241,7 @@ def test_delete_data_model_with_db_with_force(db, data_model_metadata):
         force=True,
     )
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+
     assert "data_model:1.0" not in schemas
 
 
@@ -260,7 +252,7 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+
     assert "data_model:1.0" in schemas
     ImportCSV(db).execute(
         csv_path=DATASET_FILE,
@@ -285,7 +277,7 @@ def test_delete_data_model_with_datasets_with_db_with_force(db, data_model_metad
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+
     assert "data_model:1.0" in schemas
     ImportCSV(db).execute(
         csv_path=DATASET_FILE,
@@ -301,7 +293,7 @@ def test_delete_data_model_with_datasets_with_db_with_force(db, data_model_metad
         force=True,
     )
     schemas = db.get_schemas()
-    assert "mipdb_metadata" in schemas
+
     assert "data_model:1.0" not in schemas
 
 
@@ -318,7 +310,7 @@ def test_add_dataset(db, data_model_metadata):
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    (code, csv_path), *_ = db.execute(f"SELECT code, csv_path FROM mipdb_metadata.datasets").fetchall()
+    (code, csv_path), *_ = db.execute(f"SELECT code, csv_path FROM datasets").fetchall()
     assert "dataset.csv" in csv_path
     res = db.execute('SELECT * FROM "data_model:1.0".primary_data').fetchall()
     assert res != []
@@ -329,7 +321,7 @@ def test_insert_dataset_mock(data_model_metadata):
     ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
     assert 'INSERT INTO "data_model:1.0".primary_data' in db.captured_queries[0]
     assert "Sequence('dataset_id_seq'" in db.captured_queries[1]
-    assert "INSERT INTO mipdb_metadata.datasets" in db.captured_queries[2]
+    assert "INSERT INTO datasets" in db.captured_queries[2]
 
 
 @pytest.mark.database
@@ -455,7 +447,7 @@ def test_delete_dataset():
         in db.captured_queries[0]
     )
     assert (
-        "DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
+        "DELETE FROM datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
         in db.captured_queries[1]
     )
 
@@ -492,7 +484,7 @@ def test_enable_data_model():
     code = "data_model"
     version = "1.0"
     EnableDataModel(db).execute(code=code, version=version)
-    assert "UPDATE mipdb_metadata.data_models" in db.captured_queries[0]
+    assert "UPDATE data_models" in db.captured_queries[0]
 
 
 @pytest.mark.database
@@ -503,12 +495,12 @@ def test_enable_data_model_with_db(db, data_model_metadata):
     DisableDataModel(db).execute(
         code=data_model_metadata["code"], version=data_model_metadata["version"]
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
+    status = db.execute(f"SELECT status FROM data_models").fetchone()
     assert status[0] == "DISABLED"
     EnableDataModel(db).execute(
         code=data_model_metadata["code"], version=data_model_metadata["version"]
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
+    status = db.execute(f"SELECT status FROM data_models").fetchone()
     assert status[0] == "ENABLED"
 
 
@@ -517,7 +509,7 @@ def test_enable_data_model_with_db(db, data_model_metadata):
 def test_enable_data_model_already_enabled_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
+    status = db.execute(f"SELECT status FROM data_models").fetchone()
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
@@ -531,7 +523,7 @@ def test_disable_data_model():
     code = "data_model"
     version = "1.0"
     DisableDataModel(db).execute(code, version)
-    assert "UPDATE mipdb_metadata.data_models" in db.captured_queries[0]
+    assert "UPDATE data_models" in db.captured_queries[0]
 
 
 @pytest.mark.database
@@ -539,12 +531,12 @@ def test_disable_data_model():
 def test_disable_data_model_with_db(db, data_model_metadata):
     InitDB(db).execute()
     AddDataModel(db).execute(data_model_metadata)
-    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
+    status = db.execute(f"SELECT status FROM data_models").fetchone()
     assert status[0] == "ENABLED"
     DisableDataModel(db).execute(
         code=data_model_metadata["code"], version=data_model_metadata["version"]
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
+    status = db.execute(f"SELECT status FROM data_models").fetchone()
     assert status[0] == "DISABLED"
 
 
@@ -556,7 +548,7 @@ def test_disable_data_model_already_disabled_with_db(db, data_model_metadata):
     DisableDataModel(db).execute(
         code=data_model_metadata["code"], version=data_model_metadata["version"]
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.data_models").fetchone()
+    status = db.execute(f"SELECT status FROM data_models").fetchone()
     assert status[0] == "DISABLED"
 
     with pytest.raises(UserInputError):
@@ -571,7 +563,7 @@ def test_enable_dataset():
     code = "data_model"
     version = "1.0"
     EnableDataset(db).execute(dataset, code, version)
-    assert "UPDATE mipdb_metadata.datasets" in db.captured_queries[0]
+    assert "UPDATE datasets" in db.captured_queries[0]
 
 
 @pytest.mark.database
@@ -590,14 +582,14 @@ def test_enable_dataset_with_db(db, data_model_metadata):
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    status = db.execute(f"SELECT status FROM datasets").fetchone()
     assert status[0] == "DISABLED"
     EnableDataset(db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    status = db.execute(f"SELECT status FROM datasets").fetchone()
     assert status[0] == "ENABLED"
 
 
@@ -612,7 +604,7 @@ def test_enable_dataset_already_enabled_with_db(db, data_model_metadata):
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    status = db.execute(f"SELECT status FROM datasets").fetchone()
     assert status[0] == "ENABLED"
 
     with pytest.raises(UserInputError):
@@ -629,7 +621,7 @@ def test_disable_dataset():
     code = "data_model"
     version = "1.0"
     DisableDataset(db).execute(dataset, code, version)
-    assert "UPDATE mipdb_metadata.datasets" in db.captured_queries[0]
+    assert "UPDATE datasets" in db.captured_queries[0]
 
 
 @pytest.mark.database
@@ -643,14 +635,14 @@ def test_disable_dataset_with_db(db, data_model_metadata):
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    status = db.execute(f"SELECT status FROM datasets").fetchone()
     assert status[0] == "ENABLED"
     DisableDataset(db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    status = db.execute(f"SELECT status FROM datasets").fetchone()
     assert status[0] == "DISABLED"
 
 
@@ -670,7 +662,7 @@ def test_disable_dataset_already_disabled_with_db(db, data_model_metadata):
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    status = db.execute(f"SELECT status FROM mipdb_metadata.datasets").fetchone()
+    status = db.execute(f"SELECT status FROM datasets").fetchone()
     assert status[0] == "DISABLED"
 
     with pytest.raises(UserInputError):
@@ -684,13 +676,13 @@ def test_disable_dataset_already_disabled_with_db(db, data_model_metadata):
 def test_tag_data_model():
     db = MonetDBMock()
     TagDataModel(db).execute(code="data_model", version="1.0", tag="tag")
-    assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
+    assert "UPDATE data_models SET properties" in db.captured_queries[0]
 
 
 def test_untag_data_model():
     db = MonetDBMock()
     UntagDataModel(db).execute(code="data_model", version="1.0", tag="tag1")
-    assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
+    assert "UPDATE data_models SET properties" in db.captured_queries[0]
 
 
 def test_add_property2data_model():
@@ -698,7 +690,7 @@ def test_add_property2data_model():
     AddPropertyToDataModel(db).execute(
         code="data_model", version="1.0", key="key", value="value", force=False
     )
-    assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
+    assert "UPDATE data_models SET properties" in db.captured_queries[0]
 
 
 def test_remove_property_from_data_model():
@@ -706,7 +698,7 @@ def test_remove_property_from_data_model():
     RemovePropertyFromDataModel(db).execute(
         code="data_model", version="1.0", key="key1", value="value1"
     )
-    assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
+    assert "UPDATE data_models SET properties" in db.captured_queries[0]
 
 
 @pytest.mark.database
@@ -855,7 +847,7 @@ def test_tag_dataset():
         data_model_version="1.0",
         tag="tag",
     )
-    assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
+    assert "UPDATE datasets SET properties" in db.captured_queries[0]
 
 
 def test_untag_dataset():
@@ -863,7 +855,7 @@ def test_untag_dataset():
     UntagDataset(db).execute(
         dataset="dataset", data_model_code="data_model", version="1.0", tag="tag1"
     )
-    assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
+    assert "UPDATE datasets SET properties" in db.captured_queries[0]
 
 
 def test_add_property2dataset():
@@ -876,7 +868,7 @@ def test_add_property2dataset():
         value="value",
         force=False,
     )
-    assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
+    assert "UPDATE datasets SET properties" in db.captured_queries[0]
 
 
 def test_remove_property_from_dataset():
@@ -888,7 +880,7 @@ def test_remove_property_from_dataset():
         key="key1",
         value="value1",
     )
-    assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
+    assert "UPDATE datasets SET properties" in db.captured_queries[0]
 
 
 @pytest.mark.database
@@ -1031,11 +1023,11 @@ def test_grant_select_access_rights(db):
         "username": "executor",
         "password": "executor",
     }
-    metadata = Schema(METADATA_SCHEMA)
-    data_model_table = DataModelTable(schema=metadata)
+    
+    data_model_table = DataModelTable()
     db_connected_by_executor = MonetDB.from_config(executor_config)
     result = db_connected_by_executor.execute(
-        f"select * from {METADATA_SCHEMA}.data_models"
+        f"select * from data_models"
     )
     assert result.fetchall() == []
     with pytest.raises(DataBaseError):

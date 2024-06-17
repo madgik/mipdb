@@ -19,13 +19,6 @@ def test_create_schema():
     db.create_schema("a_schema")
     assert "CREATE SCHEMA a_schema" in db.captured_queries[0]
 
-
-def test_get_schemas():
-    db = MonetDBMock()
-    schemas = db.get_schemas()
-    assert schemas == ["mipdb_metadata"]
-
-
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_update_data_model_status(db):
@@ -35,14 +28,14 @@ def test_update_data_model_status(db):
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     # Check the status of data model is disabled
     res = db.execute(
-        'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
+        'SELECT status from  data_models where data_model_id = 1'
     )
     assert list(res)[0][0] == "ENABLED"
 
     # Test
     db.update_data_model_status("DISABLED", 1)
     res = db.execute(
-        'SELECT status from  "mipdb_metadata".data_models where data_model_id = 1'
+        'SELECT status from  data_models where data_model_id = 1'
     )
     assert list(res)[0][0] == "DISABLED"
 
@@ -70,14 +63,14 @@ def update_dataset_status(db):
 
     # Check the status of dataset is disabled
     res = db.execute(
-        sql.text('SELECT status from  "mipdb_metadata".datasets where dataset_id = 1')
+        sql.text('SELECT status from  datasets where dataset_id = 1')
     )
     assert list(res)[0][0] == "DISABLED"
 
     # Test
     db.update_dataset_status("ENABLED", 1)
     res = db.execute(
-        sql.text('SELECT status from  "mipdb_metadata".datasets where dataset_id = 1')
+        sql.text('SELECT status from  datasets where dataset_id = 1')
     )
     assert list(res)[0][0] == "ENABLED"
 
@@ -167,7 +160,7 @@ def test_get_data_model_id_duplication_error(db):
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     db.execute(
         sql.text(
-            'INSERT INTO "mipdb_metadata".data_models (data_model_id, code, version, status)'
+            'INSERT INTO data_models (data_model_id, code, version, status)'
             "VALUES (2, 'data_model', '1.0', 'DISABLED')"
         )
     )
@@ -226,7 +219,7 @@ def test_get_dataset_id_duplication_error(db):
 
     db.execute(
         sql.text(
-            'INSERT INTO "mipdb_metadata".datasets (dataset_id, data_model_id, code, csv_path, status)'
+            'INSERT INTO datasets (dataset_id, data_model_id, code, csv_path, status)'
             "VALUES (2, 1, 'dataset', '/opt/data/data_model/dataset.csv', 'DISABLED')"
         )
     )

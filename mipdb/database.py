@@ -9,7 +9,6 @@ from pymonetdb.sql import monetize
 
 from mipdb.exceptions import DataBaseError
 
-METADATA_SCHEMA = "mipdb_metadata"
 METADATA_TABLE = "variables_metadata"
 
 CONFIG = "/home/config.toml"
@@ -322,7 +321,7 @@ class DBExecutorMixin(ABC):
 
     def get_data_model_status(self, data_model_id):
         select = sql.text(
-            f"SELECT status FROM {METADATA_SCHEMA}.data_models "
+            f"SELECT status FROM data_models "
             "WHERE data_model_id = :data_model_id "
         )
         (status, *_), *_ = self.execute(select, data_model_id=data_model_id)
@@ -330,7 +329,7 @@ class DBExecutorMixin(ABC):
 
     def update_data_model_status(self, status, data_model_id):
         update = sql.text(
-            f"UPDATE {METADATA_SCHEMA}.data_models "
+            f"UPDATE data_models "
             "SET status = :status "
             "WHERE data_model_id = :data_model_id "
             "AND status <> :status"
@@ -339,7 +338,7 @@ class DBExecutorMixin(ABC):
 
     def get_dataset_status(self, dataset_id):
         select = sql.text(
-            f"SELECT status FROM {METADATA_SCHEMA}.datasets "
+            f"SELECT status FROM datasets "
             "WHERE dataset_id = :dataset_id "
         )
         (status, *_), *_ = self.execute(select, dataset_id=dataset_id)
@@ -355,7 +354,7 @@ class DBExecutorMixin(ABC):
 
     def update_dataset_status(self, status, dataset_id):
         update = sql.text(
-            f"UPDATE {METADATA_SCHEMA}.datasets "
+            f"UPDATE datasets "
             "SET status = :status "
             "WHERE dataset_id = :dataset_id "
             "AND status <> :status"
@@ -371,7 +370,7 @@ class DBExecutorMixin(ABC):
         # implemented.
         select = sql.text(
             "SELECT data_model_id "
-            f"FROM {METADATA_SCHEMA}.data_models "
+            f"FROM data_models "
             "WHERE code = :code "
             "AND version = :version "
         )
@@ -390,7 +389,7 @@ class DBExecutorMixin(ABC):
     def get_dataset_id(self, code, data_model_id):
         select = sql.text(
             "SELECT dataset_id "
-            f"FROM {METADATA_SCHEMA}.datasets "
+            f"FROM datasets "
             "WHERE code = :code "
             "AND data_model_id = :data_model_id "
         )
@@ -413,7 +412,7 @@ class DBExecutorMixin(ABC):
         res = self.execute(
             f"""
             SELECT data_model_id, COUNT(data_model_id) as count
-            FROM {METADATA_SCHEMA}.datasets
+            FROM datasets
             GROUP BY data_model_id
             """
         )
@@ -446,7 +445,7 @@ class DBExecutorMixin(ABC):
         dataset = self.execute(
             f"""
                 SELECT {columns_query}
-                FROM {METADATA_SCHEMA}.datasets
+                FROM datasets
                 WHERE dataset_id = {dataset_id}
                 LIMIT 1
             """
@@ -459,7 +458,7 @@ class DBExecutorMixin(ABC):
         data_model = self.execute(
             f"""
                 SELECT {columns_query}
-                FROM {METADATA_SCHEMA}.data_models
+                FROM data_models
                 WHERE data_model_id = {data_model_id}
                 LIMIT 1
             """
@@ -471,7 +470,7 @@ class DBExecutorMixin(ABC):
         data_models = self.execute(
             f"""
             SELECT {columns_query}
-            FROM {METADATA_SCHEMA}.data_models
+            FROM data_models
             """
         )
 
@@ -485,7 +484,7 @@ class DBExecutorMixin(ABC):
         datasets = self.execute(
             f"""
             SELECT {columns_query}
-            FROM {METADATA_SCHEMA}.datasets {data_model_id_clause}
+            FROM datasets {data_model_id_clause}
             """
         )
         return list(datasets)
@@ -507,25 +506,25 @@ class DBExecutorMixin(ABC):
 
     def get_dataset_properties(self, dataset_id):
         (properties, *_), *_ = self.execute(
-            f"SELECT properties FROM {METADATA_SCHEMA}.datasets WHERE dataset_id = {dataset_id}"
+            f"SELECT properties FROM datasets WHERE dataset_id = {dataset_id}"
         )
         return properties
 
     def get_data_model_properties(self, data_model_id):
         (properties, *_), *_ = self.execute(
-            f"SELECT properties FROM {METADATA_SCHEMA}.data_models WHERE data_model_id = {data_model_id}"
+            f"SELECT properties FROM data_models WHERE data_model_id = {data_model_id}"
         )
         return properties
 
     def set_data_model_properties(self, properties, data_model_id):
         properties_monetized = monetize.convert(properties)
-        query = f"""UPDATE {METADATA_SCHEMA}.data_models SET properties = {properties_monetized}
+        query = f"""UPDATE data_models SET properties = {properties_monetized}
                 WHERE data_model_id = {data_model_id}"""
         self.execute(query)
 
     def set_dataset_properties(self, properties, dataset_id):
         properties_monetized = monetize.convert(properties)
-        query = f"""UPDATE {METADATA_SCHEMA}.datasets SET properties = {properties_monetized}
+        query = f"""UPDATE datasets SET properties = {properties_monetized}
                         WHERE dataset_id = {dataset_id}"""
         self.execute(query)
 

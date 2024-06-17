@@ -19,6 +19,7 @@ from mipdb import list_data_models
 from mipdb import list_datasets
 from mipdb import validate_dataset
 from mipdb.exceptions import ExitCode
+from mipdb.tables import DataModelTable
 from tests.conftest import (
     DATASET_FILE,
     ABSOLUTE_PATH_DATASET_FILE,
@@ -35,13 +36,11 @@ from tests.conftest import DATA_MODEL_FILE
 def test_init(db):
     # Setup
     runner = CliRunner()
-    # Check data_model not present already
-    assert "mipdb_metadata" not in db.get_schemas()
-    # Test
+    data_model_table = DataModelTable()
+    assert not data_model_table.exists(db)
     result = runner.invoke(init, DEFAULT_OPTIONS)
     assert result.exit_code == ExitCode.OK
-    assert "mipdb_metadata" in db.get_schemas()
-    assert db.execute(f"select * from mipdb_metadata.data_models").fetchall() == []
+    assert db.execute(f"select * from data_models").fetchall() == []
 
 
 @pytest.mark.database
@@ -56,7 +55,7 @@ def test_add_data_model(db):
     result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
     assert result.exit_code == ExitCode.OK
     assert "data_model:1.0" in db.get_schemas()
-    data_models = db.execute(f"select * from mipdb_metadata.data_models").fetchall()
+    data_models = db.execute(f"select * from data_models").fetchall()
     data_model_id, code, version, desc, status, properties = data_models[0]
     assert (
         data_model_id == 1
@@ -386,7 +385,6 @@ def test_load_folder_with_volume(db):
     )
     assert result.exit_code == ExitCode.OK
 
-    assert "mipdb_metadata" in db.get_schemas()
     assert "data_model:1.0" in db.get_schemas()
     assert "data_model1:1.0" in db.get_schemas()
 
@@ -425,7 +423,7 @@ def test_load_folder(db):
     )
     assert result.exit_code == ExitCode.OK
 
-    assert "mipdb_metadata" in db.get_schemas()
+    
     assert "data_model:1.0" in db.get_schemas()
     assert "data_model1:1.0" in db.get_schemas()
 
@@ -467,7 +465,7 @@ def test_load_folder_twice_with_volume(db):
     )
     assert result.exit_code == ExitCode.OK
 
-    assert "mipdb_metadata" in db.get_schemas()
+    
     assert "data_model:1.0" in db.get_schemas()
     assert "data_model1:1.0" in db.get_schemas()
 
@@ -505,7 +503,7 @@ def test_tag_data_model(db):
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
-        f"select properties from mipdb_metadata.data_models"
+        f"select properties from data_models"
     ).fetchall()
     assert json.loads(properties)["tags"] == ["tag"]
 
@@ -530,7 +528,7 @@ def test_untag_data_model(db):
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
-        f"select properties from mipdb_metadata.data_models"
+        f"select properties from data_models"
     ).fetchall()
     assert json.loads(properties)["tags"] == []
 
@@ -550,7 +548,7 @@ def test_property_data_model_addition(db):
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
-        f"select properties from mipdb_metadata.data_models"
+        f"select properties from data_models"
     ).fetchall()
     assert (
         "key" in json.loads(properties)["properties"]
@@ -587,7 +585,7 @@ def test_property_data_model_deletion(db):
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
-        f"select properties from mipdb_metadata.data_models"
+        f"select properties from data_models"
     ).fetchall()
     assert "key" not in json.loads(properties)["properties"]
 
@@ -631,7 +629,7 @@ def test_tag_dataset(db):
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
-        f"select properties from mipdb_metadata.datasets"
+        f"select properties from datasets"
     ).fetchall()
     assert '{"tags":["tag"],"properties":{}}' == properties
 
@@ -693,7 +691,7 @@ def test_untag_dataset(db):
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
-        f"select properties from mipdb_metadata.datasets"
+        f"select properties from datasets"
     ).fetchall()
     assert '{"tags":[],"properties":{}}' == properties
 
@@ -737,7 +735,7 @@ def test_property_dataset_addition(db):
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
-        f"select properties from mipdb_metadata.datasets"
+        f"select properties from datasets"
     ).fetchall()
     assert '{"tags":[],"properties":{"key":"value"}}' == properties
 
@@ -799,7 +797,7 @@ def test_property_dataset_deletion(db):
     )
     assert result.exit_code == ExitCode.OK
     (properties, *_), *_ = db.execute(
-        f"select properties from mipdb_metadata.datasets"
+        f"select properties from datasets"
     ).fetchall()
     assert '{"tags":[],"properties":{}}' == properties
 
@@ -1016,6 +1014,6 @@ def test_list_datasets(db):
 
 def _get_status(db, schema_name):
     (status, *_), *_ = db.execute(
-        f'SELECT status FROM "mipdb_metadata".{schema_name}'
+        f'SELECT status FROM {schema_name}'
     ).fetchall()
     return status

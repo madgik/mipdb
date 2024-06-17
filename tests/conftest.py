@@ -7,7 +7,7 @@ import docker
 from mipdb.commands import get_db_config
 from mipdb.database import MonetDB
 from mipdb.reader import JsonFileReader
-from mipdb.tables import User
+from mipdb.tables import User, DataModelTable, DatasetsTable
 
 DATA_MODEL_FILE = "tests/data/success/data_model_v_1_0/CDEsMetadata.json"
 DATASET_FILE = "tests/data/success/data_model_v_1_0/dataset.csv"
@@ -95,6 +95,12 @@ def db():
 @pytest.fixture(scope="function")
 def cleanup_db(db):
     yield
+    data_model_table = DataModelTable()
+    datasets_table = DatasetsTable()
+    if datasets_table.exists(db):
+        datasets_table.drop(db)
+    if data_model_table.exists(db):
+        data_model_table.drop(db)
     schemas = db.get_schemas()
     for schema in schemas:
         if schema not in [user.value for user in User]:

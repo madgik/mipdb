@@ -4,13 +4,12 @@ from enum import Enum
 from typing import Union, List
 
 import sqlalchemy as sql
-from sqlalchemy import ForeignKey, Integer, MetaData
+from sqlalchemy import ForeignKey, MetaData
 from sqlalchemy.ext.compiler import compiles
 
-from mipdb.database import DataBase, Connection, credentials_from_config
+from mipdb.database import credentials_from_config
 from mipdb.data_frame import DATASET_COLUMN_NAME
 from mipdb.database import DataBase, Connection
-from mipdb.database import METADATA_SCHEMA
 from mipdb.database import METADATA_TABLE
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import UserInputError
@@ -78,14 +77,16 @@ class Table(ABC):
         db.drop_table(self._table)
 
 
+metadata = MetaData()
+
 class DataModelTable(Table):
-    def __init__(self, schema):
+    def __init__(self):
         self.data_model_id_seq = sql.Sequence(
-            "data_model_id_seq", metadata=schema.schema
+            "data_model_id_seq", metadata=metadata
         )
         self._table = sql.Table(
             "data_models",
-            schema.schema,
+            metadata,
             sql.Column(
                 "data_model_id",
                 SQLTYPES.INTEGER,
@@ -97,6 +98,7 @@ class DataModelTable(Table):
             sql.Column("label", SQLTYPES.STRING),
             sql.Column("status", SQLTYPES.STRING, nullable=False),
             sql.Column("properties", SQLTYPES.JSON),
+            extend_existing=True
         )
 
     def drop_sequence(self, db: Union[DataBase, Connection]):
@@ -107,7 +109,7 @@ class DataModelTable(Table):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
             raise ValueError(
-                f"The columns: {non_existing_columns} do not exist in the data models schema"
+                f"The columns: {non_existing_columns} do not exist in the data models table"
             )
         return db.get_data_models(columns)
 
@@ -115,7 +117,7 @@ class DataModelTable(Table):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
             raise ValueError(
-                f"The columns: {non_existing_columns} do not exist in the data model's schema"
+                f"The columns: {non_existing_columns} do not exist in the data model table"
             )
         return db.get_data_model(data_model_id, columns)
 
@@ -139,7 +141,7 @@ class DataModelTable(Table):
 
     def delete_data_model(self, code, version, db):
         delete = sql.text(
-            f"DELETE FROM {METADATA_SCHEMA}.data_models "
+            f"DELETE FROM data_models "
             "WHERE code = :code "
             "AND version = :version "
         )
@@ -148,13 +150,12 @@ class DataModelTable(Table):
     def get_next_data_model_id(self, db):
         return db.execute(self.data_model_id_seq)
 
-
 class DatasetsTable(Table):
-    def __init__(self, schema):
-        self.dataset_id_seq = sql.Sequence("dataset_id_seq", metadata=schema.schema)
+    def __init__(self):
+        self.dataset_id_seq = sql.Sequence("dataset_id_seq", metadata=metadata)
         self._table = sql.Table(
             "datasets",
-            schema.schema,
+            metadata,
             sql.Column(
                 "dataset_id",
                 SQLTYPES.INTEGER,
@@ -172,6 +173,7 @@ class DatasetsTable(Table):
             sql.Column("status", SQLTYPES.STRING, nullable=False),
             sql.Column("csv_path", SQLTYPES.STRING, nullable=False),
             sql.Column("properties", SQLTYPES.JSON),
+            extend_existing=True
         )
 
     def drop_sequence(self, db: Union[DataBase, Connection]):
@@ -182,7 +184,7 @@ class DatasetsTable(Table):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
             raise ValueError(
-                f"The columns: {non_existing_columns} do not exist in the datasets schema"
+                f"The columns: {non_existing_columns} do not exist in the datasets table"
             )
         datasets = db.get_values(data_model_id, columns)
         if columns and len(columns) == 1:
@@ -193,7 +195,7 @@ class DatasetsTable(Table):
         if columns and not set(columns).issubset(self.table.columns.keys()):
             non_existing_columns = list(set(columns) - set(self.table.columns.keys()))
             raise ValueError(
-                f"The columns: {non_existing_columns} do not exist in the datasets schema"
+                f"The columns: {non_existing_columns} do not exist in the datasets table"
             )
         return db.get_dataset(dataset_id, columns)
 
@@ -208,7 +210,7 @@ class DatasetsTable(Table):
 
     def delete_dataset(self, dataset_id, data_model_id, db):
         delete = sql.text(
-            f"DELETE FROM {METADATA_SCHEMA}.datasets "
+            f"DELETE FROM datasets "
             "WHERE dataset_id = :dataset_id "
             "AND data_model_id = :data_model_id "
         )

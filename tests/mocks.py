@@ -33,8 +33,6 @@ class MonetDBMock(MonetDB):
         # external database, I do the following trick and it works!
         yield self
 
-    def get_schemas(self):
-        return ["mipdb_metadata"]
 
     def table_exists(self, table):
         return True

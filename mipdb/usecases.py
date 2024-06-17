@@ -4,9 +4,9 @@ import os
 from abc import ABC, abstractmethod
 
 import pandas as pd
+from sqlalchemy import MetaData
 
 from mipdb.database import DataBase
-from mipdb.database import METADATA_SCHEMA
 from mipdb.data_frame_schema import DataFrameSchema
 from mipdb.exceptions import ForeignKeyError, InvalidDatasetError
 from mipdb.exceptions import UserInputError
@@ -33,7 +33,7 @@ from mipdb.tables import (
 from mipdb.data_frame import DataFrame, DATASET_COLUMN_NAME
 
 LONGITUDINAL = "longitudinal"
-
+METADATA = MetaData()
 
 class UseCase(ABC):
     """Abstract use case class."""
@@ -45,14 +45,13 @@ class UseCase(ABC):
 
 
 def is_db_initialized(db):
-    metadata = Schema(METADATA_SCHEMA)
-    data_model_table = DataModelTable(schema=metadata)
-    datasets_table = DatasetsTable(schema=metadata)
+    
+    data_model_table = DataModelTable()
+    datasets_table = DatasetsTable()
 
     with db.begin() as conn:
         if (
-            "mipdb_metadata" in db.get_schemas()
-            and data_model_table.exists(conn)
+            data_model_table.exists(conn)
             and datasets_table.exists(conn)
         ):
             return True
@@ -68,13 +67,11 @@ class InitDB(UseCase):
         self.db = db
 
     def execute(self) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        datasets_table = DatasetsTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
+        datasets_table = DatasetsTable()
 
         with self.db.begin() as conn:
-            if "mipdb_metadata" not in self.db.get_schemas():
-                metadata.create(conn)
             if not data_model_table.exists(conn):
                 data_model_table.drop_sequence(conn)
                 data_model_table.create(conn)
@@ -93,8 +90,8 @@ class AddDataModel(UseCase):
         version = data_model_metadata["version"]
         name = get_data_model_fullname(code, version)
         cdes = flatten_cdes(copy.deepcopy(data_model_metadata))
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_next_data_model_id(conn)
@@ -164,8 +161,8 @@ class DeleteDataModel(UseCase):
     def execute(self, code, version, force) -> None:
         name = get_data_model_fullname(code, version)
         schema = Schema(name)
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
@@ -177,8 +174,8 @@ class DeleteDataModel(UseCase):
             data_model_table.delete_data_model(code, version, conn)
 
     def _validate_data_model_deletion(self, data_model_name, data_model_id, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
+        
+        datasets_table = DatasetsTable()
         datasets = datasets_table.get_values(conn, data_model_id)
         if not len(datasets) == 0:
             raise ForeignKeyError(
@@ -187,8 +184,8 @@ class DeleteDataModel(UseCase):
             )
 
     def _delete_datasets(self, data_model_id, data_model_code, data_model_version):
-        metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
+        
+        datasets_table = DatasetsTable()
         with self.db.begin() as conn:
             dataset_codes = datasets_table.get_values(
                 data_model_id=data_model_id, columns=["code"], db=conn
@@ -214,9 +211,9 @@ class ImportCSV(UseCase):
             code=data_model_code, version=data_model_version
         )
         data_model = Schema(data_model_name)
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        datasets_table = DatasetsTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
+        datasets_table = DatasetsTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(
@@ -257,8 +254,8 @@ class ImportCSV(UseCase):
                 datasets_table.insert_values(values, conn)
 
     def _get_next_dataset_id(self, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
+        
+        datasets_table = DatasetsTable()
         dataset_id = datasets_table.get_next_dataset_id(conn)
         return dataset_id
 
@@ -430,8 +427,8 @@ class ValidateDataset(UseCase):
             )
 
     def is_data_model_longitudinal(self, data_model_code, data_model_version, conn):
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
         data_model_id = data_model_table.get_data_model_id(
             data_model_code, data_model_version, conn
         )
@@ -573,9 +570,9 @@ class DeleteDataset(UseCase):
             code=data_model_code, version=data_model_version
         )
         data_model = Schema(data_model_fullname)
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        datasets_table = DatasetsTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
+        datasets_table = DatasetsTable()
 
         with self.db.begin() as conn:
             primary_data_table = PrimaryDataTable.from_db(data_model, conn)
@@ -595,8 +592,8 @@ class EnableDataModel(UseCase):
         is_db_initialized(db)
 
     def execute(self, code, version) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
@@ -613,8 +610,8 @@ class DisableDataModel(UseCase):
         is_db_initialized(db)
 
     def execute(self, code, version) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
@@ -632,9 +629,9 @@ class EnableDataset(UseCase):
         is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        datasets_table = DatasetsTable()
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
 
@@ -657,9 +654,9 @@ class DisableDataset(UseCase):
         is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        datasets_table = DatasetsTable(schema=metadata)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        datasets_table = DatasetsTable()
+        data_model_table = DataModelTable()
         with self.db.begin() as conn:
 
             data_model_id = data_model_table.get_data_model_id(
@@ -681,8 +678,8 @@ class TagDataModel(UseCase):
         is_db_initialized(db)
 
     def execute(self, code, version, tag) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
@@ -700,8 +697,8 @@ class UntagDataModel(UseCase):
         is_db_initialized(db)
 
     def execute(self, code, version, tag) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
@@ -720,8 +717,8 @@ class AddPropertyToDataModel(UseCase):
         is_db_initialized(db)
 
     def execute(self, code, version, key, value, force) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
@@ -740,8 +737,8 @@ class RemovePropertyFromDataModel(UseCase):
         is_db_initialized(db)
 
     def execute(self, code, version, key, value) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(code, version, conn)
@@ -760,9 +757,9 @@ class TagDataset(UseCase):
         is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version, tag) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        dataset_table = DatasetsTable(schema=metadata)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        dataset_table = DatasetsTable()
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(
@@ -783,9 +780,9 @@ class UntagDataset(UseCase):
         is_db_initialized(db)
 
     def execute(self, dataset, data_model_code, version, tag) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        dataset_table = DatasetsTable(schema=metadata)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        dataset_table = DatasetsTable()
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(
@@ -806,9 +803,9 @@ class AddPropertyToDataset(UseCase):
         is_db_initialized(db)
 
     def execute(self, dataset, data_model_code, version, key, value, force) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        dataset_table = DatasetsTable(schema=metadata)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        dataset_table = DatasetsTable()
+        data_model_table = DataModelTable()
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(
                 data_model_code, version, conn
@@ -829,9 +826,9 @@ class RemovePropertyFromDataset(UseCase):
         is_db_initialized(db)
 
     def execute(self, dataset, data_model_code, version, key, value) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        dataset_table = DatasetsTable(schema=metadata)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        dataset_table = DatasetsTable()
+        data_model_table = DataModelTable()
         with self.db.begin() as conn:
             data_model_id = data_model_table.get_data_model_id(
                 data_model_code, version, conn
@@ -852,8 +849,8 @@ class ListDataModels(UseCase):
         is_db_initialized(db)
 
     def execute(self) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
 
         with self.db.begin() as conn:
 
@@ -903,9 +900,9 @@ class ListDatasets(UseCase):
         is_db_initialized(db)
 
     def execute(self) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
-        dataset_table = DatasetsTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
+        dataset_table = DatasetsTable()
 
         with self.db.begin() as conn:
             dataset_row_columns = [
@@ -956,8 +953,8 @@ class Cleanup(UseCase):
         is_db_initialized(db)
 
     def execute(self) -> None:
-        metadata = Schema(METADATA_SCHEMA)
-        data_model_table = DataModelTable(schema=metadata)
+        
+        data_model_table = DataModelTable()
         data_model_rows = []
 
         with self.db.begin() as conn:
