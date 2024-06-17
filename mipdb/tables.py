@@ -227,37 +227,6 @@ class DatasetsTable(Table):
         return db.get_dataset_id(code, data_model_id)
 
 
-class ActionsTable(Table):
-    def __init__(self, schema):
-        self.action_id_seq = sql.Sequence("action_id_seq", metadata=schema.schema)
-        self._table = sql.Table(
-            "actions",
-            schema.schema,
-            sql.Column(
-                "action_id",
-                SQLTYPES.INTEGER,
-                self.action_id_seq,
-                primary_key=True,
-            ),
-            sql.Column("action", SQLTYPES.JSON),
-        )
-
-    def drop_sequence(self, db: Union[DataBase, Connection]):
-        if db.get_executor():
-            self.action_id_seq.drop(db.get_executor())
-
-    def insert_values(self, values, db: Union[DataBase, Connection]):
-        # Needs to be overridden because sqlalchemy and monetdb are not cooperating
-        # well when inserting values to JSON columns
-        query = sql.text(
-            f'INSERT INTO "{METADATA_SCHEMA}".actions VALUES(:action_id, :action)'
-        )
-        db.execute(query, values)
-
-    def get_next_id(self, db):
-        return db.execute(self.action_id_seq)
-
-
 class PrimaryDataTable(Table):
     def __init__(self):
         self._table = None

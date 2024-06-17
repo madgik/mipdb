@@ -42,7 +42,6 @@ def test_init(db):
     assert result.exit_code == ExitCode.OK
     assert "mipdb_metadata" in db.get_schemas()
     assert db.execute(f"select * from mipdb_metadata.data_models").fetchall() == []
-    assert db.execute(f"select * from mipdb_metadata.actions").fetchall() == []
 
 
 @pytest.mark.database
@@ -74,15 +73,9 @@ def test_add_data_model(db):
     cdes = properties["properties"]["cdes"]
     assert "groups" in cdes or "variables" in cdes
     assert "code" in cdes and "label" in cdes and "version" in cdes
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[0]
-    assert action_id == 1
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATA MODEL"
     metadata = db.execute(
         f'select * from "data_model:1.0".variables_metadata'
     ).fetchall()
-    # TODO better test
     assert len(metadata) == 6
 
 
@@ -103,11 +96,6 @@ def test_delete_data_model(db):
     )
     assert result.exit_code == ExitCode.OK
     assert "data_model:1.0" not in db.get_schemas()
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[2]
-    assert action_id == 3
-    assert action != ""
-    assert json.loads(action)["action"] == "DELETE DATA MODEL"
 
 
 @pytest.mark.database
@@ -138,11 +126,6 @@ def test_add_dataset_with_volume(db):
     assert "dataset" == db.get_values(columns=["code"])[0][0]
 
     assert result.exit_code == ExitCode.OK
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[2]
-    assert action_id == 3
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATASET"
     data = db.execute(f'select * from "data_model:1.0".primary_data').fetchall()
     assert len(data) == 5
 
@@ -177,11 +160,6 @@ def test_add_dataset(db):
     assert "dataset" == db.get_values(columns=["code"])[0][0]
 
     assert result.exit_code == ExitCode.OK
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[2]
-    assert action_id == 3
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATASET"
     data = db.execute(f'select * from "data_model:1.0".primary_data').fetchall()
     assert len(data) == 5
 
@@ -391,12 +369,6 @@ def test_delete_dataset_with_volume(db):
     assert result.exit_code == ExitCode.OK
 
     assert not db.get_values(columns=["code"])
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[3]
-    assert action_id == 4
-    assert action != ""
-    assert json.loads(action)["action"] == "DELETE DATASET"
-
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
@@ -536,12 +508,6 @@ def test_tag_data_model(db):
         f"select properties from mipdb_metadata.data_models"
     ).fetchall()
     assert json.loads(properties)["tags"] == ["tag"]
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[1]
-    assert action_id == 2
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATA MODEL TAG"
-
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
@@ -567,13 +533,6 @@ def test_untag_data_model(db):
         f"select properties from mipdb_metadata.data_models"
     ).fetchall()
     assert json.loads(properties)["tags"] == []
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-
-    action_id, action = action_record[3]
-    assert action_id == 4
-    assert action != ""
-    assert json.loads(action)["action"] == "REMOVE DATA MODEL TAG"
-
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
@@ -597,11 +556,6 @@ def test_property_data_model_addition(db):
         "key" in json.loads(properties)["properties"]
         and json.loads(properties)["properties"]["key"] == "value"
     )
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[1]
-    assert action_id == 2
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATA MODEL TAG"
 
 
 @pytest.mark.database
@@ -636,12 +590,6 @@ def test_property_data_model_deletion(db):
         f"select properties from mipdb_metadata.data_models"
     ).fetchall()
     assert "key" not in json.loads(properties)["properties"]
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-
-    action_id, action = action_record[3]
-    assert action_id == 4
-    assert action != ""
-    assert json.loads(action)["action"] == "REMOVE DATA MODEL TAG"
 
 
 @pytest.mark.database
@@ -686,11 +634,6 @@ def test_tag_dataset(db):
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
     assert '{"tags":["tag"],"properties":{}}' == properties
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[3]
-    assert action_id == 4
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATASET TAG"
 
 
 @pytest.mark.database
@@ -753,11 +696,6 @@ def test_untag_dataset(db):
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
     assert '{"tags":[],"properties":{}}' == properties
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[3]
-    assert action_id == 4
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATASET TAG"
 
 
 @pytest.mark.database
@@ -802,11 +740,6 @@ def test_property_dataset_addition(db):
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
     assert '{"tags":[],"properties":{"key":"value"}}' == properties
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[3]
-    assert action_id == 4
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATASET TAG"
 
 
 @pytest.mark.database
@@ -869,11 +802,6 @@ def test_property_dataset_deletion(db):
         f"select properties from mipdb_metadata.datasets"
     ).fetchall()
     assert '{"tags":[],"properties":{}}' == properties
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[3]
-    assert action_id == 4
-    assert action != ""
-    assert json.loads(action)["action"] == "ADD DATASET TAG"
 
 
 @pytest.mark.database
@@ -896,11 +824,6 @@ def test_enable_data_model(db):
     )
     assert result.exit_code == ExitCode.OK
     assert _get_status(db, "data_models") == "ENABLED"
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[2]
-    assert action_id == 3
-    assert action != ""
-    assert json.loads(action)["action"] == "DISABLE DATA MODEL"
 
 
 @pytest.mark.database
@@ -920,11 +843,6 @@ def test_disable_data_model(db):
     )
     assert result.exit_code == ExitCode.OK
     assert _get_status(db, "data_models") == "DISABLED"
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[2]
-    assert action_id == 3
-    assert action != ""
-    assert json.loads(action)["action"] == "DISABLE DATA MODEL"
 
 
 @pytest.mark.database
@@ -962,11 +880,6 @@ def test_enable_dataset(db):
     )
     assert result.exit_code == ExitCode.OK
     assert _get_status(db, "datasets") == "ENABLED"
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[3]
-    assert action_id == 4
-    assert action != ""
-    assert json.loads(action)["action"] == "DISABLE DATASET"
 
 
 @pytest.mark.database
@@ -1000,11 +913,6 @@ def test_disable_dataset(db):
     )
     assert _get_status(db, "datasets") == "DISABLED"
     assert result.exit_code == ExitCode.OK
-    action_record = db.execute(f"select * from mipdb_metadata.actions").fetchall()
-    action_id, action = action_record[3]
-    assert action_id == 4
-    assert action != ""
-    assert json.loads(action)["action"] == "DISABLE DATASET"
 
 
 @pytest.mark.database
