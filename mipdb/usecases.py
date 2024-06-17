@@ -1,5 +1,4 @@
 import copy
-import datetime
 import json
 import os
 from abc import ABC, abstractmethod
@@ -26,7 +25,6 @@ from mipdb.dataelements import (
 from mipdb.tables import (
     DataModelTable,
     DatasetsTable,
-    ActionsTable,
     MetadataTable,
     PrimaryDataTable,
     TemporaryTable,
@@ -50,14 +48,12 @@ def is_db_initialized(db):
     metadata = Schema(METADATA_SCHEMA)
     data_model_table = DataModelTable(schema=metadata)
     datasets_table = DatasetsTable(schema=metadata)
-    actions_table = ActionsTable(schema=metadata)
 
     with db.begin() as conn:
         if (
             "mipdb_metadata" in db.get_schemas()
             and data_model_table.exists(conn)
             and datasets_table.exists(conn)
-            and actions_table.exists(conn)
         ):
             return True
         else:
@@ -75,7 +71,6 @@ class InitDB(UseCase):
         metadata = Schema(METADATA_SCHEMA)
         data_model_table = DataModelTable(schema=metadata)
         datasets_table = DatasetsTable(schema=metadata)
-        actions_table = ActionsTable(schema=metadata)
 
         with self.db.begin() as conn:
             if "mipdb_metadata" not in self.db.get_schemas():
@@ -86,9 +81,6 @@ class InitDB(UseCase):
             if not datasets_table.exists(conn):
                 datasets_table.drop_sequence(conn)
                 datasets_table.create(conn)
-            if not actions_table.exists(conn):
-                actions_table.drop_sequence(conn)
-                actions_table.create(conn)
 
 
 class AddDataModel(UseCase):
@@ -117,13 +109,6 @@ class AddDataModel(UseCase):
                 status="ENABLED",
             )
             data_model_table.insert_values(values, conn)
-
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            update_actions(
-                conn=conn,
-                action="ADD DATA MODEL",
-                data_model_details=data_model_details,
-            )
             AddPropertyToDataModel(self.db).execute(
                 code=code,
                 version=version,
@@ -187,15 +172,9 @@ class DeleteDataModel(UseCase):
             if not force:
                 self._validate_data_model_deletion(name, data_model_id, conn)
 
-            data_model_details = _get_data_model_details(data_model_id, conn)
             self._delete_datasets(data_model_id, code, version)
             schema.drop(conn)
             data_model_table.delete_data_model(code, version, conn)
-            update_actions(
-                conn=conn,
-                action="DELETE DATA MODEL",
-                data_model_details=data_model_details,
-            )
 
     def _validate_data_model_deletion(self, data_model_name, data_model_id, conn):
         metadata = Schema(METADATA_SCHEMA)
@@ -276,14 +255,6 @@ class ImportCSV(UseCase):
                     status="ENABLED",
                 )
                 datasets_table.insert_values(values, conn)
-                data_model_details = _get_data_model_details(data_model_id, conn)
-                dataset_details = _get_dataset_details(dataset_id, conn)
-                update_actions(
-                    conn=conn,
-                    action="ADD DATASET",
-                    data_model_details=data_model_details,
-                    dataset_details=dataset_details,
-                )
 
     def _get_next_dataset_id(self, conn):
         metadata = Schema(METADATA_SCHEMA)
@@ -616,16 +587,7 @@ class DeleteDataset(UseCase):
                 dataset_code, data_model_id, conn
             )
 
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            dataset_details = _get_dataset_details(dataset_id, conn)
             datasets_table.delete_dataset(dataset_id, data_model_id, conn)
-            update_actions(
-                conn=conn,
-                action="DELETE DATASET",
-                data_model_details=data_model_details,
-                dataset_details=dataset_details,
-            )
-
 
 class EnableDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
@@ -641,13 +603,6 @@ class EnableDataModel(UseCase):
             current_status = data_model_table.get_data_model_status(data_model_id, conn)
             if current_status != "ENABLED":
                 data_model_table.set_data_model_status("ENABLED", data_model_id, conn)
-                data_model_details = _get_data_model_details(data_model_id, conn)
-                update_actions(
-                    conn=conn,
-                    action="ENABLE DATA MODEL",
-                    data_model_details=data_model_details,
-                )
-
             else:
                 raise UserInputError("The data model was already enabled")
 
@@ -667,12 +622,6 @@ class DisableDataModel(UseCase):
 
             if current_status != "DISABLED":
                 data_model_table.set_data_model_status("DISABLED", data_model_id, conn)
-                data_model_details = _get_data_model_details(data_model_id, conn)
-                update_actions(
-                    conn=conn,
-                    action="DISABLE DATA MODEL",
-                    data_model_details=data_model_details,
-                )
             else:
                 raise UserInputError("The data model was already disabled")
 
@@ -698,15 +647,6 @@ class EnableDataset(UseCase):
             current_status = datasets_table.get_dataset_status(dataset_id, conn)
             if current_status != "ENABLED":
                 datasets_table.set_dataset_status("ENABLED", dataset_id, conn)
-
-                data_model_details = _get_data_model_details(data_model_id, conn)
-                dataset_details = _get_dataset_details(dataset_id, conn)
-                update_actions(
-                    conn=conn,
-                    action="ENABLE DATASET",
-                    data_model_details=data_model_details,
-                    dataset_details=dataset_details,
-                )
             else:
                 raise UserInputError("The dataset was already enabled")
 
@@ -731,16 +671,6 @@ class DisableDataset(UseCase):
             current_status = datasets_table.get_dataset_status(dataset_id, conn)
             if current_status != "DISABLED":
                 datasets_table.set_dataset_status("DISABLED", dataset_id, conn)
-
-                data_model_details = _get_data_model_details(data_model_id, conn)
-                dataset_details = _get_dataset_details(dataset_id, conn)
-                update_actions(
-                    conn=conn,
-                    action="DISABLE DATASET",
-                    data_model_details=data_model_details,
-                    dataset_details=dataset_details,
-                )
-
             else:
                 raise UserInputError("The dataset was already disabled")
 
@@ -764,14 +694,6 @@ class TagDataModel(UseCase):
                 properties.properties, data_model_id, conn
             )
 
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            update_actions(
-                conn=conn,
-                action="ADD DATA MODEL TAG",
-                data_model_details=data_model_details,
-            )
-
-
 class UntagDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
@@ -789,13 +711,6 @@ class UntagDataModel(UseCase):
             properties.remove_tag(tag)
             data_model_table.set_data_model_properties(
                 properties.properties, data_model_id, conn
-            )
-
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            update_actions(
-                conn=conn,
-                action="REMOVE DATA MODEL TAG",
-                data_model_details=data_model_details,
             )
 
 
@@ -818,13 +733,6 @@ class AddPropertyToDataModel(UseCase):
                 properties.properties, data_model_id, conn
             )
 
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            update_actions(
-                conn=conn,
-                action="ADD DATA MODEL TAG",
-                data_model_details=data_model_details,
-            )
-
 
 class RemovePropertyFromDataModel(UseCase):
     def __init__(self, db: DataBase) -> None:
@@ -845,14 +753,6 @@ class RemovePropertyFromDataModel(UseCase):
             data_model_table.set_data_model_properties(
                 properties.properties, data_model_id, conn
             )
-
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            update_actions(
-                conn=conn,
-                action="REMOVE DATA MODEL TAG",
-                data_model_details=data_model_details,
-            )
-
 
 class TagDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
@@ -877,16 +777,6 @@ class TagDataset(UseCase):
                 properties.properties, dataset_id, conn
             )
 
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            dataset_details = _get_dataset_details(dataset_id, conn)
-            update_actions(
-                conn=conn,
-                action="ADD DATASET TAG",
-                data_model_details=data_model_details,
-                dataset_details=dataset_details,
-            )
-
-
 class UntagDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
@@ -910,16 +800,6 @@ class UntagDataset(UseCase):
                 properties.properties, dataset_id, conn
             )
 
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            dataset_details = _get_dataset_details(dataset_id, conn)
-            update_actions(
-                conn=conn,
-                action="REMOVE DATASET TAG",
-                data_model_details=data_model_details,
-                dataset_details=dataset_details,
-            )
-
-
 class AddPropertyToDataset(UseCase):
     def __init__(self, db: DataBase) -> None:
         self.db = db
@@ -940,14 +820,6 @@ class AddPropertyToDataset(UseCase):
             properties.add_property(key, value, force)
             dataset_table.set_dataset_properties(
                 properties.properties, dataset_id, conn
-            )
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            dataset_details = _get_dataset_details(dataset_id, conn)
-            update_actions(
-                conn=conn,
-                action="ADD DATASET TAG",
-                data_model_details=data_model_details,
-                dataset_details=dataset_details,
             )
 
 
@@ -971,14 +843,6 @@ class RemovePropertyFromDataset(UseCase):
             properties.remove_property(key, value)
             dataset_table.set_dataset_properties(
                 properties.properties, dataset_id, conn
-            )
-            data_model_details = _get_data_model_details(data_model_id, conn)
-            dataset_details = _get_dataset_details(dataset_id, conn)
-            update_actions(
-                conn=conn,
-                action="REMOVE DATASET TAG",
-                data_model_details=data_model_details,
-                dataset_details=dataset_details,
             )
 
 
@@ -1112,65 +976,3 @@ class Cleanup(UseCase):
 
 def get_data_model_fullname(code, version):
     return f"{code}:{version}"
-
-
-class DatasetDetails:
-    def __init__(self, dataset_id, code, label):
-        self.dataset_id = dataset_id
-        self.code = code
-        self.label = label
-
-
-class DataModelDetails:
-    def __init__(self, data_model_id, code, version, label):
-        self.data_model_id = data_model_id
-        self.code = code
-        self.version = version
-        self.label = label
-
-
-def update_actions(
-    conn,
-    action,
-    data_model_details: DataModelDetails,
-    dataset_details: DatasetDetails = None,
-):
-    metadata = Schema(METADATA_SCHEMA)
-    actions_table = ActionsTable(schema=metadata)
-
-    record = dict(
-        data_model_id=data_model_details.data_model_id,
-        data_model_code=data_model_details.code,
-        data_model_label=data_model_details.label,
-        data_model_version=data_model_details.version,
-    )
-
-    if dataset_details:
-        record["dataset_code"] = dataset_details.code
-        record["dataset_id"] = dataset_details.dataset_id
-        record["dataset_label"] = dataset_details.label
-
-    record["action"] = action
-    record["user"] = conn.get_current_user()
-    record["date"] = datetime.datetime.now().isoformat()
-
-    action_record = dict()
-    action_record["action_id"] = actions_table.get_next_id(conn)
-    action_record["action"] = json.dumps(record)
-    actions_table.insert_values(action_record, conn)
-
-
-def _get_data_model_details(data_model_id, conn):
-    metadata = Schema(METADATA_SCHEMA)
-    data_model_table = DataModelTable(schema=metadata)
-    code, version, label = data_model_table.get_data_model(
-        data_model_id=data_model_id, db=conn, columns=["code", "version", "label"]
-    )
-    return DataModelDetails(data_model_id, code, version, label)
-
-
-def _get_dataset_details(dataset_id, conn):
-    metadata = Schema(METADATA_SCHEMA)
-    dataset_table = DatasetsTable(schema=metadata)
-    code, label = dataset_table.get_dataset(conn, dataset_id, ["code", "label"])
-    return DatasetDetails(dataset_id, code, label)

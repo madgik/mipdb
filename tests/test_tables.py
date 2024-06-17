@@ -6,7 +6,6 @@ import pytest
 
 from mipdb.schema import Schema
 from mipdb.tables import (
-    ActionsTable,
     DataModelTable,
     DatasetsTable,
     MetadataTable,
@@ -96,16 +95,6 @@ def test_data_models_table_realdb(db):
         "WHERE name='data_models' AND system=FALSE)"
     )
     assert res.fetchall() != []
-
-
-def test_actions_table(metadata):
-    # Setup
-    db = MonetDBMock()
-    # Test
-    ActionsTable(schema=metadata).create(db)
-    assert f"CREATE SEQUENCE mipdb_metadata.action_id_seq" in db.captured_queries[0]
-    assert f"CREATE TABLE mipdb_metadata.actions" in db.captured_queries[1]
-
 
 def test_delete_schema(metadata):
     # Setup

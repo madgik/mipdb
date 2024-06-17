@@ -8,7 +8,7 @@ from mipdb.database import METADATA_SCHEMA, MonetDB
 from mipdb.exceptions import ForeignKeyError, DataBaseError, InvalidDatasetError
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
-from mipdb.tables import DataModelTable, DatasetsTable, ActionsTable
+from mipdb.tables import DataModelTable, DatasetsTable
 from mipdb.usecases import (
     AddPropertyToDataset,
     check_unique_longitudinal_dataset_primary_keys,
@@ -53,13 +53,11 @@ def test_init_with_db(db):
     metadata = Schema(METADATA_SCHEMA)
     data_model_table = DataModelTable(schema=metadata)
     datasets_table = DatasetsTable(schema=metadata)
-    actions_table = ActionsTable(schema=metadata)
 
     # Test
     assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
-    assert actions_table.exists(db)
 
 
 @pytest.mark.database
@@ -84,14 +82,12 @@ def test_init_with_db(db):
     metadata = Schema(METADATA_SCHEMA)
     data_model_table = DataModelTable(schema=metadata)
     datasets_table = DatasetsTable(schema=metadata)
-    actions_table = ActionsTable(schema=metadata)
     InitDB(db).execute()
 
     # Test
     assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
-    assert actions_table.exists(db)
 
 
 @pytest.mark.database
@@ -102,7 +98,6 @@ def test_re_init_with_missing_schema_with_db(db):
     metadata = Schema(METADATA_SCHEMA)
     data_model_table = DataModelTable(schema=metadata)
     datasets_table = DatasetsTable(schema=metadata)
-    actions_table = ActionsTable(schema=metadata)
     db.execute(f'DROP SCHEMA "mipdb_metadata" CASCADE')
     assert "mipdb_metadata" not in db.get_schemas()
     InitDB(db).execute()
@@ -111,7 +106,6 @@ def test_re_init_with_missing_schema_with_db(db):
     assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
-    assert actions_table.exists(db)
 
 
 @pytest.mark.database
@@ -122,19 +116,15 @@ def test_re_init_with_missing_actions_table_with_db(db):
     metadata = Schema(METADATA_SCHEMA)
     data_model_table = DataModelTable(schema=metadata)
     datasets_table = DatasetsTable(schema=metadata)
-    actions_table = ActionsTable(schema=metadata)
-    db.execute(f'DROP TABLE "mipdb_metadata".actions')
     assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
-    assert not actions_table.exists(db)
     InitDB(db).execute()
 
     # Test
     assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
-    assert actions_table.exists(db)
 
 
 @pytest.mark.database
@@ -145,19 +135,16 @@ def test_re_init_with_missing_data_models_table_with_db(db):
     metadata = Schema(METADATA_SCHEMA)
     data_model_table = DataModelTable(schema=metadata)
     datasets_table = DatasetsTable(schema=metadata)
-    actions_table = ActionsTable(schema=metadata)
     db.execute(f'DROP TABLE "mipdb_metadata".data_models CASCADE')
     assert "mipdb_metadata" in db.get_schemas()
     assert not data_model_table.exists(db)
     assert datasets_table.exists(db)
-    assert actions_table.exists(db)
     InitDB(db).execute()
 
     # Test
     assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
-    assert actions_table.exists(db)
 
 
 @pytest.mark.database
@@ -168,19 +155,16 @@ def test_re_init_with_missing_datasets_table_with_db(db):
     metadata = Schema(METADATA_SCHEMA)
     data_model_table = DataModelTable(schema=metadata)
     datasets_table = DatasetsTable(schema=metadata)
-    actions_table = ActionsTable(schema=metadata)
     db.execute(f'DROP TABLE "mipdb_metadata".datasets')
     assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert not datasets_table.exists(db)
-    assert actions_table.exists(db)
     InitDB(db).execute()
 
     # Test
     assert "mipdb_metadata" in db.get_schemas()
     assert data_model_table.exists(db)
     assert datasets_table.exists(db)
-    assert actions_table.exists(db)
 
 
 def test_add_data_model_mock(data_model_metadata):
@@ -223,10 +207,8 @@ def test_delete_data_model():
 
     assert 'DELETE FROM "data_model:1.0"."primary_data"' in db.captured_queries[0]
     assert "DELETE FROM mipdb_metadata.datasets" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[3]
-    assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[4]
-    assert "DELETE FROM mipdb_metadata.data_models" in db.captured_queries[5]
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[7]
+    assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[2]
+    assert "DELETE FROM mipdb_metadata.data_models" in db.captured_queries[3]
 
 
 @pytest.mark.database
@@ -348,9 +330,6 @@ def test_insert_dataset_mock(data_model_metadata):
     assert 'INSERT INTO "data_model:1.0".primary_data' in db.captured_queries[0]
     assert "Sequence('dataset_id_seq'" in db.captured_queries[1]
     assert "INSERT INTO mipdb_metadata.datasets" in db.captured_queries[2]
-    assert "Sequence('action_id_seq'" in db.captured_queries[3]
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[4]
-    assert len(db.captured_queries) > 3  # verify that handlers issued more queries
 
 
 @pytest.mark.database
@@ -479,10 +458,6 @@ def test_delete_dataset():
         "DELETE FROM mipdb_metadata.datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
         in db.captured_queries[1]
     )
-    assert (
-        'INSERT INTO "mipdb_metadata".actions VALUES(:action_id, :action)'
-        in db.captured_queries[3]
-    )
 
 
 @pytest.mark.database
@@ -518,8 +493,6 @@ def test_enable_data_model():
     version = "1.0"
     EnableDataModel(db).execute(code=code, version=version)
     assert "UPDATE mipdb_metadata.data_models" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[2]
 
 
 @pytest.mark.database
@@ -559,8 +532,6 @@ def test_disable_data_model():
     version = "1.0"
     DisableDataModel(db).execute(code, version)
     assert "UPDATE mipdb_metadata.data_models" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[2]
 
 
 @pytest.mark.database
@@ -601,8 +572,6 @@ def test_enable_dataset():
     version = "1.0"
     EnableDataset(db).execute(dataset, code, version)
     assert "UPDATE mipdb_metadata.datasets" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[2]
 
 
 @pytest.mark.database
@@ -661,8 +630,6 @@ def test_disable_dataset():
     version = "1.0"
     DisableDataset(db).execute(dataset, code, version)
     assert "UPDATE mipdb_metadata.datasets" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions' in db.captured_queries[2]
 
 
 @pytest.mark.database
@@ -718,16 +685,12 @@ def test_tag_data_model():
     db = MonetDBMock()
     TagDataModel(db).execute(code="data_model", version="1.0", tag="tag")
     assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
 
 
 def test_untag_data_model():
     db = MonetDBMock()
     UntagDataModel(db).execute(code="data_model", version="1.0", tag="tag1")
     assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
 
 
 def test_add_property2data_model():
@@ -736,8 +699,6 @@ def test_add_property2data_model():
         code="data_model", version="1.0", key="key", value="value", force=False
     )
     assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
 
 
 def test_remove_property_from_data_model():
@@ -746,8 +707,6 @@ def test_remove_property_from_data_model():
         code="data_model", version="1.0", key="key1", value="value1"
     )
     assert "UPDATE mipdb_metadata.data_models SET properties" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
 
 
 @pytest.mark.database
@@ -897,8 +856,6 @@ def test_tag_dataset():
         tag="tag",
     )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
 
 
 def test_untag_dataset():
@@ -907,8 +864,6 @@ def test_untag_dataset():
         dataset="dataset", data_model_code="data_model", version="1.0", tag="tag1"
     )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
 
 
 def test_add_property2dataset():
@@ -922,8 +877,6 @@ def test_add_property2dataset():
         force=False,
     )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
 
 
 def test_remove_property_from_dataset():
@@ -936,8 +889,6 @@ def test_remove_property_from_dataset():
         value="value1",
     )
     assert "UPDATE mipdb_metadata.datasets SET properties" in db.captured_queries[0]
-    assert "Sequence('action_id_seq'" in db.captured_queries[1]
-    assert 'INSERT INTO "mipdb_metadata".actions ' in db.captured_queries[2]
 
 
 @pytest.mark.database
