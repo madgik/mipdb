@@ -1,6 +1,6 @@
 import sqlalchemy as sql
 
-from mipdb.database import DataBase
+from mipdb.monetdb import DataBase
 from mipdb.exceptions import UserInputError
 
 

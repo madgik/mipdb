@@ -4,7 +4,7 @@ import pytest
 
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
-from mipdb.database import DataBase
+from mipdb.monetdb import DataBase
 
 
 @pytest.fixture

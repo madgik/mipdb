@@ -3,39 +3,36 @@ import time
 
 import pytest
 import docker
+import toml
 
-from mipdb.commands import get_db_config
-from mipdb.database import MonetDB
+from mipdb.monetdb import MonetDB, credentials_from_config
+from mipdb.monetdb_tables import User
 from mipdb.reader import JsonFileReader
-from mipdb.tables import User, DataModelTable, DatasetsTable
+from mipdb.sqlite import SQLiteDB
 
+TEST_DIR = os.path.dirname(os.path.realpath(__file__))
 DATA_MODEL_FILE = "tests/data/success/data_model_v_1_0/CDEsMetadata.json"
 DATASET_FILE = "tests/data/success/data_model_v_1_0/dataset.csv"
 DATA_FOLDER = "tests/data/"
 SUCCESS_DATA_FOLDER = DATA_FOLDER + "success"
 FAIL_DATA_FOLDER = DATA_FOLDER + "fail"
-ABSOLUTE_PATH_DATA_FOLDER = f"{os.path.dirname(os.path.realpath(__file__))}/data/"
-ABSOLUTE_PATH_DATASET_FILE = f"{os.path.dirname(os.path.realpath(__file__))}/data/success/data_model_v_1_0/dataset.csv"
-ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET = f"{os.path.dirname(os.path.realpath(__file__))}/data/success/data_model_v_1_0/dataset123.csv"
+ABSOLUTE_PATH_DATA_FOLDER = f"{TEST_DIR}/data/"
+ABSOLUTE_PATH_DATASET_FILE = f"{TEST_DIR}/data/success/data_model_v_1_0/dataset.csv"
+ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET = (
+    f"{TEST_DIR}/data/success/data_model_v_1_0/dataset123.csv"
+)
 ABSOLUTE_PATH_SUCCESS_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "success"
 ABSOLUTE_PATH_FAIL_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "fail"
+CONF_FILE = f"{TEST_DIR}/config.toml"
 IP = "127.0.0.1"
 PORT = 50123
 USERNAME = "admin"
 PASSWORD = "executor"
 DB_NAME = "db"
 
-DEFAULT_OPTIONS = [
-    "--ip",
-    IP,
-    "--port",
-    PORT,
-    "--username",
-    USERNAME,
-    "--password",
-    PASSWORD,
-    "--db_name",
-    DB_NAME,
+DEFAULT_OPTION = [
+    "--conf_file_path",
+    TEST_DIR + "/config.toml",
 ]
 
 
@@ -87,21 +84,51 @@ def monetdb_container():
 
 
 @pytest.fixture(scope="function")
-def db():
-    dbconfig = get_db_config(IP, PORT, USERNAME, PASSWORD, DB_NAME)
-    return MonetDB.from_config(dbconfig)
+def sqlite_db():
+
+    with open(CONF_FILE, "r") as file:
+        toml_data = toml.load(file)
+
+    toml_data["SQLITE_DB_PATH"] = f"{TEST_DIR}/sqlite.db"
+
+    with open(CONF_FILE, "w") as file:
+        toml.dump(toml_data, file)
+
+    credentials = credentials_from_config(CONF_FILE)
+    return SQLiteDB.from_config({"db_path": credentials["SQLITE_DB_PATH"]})
 
 
 @pytest.fixture(scope="function")
-def cleanup_db(db):
-    yield
-    data_model_table = DataModelTable()
-    datasets_table = DatasetsTable()
-    if datasets_table.exists(db):
-        datasets_table.drop(db)
-    if data_model_table.exists(db):
-        data_model_table.drop(db)
-    schemas = db.get_schemas()
+def monetdb():
+    credentials = credentials_from_config(CONF_FILE)
+
+    return MonetDB.from_config(
+        {
+            "username": credentials["MONETDB_ADMIN_USERNAME"],
+            "password": credentials["MONETDB_LOCAL_PASSWORD"],
+            "ip": credentials["DB_IP"],
+            "port": credentials["DB_PORT"],
+            "dbfarm": credentials["DB_NAME"],
+        }
+    )
+
+
+def cleanup_monetdb(monetdb):
+    schemas = monetdb.get_schemas()
     for schema in schemas:
         if schema not in [user.value for user in User]:
-            db.drop_schema(schema)
+            monetdb.drop_schema(schema)
+
+
+def cleanup_sqlite(sqlite_db):
+    sqlite_tables = sqlite_db.get_all_tables()
+    if sqlite_tables:
+        for table in sqlite_tables:
+            sqlite_db.execute(f'DROP TABLE "{table}";')
+
+
+@pytest.fixture(scope="function")
+def cleanup_db(sqlite_db, monetdb):
+    yield
+    cleanup_sqlite(sqlite_db)
+    cleanup_monetdb(monetdb)

@@ -8,45 +8,43 @@ import pytest
 import sqlalchemy as sql
 
 from mipdb.exceptions import DataBaseError
-from mipdb.tables import TemporaryTable
-from tests.conftest import DATASET_FILE, DEFAULT_OPTIONS
+from mipdb.sqlite import DataModel, Dataset
+from tests.conftest import DATASET_FILE, DEFAULT_OPTION
 from tests.conftest import DATA_MODEL_FILE
-from tests.mocks import MonetDBMock
 
-
-def test_create_schema():
-    db = MonetDBMock()
-    db.create_schema("a_schema")
-    assert "CREATE SCHEMA a_schema" in db.captured_queries[0]
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_update_data_model_status(db):
+def test_update_data_model_status(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
     # Check the status of data model is disabled
-    res = db.execute(
-        'SELECT status from  data_models where data_model_id = 1'
+    result = sqlite_db.get_values(
+        table=DataModel.__table__,
+        columns=["status"],
+        where_conditions={"data_model_id": 1},
     )
-    assert list(res)[0][0] == "ENABLED"
+    assert result[0][0] == "ENABLED"
 
     # Test
-    db.update_data_model_status("DISABLED", 1)
-    res = db.execute(
-        'SELECT status from  data_models where data_model_id = 1'
+    sqlite_db.update_data_model_status("DISABLED", 1)
+    result = sqlite_db.get_values(
+        table=DataModel.__table__,
+        columns=["status"],
+        where_conditions={"data_model_id": 1},
     )
-    assert list(res)[0][0] == "DISABLED"
+    assert result[0][0] == "DISABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def update_dataset_status(db):
+def update_dataset_status(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
     runner.invoke(
         add_dataset,
         [
@@ -58,54 +56,37 @@ def update_dataset_status(db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTIONS,
+        + DEFAULT_OPTION,
     )
 
     # Check the status of dataset is disabled
-    res = db.execute(
-        sql.text('SELECT status from  datasets where dataset_id = 1')
+
+    result = sqlite_db.get_values(
+        table=Dataset.__table__,
+        columns=["status"],
+        where_conditions={"data_model_id": 1},
     )
-    assert list(res)[0][0] == "DISABLED"
+    assert result[0][0] == "DISABLED"
 
     # Test
-    db.update_dataset_status("ENABLED", 1)
-    res = db.execute(
-        sql.text('SELECT status from  datasets where dataset_id = 1')
+    sqlite_db.update_dataset_status("ENABLED", 1)
+    result = sqlite_db.get_values(
+        table=Dataset.__table__,
+        columns=["status"],
+        where_conditions={"data_model_id": 1},
     )
-    assert list(res)[0][0] == "ENABLED"
+    assert result[0][0] == "ENABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_schemas_with_db(db):
-    # Setup
-    runner = CliRunner()
-    # Check schema not present already
-    assert "data_model:1.0" not in db.get_schemas()
-
-    runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
-
-    # Check schema present
-    schemas = db.get_schemas()
-    assert "data_model:1.0" in db.get_schemas()
-
-
-def test_get_datasets():
-    db = MonetDBMock()
-    datasets = db.get_values()
-    assert datasets == [[1, 2]]
-
-
-@pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_datasets_with_db(db):
+def test_get_datasets_with_db(sqlite_db):
     # Setup
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
     runner.invoke(
         add_dataset,
         [
@@ -117,66 +98,69 @@ def test_get_datasets_with_db(db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTIONS,
+        + DEFAULT_OPTION,
     )
 
     # Check dataset present
-    datasets = db.get_values(columns=["code"])
-    assert ("dataset",) in datasets
-    assert len(datasets) == 1
+    datasets = sqlite_db.get_values(Dataset.__table__, columns=["code"])
+    assert ("dataset",) == datasets[0]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_data_model_id_with_db(db):
+def test_get_data_model_id_with_db(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
 
     # Test success
-    data_model_id = db.get_data_model_id("data_model", "1.0")
+    data_model_id = sqlite_db.get_data_model_id("data_model", "1.0")
     assert data_model_id == 1
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_data_model_id_not_found_error(db):
+def test_get_data_model_id_not_found_error(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTION)
 
     # Test when there is no schema in the database with the specific code and version
     with pytest.raises(DataBaseError):
-        data_model_id = db.get_data_model_id("schema", "1.0")
+        data_model_id = sqlite_db.get_data_model_id("schema", "1.0")
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_data_model_id_duplication_error(db):
+def test_get_data_model_id_duplication_error(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
-    db.execute(
-        sql.text(
-            'INSERT INTO data_models (data_model_id, code, version, status)'
-            "VALUES (2, 'data_model', '1.0', 'DISABLED')"
-        )
+    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    sqlite_db.insert_values_to_table(
+        DataModel.__table__,
+        {
+            "data_model_id": 2,
+            "label": "data_model",
+            "code": "data_model",
+            "version": "1.0",
+            "status": "DISABLED",
+        },
     )
 
     # Test when there more than one schema ids with the specific code and version
     with pytest.raises(DataBaseError):
-        db.get_data_model_id("data_model", "1.0")
+        sqlite_db.get_data_model_id("data_model", "1.0")
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_dataset_id_with_db(db):
+def test_get_dataset_id_with_db(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
     runner.invoke(
         add_dataset,
         [
@@ -188,21 +172,21 @@ def test_get_dataset_id_with_db(db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTIONS,
+        + DEFAULT_OPTION,
     )
 
     # Test
-    dataset_id = db.get_dataset_id("dataset", 1)
+    dataset_id = sqlite_db.get_dataset_id("dataset", 1)
     assert dataset_id == 1
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_dataset_id_duplication_error(db):
+def test_get_dataset_id_duplication_error(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
     runner.invoke(
         add_dataset,
         [
@@ -214,66 +198,34 @@ def test_get_dataset_id_duplication_error(db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTIONS,
+        + DEFAULT_OPTION,
     )
 
-    db.execute(
-        sql.text(
-            'INSERT INTO datasets (dataset_id, data_model_id, code, csv_path, status)'
-            "VALUES (2, 1, 'dataset', '/opt/data/data_model/dataset.csv', 'DISABLED')"
-        )
+    sqlite_db.insert_values_to_table(
+        Dataset.__table__,
+        {
+            "dataset_id": 2,
+            "data_model_id": 1,
+            "label": "dataset",
+            "code": "dataset",
+            "csv_path": "/opt/data/data_model/dataset.csv",
+            "status": "DISABLED",
+        },
     )
 
     # Test when there more than one dataset ids with the specific code and data_model_id
     with pytest.raises(DataBaseError):
-        dataset_id = db.get_dataset_id("dataset", 1)
+        dataset_id = sqlite_db.get_dataset_id("dataset", 1)
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_get_dataset_id_not_found_error(db):
+def test_get_dataset_id_not_found_error(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTIONS)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTIONS)
+    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
 
     # Test when there is no dataset in the database with the specific code and data_model_id
     with pytest.raises(DataBaseError):
-        dataset_id = db.get_dataset_id("dataset", 1)
-
-
-def test_drop_schema():
-    db = MonetDBMock()
-    db.drop_schema("a_schema")
-    assert 'DROP SCHEMA "a_schema" CASCADE' in db.captured_queries[0]
-
-
-def test_create_table():
-    db = MonetDBMock()
-    table = sql.Table("a_table", sql.MetaData(), sql.Column("a_column", sql.Integer))
-    db.create_table(table)
-    assert "CREATE TABLE a_table" in db.captured_queries[0]
-
-
-def test_drop_table():
-    db = MonetDBMock()
-    table = sql.Table("a_table", sql.MetaData(), sql.Column("a_column", sql.Integer))
-    db.drop_table(table)
-    assert "DROP TABLE a_table" in db.captured_queries[0]
-
-
-def test_insert_values_to_table():
-    db = MonetDBMock()
-    table = sql.Table("a_table", sql.MetaData(), sql.Column("a_column", sql.Integer))
-    values = [1, 2, 3]
-    db.insert_values_to_table(table, values)
-    assert "INSERT INTO a_table" in db.captured_queries[0]
-    assert values == db.captured_multiparams[0][0]
-
-
-def test_grant_select_access_rights():
-    db = MonetDBMock()
-    table = TemporaryTable({"col1": "int", "col2": "int"}, db)
-    table.create(db)
-    assert "CREATE TEMPORARY " in db.captured_queries[0]
-    assert "GRANT SELECT" in db.captured_queries[1]
+        dataset_id = sqlite_db.get_dataset_id("dataset", 1)

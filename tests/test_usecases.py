@@ -4,11 +4,11 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from mipdb.database import MonetDB
+from mipdb.monetdb import MonetDB
 from mipdb.exceptions import ForeignKeyError, DataBaseError, InvalidDatasetError
 from mipdb.exceptions import UserInputError
-from mipdb.schema import Schema
-from mipdb.tables import DataModelTable, DatasetsTable
+from mipdb.sqlite import Dataset
+from mipdb.sqlite_tables import DataModelTable, DatasetsTable
 from mipdb.usecases import (
     AddPropertyToDataset,
     check_unique_longitudinal_dataset_primary_keys,
@@ -34,7 +34,6 @@ from mipdb.usecases import UntagDataModel
 from mipdb.usecases import ValidateDataset
 from mipdb.usecases import is_db_initialized
 from tests.conftest import DATASET_FILE, ABSOLUTE_PATH_DATASET_FILE
-from tests.mocks import MonetDBMock
 
 
 # NOTE Some use cases have a main responsibility (e.g. add a new data_model) which
@@ -49,7 +48,7 @@ from tests.mocks import MonetDBMock
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_init_with_db(db):
     # Setup
-    InitDB(db).execute()
+    InitDB(sqlite_db).execute()
     data_model_table = DataModelTable()
     datasets_table = DatasetsTable()
 
@@ -68,193 +67,145 @@ def test_is_db_initialized_with_db_fail(db):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_is_db_initialized_with_db_fail(db):
-    InitDB(db).execute()
-    assert is_db_initialized(db=db)
+def test_is_db_initialized_with_db_fail(sqlite_db):
+    InitDB(sqlite_db).execute()
+    assert is_db_initialized(db=sqlite_db)
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_init_with_db(db):
+def test_init_with_db(sqlite_db):
     # Setup
-    InitDB(db).execute()
-    InitDB(db).execute()
+    InitDB(sqlite_db).execute()
+    InitDB(sqlite_db).execute()
     data_model_table = DataModelTable()
     datasets_table = DatasetsTable()
     # Test
 
-    assert data_model_table.exists(db)
-    assert datasets_table.exists(db)
+    assert data_model_table.exists(sqlite_db)
+    assert datasets_table.exists(sqlite_db)
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_re_init_with_missing_schema_with_db(db):
+def test_re_init_with_missing_schema_with_db(sqlite_db):
     # Setup
-    InitDB(db).execute()
+    InitDB(sqlite_db).execute()
     data_model_table = DataModelTable()
     datasets_table = DatasetsTable()
-    InitDB(db).execute()
+    InitDB(sqlite_db).execute()
 
-    # Test
-
-    assert data_model_table.exists(db)
-    assert datasets_table.exists(db)
+    assert data_model_table.exists(sqlite_db)
+    assert datasets_table.exists(sqlite_db)
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_re_init_with_missing_actions_table_with_db(db):
+def test_re_init_with_missing_actions_table_with_db(sqlite_db):
     # Setup
-    InitDB(db).execute()
+    InitDB(sqlite_db).execute()
     data_model_table = DataModelTable()
     datasets_table = DatasetsTable()
 
-    assert data_model_table.exists(db)
-    assert datasets_table.exists(db)
-    InitDB(db).execute()
+    assert data_model_table.exists(sqlite_db)
+    assert datasets_table.exists(sqlite_db)
+    InitDB(sqlite_db).execute()
 
     # Test
 
-    assert data_model_table.exists(db)
-    assert datasets_table.exists(db)
+    assert data_model_table.exists(sqlite_db)
+    assert datasets_table.exists(sqlite_db)
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_re_init_with_missing_data_models_table_with_db(db):
+def test_re_init_with_missing_data_models_table_with_db(sqlite_db):
     # Setup
-    InitDB(db).execute()
+    InitDB(sqlite_db).execute()
     data_model_table = DataModelTable()
     datasets_table = DatasetsTable()
-    db.execute(f'DROP TABLE data_models CASCADE')
+    sqlite_db.execute(f"DROP TABLE data_models")
 
-    assert not data_model_table.exists(db)
-    assert datasets_table.exists(db)
-    InitDB(db).execute()
+    assert not data_model_table.exists(sqlite_db)
+    assert datasets_table.exists(sqlite_db)
+    InitDB(sqlite_db).execute()
 
     # Test
 
-    assert data_model_table.exists(db)
-    assert datasets_table.exists(db)
+    assert data_model_table.exists(sqlite_db)
+    assert datasets_table.exists(sqlite_db)
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_re_init_with_missing_datasets_table_with_db(db):
+def test_re_init_with_missing_datasets_table_with_db(sqlite_db):
     # Setup
-    InitDB(db).execute()
-    
+    InitDB(sqlite_db).execute()
+
     data_model_table = DataModelTable()
     datasets_table = DatasetsTable()
-    db.execute(f'DROP TABLE datasets')
+    sqlite_db.execute(f"DROP TABLE datasets")
 
-    assert data_model_table.exists(db)
-    assert not datasets_table.exists(db)
-    InitDB(db).execute()
+    assert data_model_table.exists(sqlite_db)
+    assert not datasets_table.exists(sqlite_db)
+    InitDB(sqlite_db).execute()
 
     # Test
 
-    assert data_model_table.exists(db)
-    assert datasets_table.exists(db)
+    assert data_model_table.exists(sqlite_db)
+    assert datasets_table.exists(sqlite_db)
 
 
-def test_add_data_model_mock(data_model_metadata):
-    db = MonetDBMock()
-    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
-    assert 'CREATE SCHEMA "data_model:1.0"' in db.captured_queries[1]
-    assert 'CREATE TABLE "data_model:1.0".primary_data' in db.captured_queries[2]
-    assert (
-        f'GRANT SELECT ON TABLE "data_model:1.0"."primary_data" TO executor WITH GRANT OPTION;'
-        in db.captured_queries[3]
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_add_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
+    # Setup
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db=sqlite_db, monetdb=monetdb).execute(
+        data_model_metadata=data_model_metadata
     )
-    assert f'CREATE TABLE "data_model:1.0".variables_metadata' in db.captured_queries[4]
-    assert (
-        f'GRANT SELECT ON TABLE "data_model:1.0"."variables_metadata" TO executor WITH GRANT OPTION;'
-        in db.captured_queries[5]
-    )
-    assert f'INSERT INTO "data_model:1.0".variables_metadata' in db.captured_queries[6]
-    assert len(db.captured_queries) > 5  # verify that handlers issued more queries
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_data_model_with_db(db, data_model_metadata):
+def test_delete_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
-
-    # Test
-    schemas = db.get_schemas()
-
-    assert "data_model:1.0" in schemas
-
-
-def test_delete_data_model():
-    db = MonetDBMock()
-    code = "data_model"
-    version = "1.0"
-    force = True
-    DeleteDataModel(db).execute(code=code, version=version, force=force)
-
-    assert 'DELETE FROM "data_model:1.0"."primary_data"' in db.captured_queries[0]
-    assert "DELETE FROM datasets" in db.captured_queries[1]
-    assert 'DROP SCHEMA "data_model:1.0" CASCADE' in db.captured_queries[2]
-    assert "DELETE FROM data_models" in db.captured_queries[3]
-
-
-@pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_db(db, data_model_metadata):
-    # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
-    schemas = db.get_schemas()
-
-    assert "data_model:1.0" in schemas
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata=data_model_metadata)
 
     # Test with force False
-    DeleteDataModel(db).execute(
+    DeleteDataModel(sqlite_db, monetdb).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         force=False,
     )
-    schemas = db.get_schemas()
-
-    assert "data_model:1.0" not in schemas
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_db_with_force(db, data_model_metadata):
+def test_delete_data_model_with_db_with_force(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
-    schemas = db.get_schemas()
-
-    assert "data_model:1.0" in schemas
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata=data_model_metadata)
 
     # Test with force True
-    DeleteDataModel(db).execute(
+    DeleteDataModel(sqlite_db, monetdb).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         force=True,
     )
-    schemas = db.get_schemas()
-
-    assert "data_model:1.0" not in schemas
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_datasets_with_db(db, data_model_metadata):
+def test_delete_data_model_with_datasets_with_db(
+    sqlite_db, monetdb, data_model_metadata
+):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    schemas = db.get_schemas()
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
 
-    assert "data_model:1.0" in schemas
-    ImportCSV(db).execute(
+    ImportCSV(sqlite_db, monetdb).execute(
         csv_path=DATASET_FILE,
         copy_from_file=False,
         data_model_code="data_model",
@@ -263,7 +214,7 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_metadata):
 
     # Test with force False
     with pytest.raises(ForeignKeyError):
-        DeleteDataModel(db).execute(
+        DeleteDataModel(sqlite_db, monetdb).execute(
             code=data_model_metadata["code"],
             version=data_model_metadata["version"],
             force=False,
@@ -272,14 +223,14 @@ def test_delete_data_model_with_datasets_with_db(db, data_model_metadata):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_data_model_with_datasets_with_db_with_force(db, data_model_metadata):
+def test_delete_data_model_with_datasets_with_db_with_force(
+    sqlite_db, monetdb, data_model_metadata
+):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    schemas = db.get_schemas()
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
 
-    assert "data_model:1.0" in schemas
-    ImportCSV(db).execute(
+    ImportCSV(sqlite_db, monetdb).execute(
         csv_path=DATASET_FILE,
         copy_from_file=False,
         data_model_code="data_model",
@@ -287,77 +238,71 @@ def test_delete_data_model_with_datasets_with_db_with_force(db, data_model_metad
     )
 
     # Test with force True
-    DeleteDataModel(db).execute(
+    DeleteDataModel(sqlite_db, monetdb).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         force=True,
     )
-    schemas = db.get_schemas()
-
-    assert "data_model:1.0" not in schemas
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset(db, data_model_metadata):
+def test_add_dataset(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
     # Test success
-    ImportCSV(db).execute(
+    ImportCSV(sqlite_db, monetdb).execute(
         csv_path=DATASET_FILE,
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    (code, csv_path), *_ = db.execute(f"SELECT code, csv_path FROM datasets").fetchall()
+    (code, csv_path), *_ = sqlite_db.execute_fetchall(
+        f"SELECT code, csv_path FROM datasets"
+    )
     assert "dataset.csv" in csv_path
-    res = db.execute('SELECT * FROM "data_model:1.0".primary_data').fetchall()
+    res = monetdb.execute('SELECT * FROM "data_model:1.0".primary_data')
     assert res != []
-
-
-def test_insert_dataset_mock(data_model_metadata):
-    db = MonetDBMock()
-    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
-    assert 'INSERT INTO "data_model:1.0".primary_data' in db.captured_queries[0]
-    assert "Sequence('dataset_id_seq'" in db.captured_queries[1]
-    assert "INSERT INTO datasets" in db.captured_queries[2]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset_with_db_with_multiple_datasets(db, data_model_metadata):
+def test_add_dataset_with_db_with_multiple_datasets(
+    sqlite_db, monetdb, data_model_metadata
+):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
     # Test
-    ImportCSV(db).execute(
+    ImportCSV(sqlite_db, monetdb).execute(
         csv_path="tests/data/success/data_model_v_1_0/dataset123.csv",
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    datasets = db.get_values(columns=["data_model_id", "code"])
+    datasets = sqlite_db.get_values(
+        table=Dataset.__table__, columns=["data_model_id", "code"]
+    )
     assert len(datasets) == 3
     assert all(code in ["dataset", "dataset1", "dataset2"] for dmi, code in datasets)
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset_with_small_record_copy(db, data_model_metadata):
+def test_add_dataset_with_small_record_copy(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    with patch("mipdb.tables.RECORDS_PER_COPY", 1):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    with patch("mipdb.monetdb_tables.RECORDS_PER_COPY", 1):
         # Test
-        ImportCSV(db).execute(
+        ImportCSV(sqlite_db, monetdb).execute(
             csv_path=DATASET_FILE,
             copy_from_file=False,
             data_model_code="data_model",
             data_model_version="1.0",
         )
-    records = db.execute(
+    records = monetdb.execute(
         f'SELECT count(*) FROM "data_model:1.0".primary_data'
     ).fetchall()
     assert 5 == records[0][0]
@@ -365,19 +310,21 @@ def test_add_dataset_with_small_record_copy(db, data_model_metadata):
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_dataset_with_small_record_copy_with_volume(db, data_model_metadata):
+def test_add_dataset_with_small_record_copy_with_volume(
+    sqlite_db, monetdb, data_model_metadata
+):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    with patch("mipdb.tables.RECORDS_PER_COPY", 1):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    with patch("mipdb.monetdb_tables.RECORDS_PER_COPY", 1):
         # Test
-        ImportCSV(db).execute(
+        ImportCSV(sqlite_db, monetdb).execute(
             csv_path=ABSOLUTE_PATH_DATASET_FILE,
             copy_from_file=True,
             data_model_code="data_model",
             data_model_version="1.0",
         )
-    records = db.execute(
+    records = monetdb.execute(
         f'SELECT count(*) FROM "data_model:1.0".primary_data'
     ).fetchall()
     assert 5 == records[0][0]
@@ -385,19 +332,19 @@ def test_add_dataset_with_small_record_copy_with_volume(db, data_model_metadata)
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_csv_legnth_equals_records_per_copy(db, data_model_metadata):
+def test_csv_legnth_equals_records_per_copy(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    with patch("mipdb.tables.RECORDS_PER_COPY", 5):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    with patch("mipdb.monetdb_tables.RECORDS_PER_COPY", 5):
         # Test
-        ImportCSV(db).execute(
+        ImportCSV(sqlite_db, monetdb).execute(
             csv_path=ABSOLUTE_PATH_DATASET_FILE,
             copy_from_file=True,
             data_model_code="data_model",
             data_model_version="1.0",
         )
-    records = db.execute(
+    records = monetdb.execute(
         f'SELECT count(*) FROM "data_model:1.0".primary_data'
     ).fetchall()
     assert 5 == records[0][0]
@@ -420,346 +367,273 @@ def test_check_duplicate_pairs_fail():
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_validate_dataset(db, data_model_metadata):
+def test_validate_dataset(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
     # Test success
-    ValidateDataset(db).execute(
+    ValidateDataset(sqlite_db, monetdb).execute(
         csv_path=DATASET_FILE,
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
-    )
-
-
-def test_delete_dataset():
-    db = MonetDBMock()
-    dataset = "dataset"
-    code = "data_model"
-    version = "1.0"
-    DeleteDataset(db).execute(
-        dataset_code=dataset, data_model_code=code, data_model_version=version
-    )
-
-    assert (
-        'DELETE FROM "data_model:1.0"."primary_data" WHERE dataset = :dataset_name '
-        in db.captured_queries[0]
-    )
-    assert (
-        "DELETE FROM datasets WHERE dataset_id = :dataset_id AND data_model_id = :data_model_id "
-        in db.captured_queries[1]
     )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_delete_dataset_with_db(db, data_model_metadata):
+def test_delete_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    ImportCSV(db).execute(
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(
         csv_path=DATASET_FILE,
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    datasets = db.get_values(columns=["code"])
+    datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
     assert len(datasets) == 1
     assert ("dataset",) in datasets
 
     # Test
-    DeleteDataset(db).execute(
+    DeleteDataset(sqlite_db, monetdb).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    datasets = db.get_values(columns=["code"])
+    datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
     assert len(datasets) == 0
     assert ("dataset",) not in datasets
 
 
-def test_enable_data_model():
-    db = MonetDBMock()
-    code = "data_model"
-    version = "1.0"
-    EnableDataModel(db).execute(code=code, version=version)
-    assert "UPDATE data_models" in db.captured_queries[0]
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_enable_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata=data_model_metadata)
+    DisableDataModel(sqlite_db).execute(
+        code=data_model_metadata["code"], version=data_model_metadata["version"]
+    )
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM data_models")
+    assert status[0][0] == "DISABLED"
+    EnableDataModel(sqlite_db).execute(
+        code=data_model_metadata["code"], version=data_model_metadata["version"]
+    )
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM data_models")
+    assert status[0][0] == "ENABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_data_model_with_db(db, data_model_metadata):
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata=data_model_metadata)
-    DisableDataModel(db).execute(
-        code=data_model_metadata["code"], version=data_model_metadata["version"]
-    )
-    status = db.execute(f"SELECT status FROM data_models").fetchone()
-    assert status[0] == "DISABLED"
-    EnableDataModel(db).execute(
-        code=data_model_metadata["code"], version=data_model_metadata["version"]
-    )
-    status = db.execute(f"SELECT status FROM data_models").fetchone()
-    assert status[0] == "ENABLED"
-
-
-@pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_data_model_already_enabled_with_db(db, data_model_metadata):
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    status = db.execute(f"SELECT status FROM data_models").fetchone()
-    assert status[0] == "ENABLED"
+def test_enable_data_model_already_enabled_with_db(
+    sqlite_db, monetdb, data_model_metadata
+):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM data_models")
+    assert status[0][0] == "ENABLED"
 
     with pytest.raises(UserInputError):
-        EnableDataModel(db).execute(
+        EnableDataModel(sqlite_db).execute(
             code=data_model_metadata["code"], version=data_model_metadata["version"]
         )
 
 
-def test_disable_data_model():
-    db = MonetDBMock()
-    code = "data_model"
-    version = "1.0"
-    DisableDataModel(db).execute(code, version)
-    assert "UPDATE data_models" in db.captured_queries[0]
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+def test_disable_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM data_models")
+    assert status[0][0] == "ENABLED"
+    DisableDataModel(sqlite_db).execute(
+        code=data_model_metadata["code"], version=data_model_metadata["version"]
+    )
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM data_models")
+    assert status[0][0] == "DISABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_data_model_with_db(db, data_model_metadata):
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    status = db.execute(f"SELECT status FROM data_models").fetchone()
-    assert status[0] == "ENABLED"
-    DisableDataModel(db).execute(
+def test_disable_data_model_already_disabled_with_db(
+    sqlite_db, monetdb, data_model_metadata
+):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    DisableDataModel(sqlite_db).execute(
         code=data_model_metadata["code"], version=data_model_metadata["version"]
     )
-    status = db.execute(f"SELECT status FROM data_models").fetchone()
-    assert status[0] == "DISABLED"
-
-
-@pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_data_model_already_disabled_with_db(db, data_model_metadata):
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    DisableDataModel(db).execute(
-        code=data_model_metadata["code"], version=data_model_metadata["version"]
-    )
-    status = db.execute(f"SELECT status FROM data_models").fetchone()
-    assert status[0] == "DISABLED"
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM data_models")
+    assert status[0][0] == "DISABLED"
 
     with pytest.raises(UserInputError):
-        DisableDataModel(db).execute(
+        DisableDataModel(sqlite_db).execute(
             code=data_model_metadata["code"], version=data_model_metadata["version"]
         )
 
 
-def test_enable_dataset():
-    db = MonetDBMock()
-    dataset = "dataset"
-    code = "data_model"
-    version = "1.0"
-    EnableDataset(db).execute(dataset, code, version)
-    assert "UPDATE datasets" in db.captured_queries[0]
-
-
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_dataset_with_db(db, data_model_metadata):
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    ImportCSV(db).execute(
+def test_enable_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(
         csv_path=DATASET_FILE,
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    DisableDataset(db).execute(
+    DisableDataset(sqlite_db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    status = db.execute(f"SELECT status FROM datasets").fetchone()
-    assert status[0] == "DISABLED"
-    EnableDataset(db).execute(
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM datasets")
+    assert status[0][0] == "DISABLED"
+    EnableDataset(sqlite_db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    status = db.execute(f"SELECT status FROM datasets").fetchone()
-    assert status[0] == "ENABLED"
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM datasets")
+    assert status[0][0] == "ENABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_enable_dataset_already_enabled_with_db(db, data_model_metadata):
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    ImportCSV(db).execute(
+def test_enable_dataset_already_enabled_with_db(
+    sqlite_db, monetdb, data_model_metadata
+):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(
         csv_path=DATASET_FILE,
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    status = db.execute(f"SELECT status FROM datasets").fetchone()
-    assert status[0] == "ENABLED"
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM datasets")
+    assert status[0][0] == "ENABLED"
 
     with pytest.raises(UserInputError):
-        EnableDataset(db).execute(
+        EnableDataset(sqlite_db).execute(
             dataset_code="dataset",
             data_model_code=data_model_metadata["code"],
             data_model_version=data_model_metadata["version"],
         )
 
 
-def test_disable_dataset():
-    db = MonetDBMock()
-    dataset = "dataset"
-    code = "data_model"
-    version = "1.0"
-    DisableDataset(db).execute(dataset, code, version)
-    assert "UPDATE datasets" in db.captured_queries[0]
-
-
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_dataset_with_db(db, data_model_metadata):
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    ImportCSV(db).execute(
+def test_disable_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(
         csv_path=DATASET_FILE,
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    status = db.execute(f"SELECT status FROM datasets").fetchone()
-    assert status[0] == "ENABLED"
-    DisableDataset(db).execute(
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM datasets")
+    assert status[0][0] == "ENABLED"
+    DisableDataset(sqlite_db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    status = db.execute(f"SELECT status FROM datasets").fetchone()
-    assert status[0] == "DISABLED"
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM datasets")
+    assert status[0][0] == "DISABLED"
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_disable_dataset_already_disabled_with_db(db, data_model_metadata):
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    ImportCSV(db).execute(
+def test_disable_dataset_already_disabled_with_db(
+    sqlite_db, monetdb, data_model_metadata
+):
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(
         csv_path=DATASET_FILE,
         copy_from_file=False,
         data_model_code="data_model",
         data_model_version="1.0",
     )
-    DisableDataset(db).execute(
+    DisableDataset(sqlite_db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
     )
-    status = db.execute(f"SELECT status FROM datasets").fetchone()
-    assert status[0] == "DISABLED"
+    status = sqlite_db.execute_fetchall(f"SELECT status FROM datasets")
+    assert status[0][0] == "DISABLED"
 
     with pytest.raises(UserInputError):
-        DisableDataset(db).execute(
+        DisableDataset(sqlite_db).execute(
             dataset_code="dataset",
             data_model_code=data_model_metadata["code"],
             data_model_version=data_model_metadata["version"],
         )
 
 
-def test_tag_data_model():
-    db = MonetDBMock()
-    TagDataModel(db).execute(code="data_model", version="1.0", tag="tag")
-    assert "UPDATE data_models SET properties" in db.captured_queries[0]
-
-
-def test_untag_data_model():
-    db = MonetDBMock()
-    UntagDataModel(db).execute(code="data_model", version="1.0", tag="tag1")
-    assert "UPDATE data_models SET properties" in db.captured_queries[0]
-
-
-def test_add_property2data_model():
-    db = MonetDBMock()
-    AddPropertyToDataModel(db).execute(
-        code="data_model", version="1.0", key="key", value="value", force=False
-    )
-    assert "UPDATE data_models SET properties" in db.captured_queries[0]
-
-
-def test_remove_property_from_data_model():
-    db = MonetDBMock()
-    RemovePropertyFromDataModel(db).execute(
-        code="data_model", version="1.0", key="key1", value="value1"
-    )
-    assert "UPDATE data_models SET properties" in db.captured_queries[0]
-
-
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_data_model_with_db(db, data_model_metadata):
+def test_tag_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
 
     # Test
-    TagDataModel(db).execute(
+    TagDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         tag="tag",
     )
 
-    properties = db.get_data_model_properties(1)
-    assert json.loads(properties)["tags"] == ["tag"]
+    properties = sqlite_db.get_data_model_properties(1)
+    assert properties["tags"] == ["tag"]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_untag_data_model_with_db(db, data_model_metadata):
+def test_untag_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    TagDataModel(db).execute(
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    TagDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         tag="tag1",
     )
-    TagDataModel(db).execute(
+    TagDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         tag="tag2",
     )
-    TagDataModel(db).execute(
+    TagDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         tag="tag3",
     )
 
     # Test
-    UntagDataModel(db).execute(
+    UntagDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         tag="tag1",
     )
-    properties = db.get_data_model_properties(1)
-    assert json.loads(properties)["tags"] == ["tag2", "tag3"]
+    properties = sqlite_db.get_data_model_properties(1)
+    assert properties["tags"] == ["tag2", "tag3"]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_property2data_model_with_db(db, data_model_metadata):
+def test_add_property2data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
 
     # Test
-    AddPropertyToDataModel(db).execute(
+    AddPropertyToDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         key="key",
@@ -767,20 +641,21 @@ def test_add_property2data_model_with_db(db, data_model_metadata):
         force=False,
     )
 
-    properties = db.get_data_model_properties(1)
+    properties = sqlite_db.get_data_model_properties(1)
     assert (
-        "key" in json.loads(properties)["properties"]
-        and json.loads(properties)["properties"]["key"] == "value"
+        "key" in properties["properties"] and properties["properties"]["key"] == "value"
     )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_property2data_model_with_force_and_db(db, data_model_metadata):
+def test_add_property2data_model_with_force_and_db(
+    sqlite_db, monetdb, data_model_metadata
+):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    AddPropertyToDataModel(db).execute(
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    AddPropertyToDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         key="key",
@@ -789,7 +664,7 @@ def test_add_property2data_model_with_force_and_db(db, data_model_metadata):
     )
 
     # Test
-    AddPropertyToDataModel(db).execute(
+    AddPropertyToDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         key="key",
@@ -797,27 +672,29 @@ def test_add_property2data_model_with_force_and_db(db, data_model_metadata):
         force=True,
     )
 
-    properties = db.get_data_model_properties(1)
+    properties = sqlite_db.get_data_model_properties(1)
     assert (
-        "key" in json.loads(properties)["properties"]
-        and json.loads(properties)["properties"]["key"] == "value1"
+        "key" in properties["properties"]
+        and properties["properties"]["key"] == "value1"
     )
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_remove_property_from_data_model_with_db(db, data_model_metadata):
+def test_remove_property_from_data_model_with_db(
+    sqlite_db, monetdb, data_model_metadata
+):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    AddPropertyToDataModel(db).execute(
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    AddPropertyToDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         key="key1",
         value="value1",
         force=False,
     )
-    AddPropertyToDataModel(db).execute(
+    AddPropertyToDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         key="key2",
@@ -826,103 +703,59 @@ def test_remove_property_from_data_model_with_db(db, data_model_metadata):
     )
 
     # Test
-    RemovePropertyFromDataModel(db).execute(
+    RemovePropertyFromDataModel(sqlite_db).execute(
         code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         key="key1",
         value="value1",
     )
-    properties = db.get_data_model_properties(1)
+    properties = sqlite_db.get_data_model_properties(1)
     assert (
-        "key2" in json.loads(properties)["properties"]
-        and json.loads(properties)["properties"]["key2"] == "value2"
+        "key2" in properties["properties"]
+        and properties["properties"]["key2"] == "value2"
     )
-
-
-def test_tag_dataset():
-    db = MonetDBMock()
-    TagDataset(db).execute(
-        dataset_code="dataset",
-        data_model_code="data_model",
-        data_model_version="1.0",
-        tag="tag",
-    )
-    assert "UPDATE datasets SET properties" in db.captured_queries[0]
-
-
-def test_untag_dataset():
-    db = MonetDBMock()
-    UntagDataset(db).execute(
-        dataset="dataset", data_model_code="data_model", version="1.0", tag="tag1"
-    )
-    assert "UPDATE datasets SET properties" in db.captured_queries[0]
-
-
-def test_add_property2dataset():
-    db = MonetDBMock()
-    AddPropertyToDataset(db).execute(
-        dataset="dataset",
-        data_model_code="data_model",
-        version="1.0",
-        key="key",
-        value="value",
-        force=False,
-    )
-    assert "UPDATE datasets SET properties" in db.captured_queries[0]
-
-
-def test_remove_property_from_dataset():
-    db = MonetDBMock()
-    RemovePropertyFromDataset(db).execute(
-        dataset="dataset",
-        data_model_code="data_model",
-        version="1.0",
-        key="key1",
-        value="value1",
-    )
-    assert "UPDATE datasets SET properties" in db.captured_queries[0]
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_tag_dataset_with_db(db, data_model_metadata):
+def test_tag_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(DATASET_FILE, False, "data_model", "1.0")
 
     # Test
-    TagDataset(db).execute(
+    TagDataset(sqlite_db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
         tag="tag",
     )
 
-    properties = db.get_dataset_properties(1)
-    assert properties == '{"tags":["tag"],"properties":{}}'
+    properties = sqlite_db.get_dataset_properties(1)
+    assert properties == {"tags": ["tag"], "properties": {}}
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_untag_dataset_with_db(db, data_model_metadata):
+def test_untag_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
-    TagDataset(db).execute(
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(DATASET_FILE, False, "data_model", "1.0")
+    TagDataset(sqlite_db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
         tag="tag1",
     )
-    TagDataset(db).execute(
+    TagDataset(sqlite_db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
         tag="tag2",
     )
-    TagDataset(db).execute(
+    TagDataset(sqlite_db).execute(
         dataset_code="dataset",
         data_model_code=data_model_metadata["code"],
         data_model_version=data_model_metadata["version"],
@@ -930,27 +763,27 @@ def test_untag_dataset_with_db(db, data_model_metadata):
     )
 
     # Test
-    UntagDataset(db).execute(
+    UntagDataset(sqlite_db).execute(
         dataset="dataset",
         data_model_code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         tag="tag1",
     )
 
-    properties = db.get_dataset_properties(1)
-    assert properties == '{"tags":["tag2","tag3"],"properties":{}}'
+    properties = sqlite_db.get_dataset_properties(1)
+    assert properties == {"tags": ["tag2", "tag3"], "properties": {}}
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_add_property2dataset_with_db(db, data_model_metadata):
+def test_add_property2dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(DATASET_FILE, False, "data_model", "1.0")
 
     # Test
-    AddPropertyToDataset(db).execute(
+    AddPropertyToDataset(sqlite_db).execute(
         dataset="dataset",
         data_model_code=data_model_metadata["code"],
         version=data_model_metadata["version"],
@@ -959,18 +792,18 @@ def test_add_property2dataset_with_db(db, data_model_metadata):
         force=False,
     )
 
-    properties = db.get_dataset_properties(1)
-    assert properties == '{"tags":[],"properties":{"key":"value"}}'
+    properties = sqlite_db.get_dataset_properties(1)
+    assert properties == {"tags": [], "properties": {"key": "value"}}
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_remove_property_from_dataset_with_db(db, data_model_metadata):
+def test_remove_property_from_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
-    AddDataModel(db).execute(data_model_metadata)
-    ImportCSV(db).execute(DATASET_FILE, False, "data_model", "1.0")
-    AddPropertyToDataset(db).execute(
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(DATASET_FILE, False, "data_model", "1.0")
+    AddPropertyToDataset(sqlite_db).execute(
         dataset="dataset",
         data_model_code=data_model_metadata["code"],
         version=data_model_metadata["version"],
@@ -978,7 +811,7 @@ def test_remove_property_from_dataset_with_db(db, data_model_metadata):
         value="value",
         force=False,
     )
-    AddPropertyToDataset(db).execute(
+    AddPropertyToDataset(sqlite_db).execute(
         dataset="dataset",
         data_model_code=data_model_metadata["code"],
         version=data_model_metadata["version"],
@@ -986,7 +819,7 @@ def test_remove_property_from_dataset_with_db(db, data_model_metadata):
         value="value1",
         force=False,
     )
-    AddPropertyToDataset(db).execute(
+    AddPropertyToDataset(sqlite_db).execute(
         dataset="dataset",
         data_model_code=data_model_metadata["code"],
         version=data_model_metadata["version"],
@@ -996,24 +829,24 @@ def test_remove_property_from_dataset_with_db(db, data_model_metadata):
     )
 
     # Test
-    RemovePropertyFromDataset(db).execute(
+    RemovePropertyFromDataset(sqlite_db).execute(
         dataset="dataset",
         data_model_code=data_model_metadata["code"],
         version=data_model_metadata["version"],
         key="key2",
         value="value2",
     )
-    properties = db.get_dataset_properties(1)
-    assert (
-        properties == '{"tags":[],"properties":{"key":"value","key1":"value1"}}'
-    )
+    properties = sqlite_db.get_dataset_properties(1)
+    assert properties == {"tags": [], "properties": {"key": "value", "key1": "value1"}}
 
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_grant_select_access_rights(db):
+def test_grant_select_access_rights(sqlite_db, monetdb, data_model_metadata):
     # Setup
-    InitDB(db).execute()
+    InitDB(sqlite_db).execute()
+    AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
+    ImportCSV(sqlite_db, monetdb).execute(DATASET_FILE, False, "data_model", "1.0")
 
     # Validation that the user 'executor' can only access data but not drop the data models table
     executor_config = {
@@ -1023,12 +856,11 @@ def test_grant_select_access_rights(db):
         "username": "executor",
         "password": "executor",
     }
-    
-    data_model_table = DataModelTable()
+
     db_connected_by_executor = MonetDB.from_config(executor_config)
     result = db_connected_by_executor.execute(
-        f"select * from data_models"
+        f'select * from "data_model:1.0"."primary_data"'
     )
-    assert result.fetchall() == []
+    assert result != []
     with pytest.raises(DataBaseError):
-        data_model_table.drop(db_connected_by_executor)
+        db_connected_by_executor.execute('DROP TABLE "data_model:1.0"."primary_data"')

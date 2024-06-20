@@ -4,15 +4,14 @@ import os
 from abc import ABC, abstractmethod
 
 import pandas as pd
-from sqlalchemy import MetaData
 
-from mipdb.database import DataBase
+from mipdb.monetdb import MonetDB
 from mipdb.data_frame_schema import DataFrameSchema
 from mipdb.exceptions import ForeignKeyError, InvalidDatasetError
 from mipdb.exceptions import UserInputError
+from mipdb.monetdb_tables import PrimaryDataTable, TemporaryTable, RECORDS_PER_COPY
 from mipdb.properties import Properties
 from mipdb.reader import CSVDataFrameReader
-from mipdb.schema import Schema
 from mipdb.dataelements import (
     flatten_cdes,
     validate_dataset_present_on_cdes_with_proper_format,
@@ -22,18 +21,17 @@ from mipdb.dataelements import (
     get_cdes_with_enumerations,
     get_dataset_enums,
 )
-from mipdb.tables import (
+from mipdb.schema import Schema
+from mipdb.sqlite import SQLiteDB
+from mipdb.sqlite_tables import (
     DataModelTable,
     DatasetsTable,
     MetadataTable,
-    PrimaryDataTable,
-    TemporaryTable,
-    RECORDS_PER_COPY,
 )
 from mipdb.data_frame import DataFrame, DATASET_COLUMN_NAME
 
 LONGITUDINAL = "longitudinal"
-METADATA = MetaData()
+
 
 class UseCase(ABC):
     """Abstract use case class."""
@@ -45,138 +43,135 @@ class UseCase(ABC):
 
 
 def is_db_initialized(db):
-    
+
     data_model_table = DataModelTable()
     datasets_table = DatasetsTable()
 
-    with db.begin() as conn:
-        if (
-            data_model_table.exists(conn)
-            and datasets_table.exists(conn)
-        ):
-            return True
-        else:
-            raise UserInputError(
-                "You need to initialize the database!\n "
-                "Try mipdb init --port <db_port>"
-            )
+    if data_model_table.exists(db) and datasets_table.exists(db):
+        return True
+    else:
+        raise UserInputError("You need to initialize the database!\n " "Try mipdb init")
 
 
 class InitDB(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
 
     def execute(self) -> None:
-        
+
         data_model_table = DataModelTable()
         datasets_table = DatasetsTable()
-
-        with self.db.begin() as conn:
-            if not data_model_table.exists(conn):
-                data_model_table.drop_sequence(conn)
-                data_model_table.create(conn)
-            if not datasets_table.exists(conn):
-                datasets_table.drop_sequence(conn)
-                datasets_table.create(conn)
+        if not data_model_table.exists(self.db):
+            data_model_table.create(self.db)
+        if not datasets_table.exists(self.db):
+            datasets_table.create(self.db)
 
 
 class AddDataModel(UseCase):
-    def __init__(self, db: DataBase) -> None:
-        self.db = db
-        is_db_initialized(db)
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+        self.sqlite_db = sqlite_db
+        self.monetdb = monetdb
+        is_db_initialized(sqlite_db)
 
     def execute(self, data_model_metadata) -> None:
         code = data_model_metadata["code"]
         version = data_model_metadata["version"]
-        name = get_data_model_fullname(code, version)
+        data_model = get_data_model_fullname(code, version)
         cdes = flatten_cdes(copy.deepcopy(data_model_metadata))
-        
+
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_next_data_model_id(conn)
-            schema = self._create_schema(name, conn)
-            self._create_primary_data_table(schema, cdes, conn)
-            self._create_metadata_table(schema, conn, cdes)
-            values = dict(
-                data_model_id=data_model_id,
-                code=code,
-                version=version,
-                label=data_model_metadata["label"],
-                status="ENABLED",
-            )
-            data_model_table.insert_values(values, conn)
-            AddPropertyToDataModel(self.db).execute(
-                code=code,
-                version=version,
-                key="cdes",
-                value=data_model_metadata,
-                force=True,
-            )
-            if LONGITUDINAL in data_model_metadata:
-                longitudinal = data_model_metadata[LONGITUDINAL]
-                if not isinstance(longitudinal, bool):
-                    raise UserInputError(f"Longitudinal flag should be boolean, value given: {longitudinal}")
-                if longitudinal:
-                    TagDataModel(self.db).execute(
-                        code=code, version=version, tag=LONGITUDINAL
-                    )
+        data_model_id = data_model_table.get_next_data_model_id(self.sqlite_db)
+        self._create_primary_data_table(data_model, cdes)
+        self._create_metadata_table(data_model, self.sqlite_db, cdes)
+        properties = Properties(
+            data_model_table.get_data_model_properties(data_model_id, self.sqlite_db)
+        )
+        properties.add_property("cdes", data_model_metadata, True)
+        values = dict(
+            data_model_id=data_model_id,
+            code=code,
+            version=version,
+            label=data_model_metadata["label"],
+            status="ENABLED",
+            properties=properties.properties,
+        )
+        data_model_table.insert_values(values, self.sqlite_db)
+        if LONGITUDINAL in data_model_metadata:
+            longitudinal = data_model_metadata[LONGITUDINAL]
+            if not isinstance(longitudinal, bool):
+                raise UserInputError(
+                    f"Longitudinal flag should be boolean, value given: {longitudinal}"
+                )
+            if longitudinal:
+                TagDataModel(self.sqlite_db).execute(
+                    code=code, version=version, tag=LONGITUDINAL
+                )
 
-    def _create_schema(self, name, conn):
-        schema = Schema(name)
-        schema.create(conn)
-        return schema
+    def _create_primary_data_table(self, data_model, cdes):
+        with self.monetdb.begin() as conn:
+            schema = Schema(data_model)
+            schema.create(conn)
+            primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
+            primary_data_table.create(conn)
 
-    def _create_primary_data_table(self, schema, cdes, conn):
-        primary_data_table = PrimaryDataTable.from_cdes(schema, cdes)
-        primary_data_table.create(conn)
-
-    def _create_metadata_table(self, schema, conn, cdes):
-        metadata_table = MetadataTable(schema)
-        metadata_table.create(conn)
+    def _create_metadata_table(self, data_model, db, cdes):
+        metadata_table = MetadataTable(data_model)
+        metadata_table.create(db)
         values = metadata_table.get_values_from_cdes(cdes)
-        metadata_table.insert_values(values, conn)
+        metadata_table.insert_values(values, self.sqlite_db)
 
 
 class ValidateDataModel(UseCase):
     def execute(self, data_model_metadata) -> None:
         if "version" not in data_model_metadata:
-            raise UserInputError("You need to include a version on the CDEsMetadata.json")
+            raise UserInputError(
+                "You need to include a version on the CDEsMetadata.json"
+            )
 
         cdes = flatten_cdes(copy.deepcopy(data_model_metadata))
         validate_dataset_present_on_cdes_with_proper_format(cdes)
         if LONGITUDINAL in data_model_metadata:
             longitudinal = data_model_metadata[LONGITUDINAL]
             if not isinstance(longitudinal, bool):
-                raise UserInputError(f"Longitudinal flag should be boolean, value given: {longitudinal}")
+                raise UserInputError(
+                    f"Longitudinal flag should be boolean, value given: {longitudinal}"
+                )
             if longitudinal:
                 validate_longitudinal_data_model(cdes)
 
 
 class DeleteDataModel(UseCase):
-    def __init__(self, db: DataBase) -> None:
-        self.db = db
-        is_db_initialized(db)
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+        self.sqlite_db = sqlite_db
+        self.monetdb = monetdb
+        is_db_initialized(sqlite_db)
 
     def execute(self, code, version, force) -> None:
         name = get_data_model_fullname(code, version)
         schema = Schema(name)
-        
+
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(code, version, conn)
-            if not force:
-                self._validate_data_model_deletion(name, data_model_id, conn)
+        data_model_id = data_model_table.get_data_model_id(
+            code, version, self.sqlite_db
+        )
+        if not force:
+            self._validate_data_model_deletion(name, data_model_id, self.sqlite_db)
 
-            self._delete_datasets(data_model_id, code, version)
+        metadata_table = MetadataTable(data_model=name)
+        metadata_table.drop(self.sqlite_db)
+        self._delete_datasets(data_model_id, code, version)
+        with self.monetdb.begin() as conn:
             schema.drop(conn)
-            data_model_table.delete_data_model(code, version, conn)
+        data_model_table.delete_data_model(code, version, self.sqlite_db)
 
-    def _validate_data_model_deletion(self, data_model_name, data_model_id, conn):
-        
+    def _validate_data_model_deletion(self, data_model_name, data_model_id, db):
+
         datasets_table = DatasetsTable()
-        datasets = datasets_table.get_values(conn, data_model_id)
+        datasets = datasets_table.get_dataset_codes(
+            db=db, columns=["code"], data_model_id=data_model_id
+        )
         if not len(datasets) == 0:
             raise ForeignKeyError(
                 f"The Data Model:{data_model_name} cannot be deleted because it contains Datasets: {datasets}"
@@ -184,15 +179,14 @@ class DeleteDataModel(UseCase):
             )
 
     def _delete_datasets(self, data_model_id, data_model_code, data_model_version):
-        
+
         datasets_table = DatasetsTable()
-        with self.db.begin() as conn:
-            dataset_codes = datasets_table.get_values(
-                data_model_id=data_model_id, columns=["code"], db=conn
-            )
+        dataset_codes = datasets_table.get_dataset_codes(
+            data_model_id=data_model_id, columns=["code"], db=self.sqlite_db
+        )
 
         for dataset_code in dataset_codes:
-            DeleteDataset(self.db).execute(
+            DeleteDataset(sqlite_db=self.sqlite_db, monetdb=self.monetdb).execute(
                 dataset_code,
                 data_model_code=data_model_code,
                 data_model_version=data_model_version,
@@ -200,9 +194,10 @@ class DeleteDataModel(UseCase):
 
 
 class ImportCSV(UseCase):
-    def __init__(self, db: DataBase) -> None:
-        self.db = db
-        is_db_initialized(db)
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+        self.sqlite_db = sqlite_db
+        self.monetdb = monetdb
+        is_db_initialized(sqlite_db)
 
     def execute(
         self, csv_path, copy_from_file, data_model_code, data_model_version
@@ -211,57 +206,60 @@ class ImportCSV(UseCase):
             code=data_model_code, version=data_model_version
         )
         data_model = Schema(data_model_name)
-        
+
         data_model_table = DataModelTable()
         datasets_table = DatasetsTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(
-                data_model_code, data_model_version, conn
-            )
-            metadata_table = MetadataTable.from_db(data_model, conn)
-            cdes = metadata_table.table
-            dataset_enumerations = get_dataset_enums(cdes)
-            sql_type_per_column = get_sql_type_per_column(cdes)
-            # In case the DATA_PATH is empty it will return the whole path.
-            relative_csv_path = csv_path.split(os.getenv("DATA_PATH"))[-1]
+        data_model_id = data_model_table.get_data_model_id(
+            data_model_code, data_model_version, self.sqlite_db
+        )
+        metadata_table = MetadataTable.from_db(data_model_name, self.sqlite_db)
+        cdes = metadata_table.table
+        dataset_enumerations = get_dataset_enums(cdes)
+        sql_type_per_column = get_sql_type_per_column(cdes)
+        # In case the DATA_PATH is empty it will return the whole path.
+        relative_csv_path = csv_path.split(os.getenv("DATA_PATH"))[-1]
 
+        with self.monetdb.begin() as monetdb_conn:
             if copy_from_file:
                 imported_datasets = self.import_csv_with_volume(
                     csv_path=csv_path,
                     sql_type_per_column=sql_type_per_column,
                     data_model=data_model,
-                    conn=conn,
+                    conn=monetdb_conn,
                 )
             else:
                 imported_datasets = self._import_csv(
-                    csv_path=relative_csv_path, data_model=data_model, conn=conn
-                )
-
-            existing_datasets = datasets_table.get_values(
-                columns=["code"], data_model_id=data_model_id, db=conn
-            )
-            for dataset in set(imported_datasets) - set(existing_datasets):
-                dataset_id = self._get_next_dataset_id(conn)
-                values = dict(
-                    data_model_id=data_model_id,
-                    dataset_id=dataset_id,
-                    code=dataset,
-                    label=dataset_enumerations[dataset],
                     csv_path=relative_csv_path,
-                    status="ENABLED",
+                    data_model=data_model,
+                    conn=monetdb_conn,
                 )
-                datasets_table.insert_values(values, conn)
 
-    def _get_next_dataset_id(self, conn):
-        
+        existing_datasets = datasets_table.get_dataset_codes(
+            columns=["code"], data_model_id=data_model_id, db=self.sqlite_db
+        )
+        dataset_id = self._get_next_dataset_id(self.sqlite_db)
+        for dataset in set(imported_datasets) - set(existing_datasets):
+            values = dict(
+                data_model_id=data_model_id,
+                dataset_id=dataset_id,
+                code=dataset,
+                label=dataset_enumerations[dataset],
+                csv_path=relative_csv_path,
+                status="ENABLED",
+                properties=None,
+            )
+            datasets_table.insert_values(values, self.sqlite_db)
+            dataset_id += 1
+
+    def _get_next_dataset_id(self, db):
         datasets_table = DatasetsTable()
-        dataset_id = datasets_table.get_next_dataset_id(conn)
+        dataset_id = datasets_table.get_next_dataset_id(db)
         return dataset_id
 
-    def _create_temporary_table(self, dataframe_sql_type_per_column, conn):
-        temporary_table = TemporaryTable(dataframe_sql_type_per_column, conn)
-        temporary_table.create(conn)
+    def _create_temporary_table(self, dataframe_sql_type_per_column, db):
+        temporary_table = TemporaryTable(dataframe_sql_type_per_column, db)
+        temporary_table.create(db)
         return temporary_table
 
     def import_csv_with_volume(self, csv_path, sql_type_per_column, data_model, conn):
@@ -377,63 +375,62 @@ class ValidateDataset(UseCase):
     Database constraints must NOT be used as part of the validation process since that could result in partially imported csvs.
     """
 
-    def __init__(self, db: DataBase) -> None:
-        self.db = db
-        is_db_initialized(db)
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+        self.sqlite_db = sqlite_db
+        self.monetdb = monetdb
+        is_db_initialized(sqlite_db)
 
     def execute(
         self, csv_path, copy_from_file, data_model_code, data_model_version
     ) -> None:
-        data_model_name = get_data_model_fullname(
+        data_model = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
-        data_model = Schema(data_model_name)
+        csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
+        if DATASET_COLUMN_NAME not in csv_columns:
+            raise InvalidDatasetError(
+                "The 'dataset' column is required to exist in the csv."
+            )
+        metadata_table = MetadataTable.from_db(data_model, self.sqlite_db)
+        cdes = metadata_table.table
+        sql_type_per_column = get_sql_type_per_column(cdes)
+        cdes_with_min_max = get_cdes_with_min_max(cdes, csv_columns)
+        cdes_with_enumerations = get_cdes_with_enumerations(cdes, csv_columns)
+        dataset_enumerations = get_dataset_enums(cdes)
+        if self.is_data_model_longitudinal(data_model_code, data_model_version):
+            are_data_valid_longitudinal(csv_path)
 
-        with self.db.begin() as conn:
-            csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
-            if DATASET_COLUMN_NAME not in csv_columns:
-                raise InvalidDatasetError(
-                    "The 'dataset' column is required to exist in the csv."
-                )
-            metadata_table = MetadataTable.from_db(data_model, conn)
-            cdes = metadata_table.table
-            sql_type_per_column = get_sql_type_per_column(cdes)
-            cdes_with_min_max = get_cdes_with_min_max(cdes, csv_columns)
-            cdes_with_enumerations = get_cdes_with_enumerations(cdes, csv_columns)
-            dataset_enumerations = get_dataset_enums(cdes)
-            if self.is_data_model_longitudinal(
-                data_model_code, data_model_version, conn
-            ):
-                are_data_valid_longitudinal(csv_path)
-
-            if copy_from_file:
+        if copy_from_file:
+            with self.monetdb.begin() as monetdb_conn:
                 validated_datasets = self.validate_csv_with_volume(
                     csv_path,
                     sql_type_per_column,
                     cdes_with_min_max,
                     cdes_with_enumerations,
-                    conn,
+                    monetdb_conn,
                 )
-            else:
-                validated_datasets = self.validate_csv(
-                    csv_path,
-                    sql_type_per_column,
-                    cdes_with_min_max,
-                    cdes_with_enumerations,
-                )
-            self.verify_datasets_exist_in_enumerations(
-                datasets=validated_datasets,
-                dataset_enumerations=dataset_enumerations,
+        else:
+            validated_datasets = self.validate_csv(
+                csv_path,
+                sql_type_per_column,
+                cdes_with_min_max,
+                cdes_with_enumerations,
             )
+        self.verify_datasets_exist_in_enumerations(
+            datasets=validated_datasets,
+            dataset_enumerations=dataset_enumerations,
+        )
 
-    def is_data_model_longitudinal(self, data_model_code, data_model_version, conn):
-        
+    def is_data_model_longitudinal(self, data_model_code, data_model_version):
+
         data_model_table = DataModelTable()
         data_model_id = data_model_table.get_data_model_id(
-            data_model_code, data_model_version, conn
+            data_model_code, data_model_version, self.sqlite_db
         )
-        properties = data_model_table.get_data_model_properties(data_model_id, conn)
-        return "longitudinal" in json.loads(properties)["tags"]
+        properties = data_model_table.get_data_model_properties(
+            data_model_id, self.sqlite_db
+        )
+        return "longitudinal" in properties["tags"]
 
     def validate_csv(
         self, csv_path, sql_type_per_column, cdes_with_min_max, cdes_with_enumerations
@@ -459,6 +456,7 @@ class ValidateDataset(UseCase):
         cdes_with_enumerations,
         conn,
     ):
+
         csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
         dataframe_sql_type_per_column = self._get_dataframe_sql_type_per_column(
             csv_columns, sql_type_per_column
@@ -520,7 +518,9 @@ class ValidateDatasetNoDatabase(UseCase):
         if LONGITUDINAL in data_model_metadata:
             longitudinal = data_model_metadata[LONGITUDINAL]
             if not isinstance(longitudinal, bool):
-                raise UserInputError(f"Longitudinal flag should be boolean, value given: {longitudinal}")
+                raise UserInputError(
+                    f"Longitudinal flag should be boolean, value given: {longitudinal}"
+                )
             if longitudinal:
                 are_data_valid_longitudinal(csv_path)
         validated_datasets = self.validate_csv(
@@ -561,414 +561,394 @@ class ValidateDatasetNoDatabase(UseCase):
 
 
 class DeleteDataset(UseCase):
-    def __init__(self, db: DataBase) -> None:
-        self.db = db
-        is_db_initialized(db)
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+        self.sqlite_db = sqlite_db
+        self.monetdb = monetdb
+        is_db_initialized(sqlite_db)
 
     def execute(self, dataset_code, data_model_code, data_model_version) -> None:
         data_model_fullname = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
-        data_model = Schema(data_model_fullname)
-        
         data_model_table = DataModelTable()
         datasets_table = DatasetsTable()
 
-        with self.db.begin() as conn:
+        with self.monetdb.begin() as conn:
+            data_model = Schema(data_model_fullname)
             primary_data_table = PrimaryDataTable.from_db(data_model, conn)
             primary_data_table.remove_dataset(dataset_code, data_model_fullname, conn)
-            data_model_id = data_model_table.get_data_model_id(
-                data_model_code, data_model_version, conn
-            )
-            dataset_id = datasets_table.get_dataset_id(
-                dataset_code, data_model_id, conn
-            )
 
-            datasets_table.delete_dataset(dataset_id, data_model_id, conn)
+        data_model_id = data_model_table.get_data_model_id(
+            data_model_code, data_model_version, self.sqlite_db
+        )
+        dataset_id = datasets_table.get_dataset_id(
+            dataset_code, data_model_id, self.sqlite_db
+        )
+
+        datasets_table.delete_dataset(dataset_id, data_model_id, self.sqlite_db)
+
 
 class EnableDataModel(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, code, version) -> None:
-        
+
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(code, version, conn)
-            current_status = data_model_table.get_data_model_status(data_model_id, conn)
-            if current_status != "ENABLED":
-                data_model_table.set_data_model_status("ENABLED", data_model_id, conn)
-            else:
-                raise UserInputError("The data model was already enabled")
+        data_model_id = data_model_table.get_data_model_id(code, version, self.db)
+        current_status = data_model_table.get_data_model_status(data_model_id, self.db)
+        if current_status != "ENABLED":
+            data_model_table.set_data_model_status("ENABLED", data_model_id, self.db)
+        else:
+            raise UserInputError("The data model was already enabled")
 
 
 class DisableDataModel(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, code, version) -> None:
-        
+
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(code, version, conn)
-            current_status = data_model_table.get_data_model_status(data_model_id, conn)
+        data_model_id = data_model_table.get_data_model_id(code, version, self.db)
+        current_status = data_model_table.get_data_model_status(data_model_id, self.db)
 
-            if current_status != "DISABLED":
-                data_model_table.set_data_model_status("DISABLED", data_model_id, conn)
-            else:
-                raise UserInputError("The data model was already disabled")
+        if current_status != "DISABLED":
+            data_model_table.set_data_model_status("DISABLED", data_model_id, self.db)
+        else:
+            raise UserInputError("The data model was already disabled")
 
 
 class EnableDataset(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version) -> None:
-        
+
         datasets_table = DatasetsTable()
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-
-            data_model_id = data_model_table.get_data_model_id(
-                data_model_code, data_model_version, conn
-            )
-            dataset_id = datasets_table.get_dataset_id(
-                dataset_code, data_model_id, conn
-            )
-            current_status = datasets_table.get_dataset_status(dataset_id, conn)
-            if current_status != "ENABLED":
-                datasets_table.set_dataset_status("ENABLED", dataset_id, conn)
-            else:
-                raise UserInputError("The dataset was already enabled")
+        data_model_id = data_model_table.get_data_model_id(
+            data_model_code, data_model_version, self.db
+        )
+        dataset_id = datasets_table.get_dataset_id(dataset_code, data_model_id, self.db)
+        current_status = datasets_table.get_dataset_status(dataset_id, self.db)
+        if current_status != "ENABLED":
+            datasets_table.set_dataset_status("ENABLED", dataset_id, self.db)
+        else:
+            raise UserInputError("The dataset was already enabled")
 
 
 class DisableDataset(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version) -> None:
-        
+
         datasets_table = DatasetsTable()
         data_model_table = DataModelTable()
-        with self.db.begin() as conn:
 
-            data_model_id = data_model_table.get_data_model_id(
-                data_model_code, data_model_version, conn
-            )
-            dataset_id = datasets_table.get_dataset_id(
-                dataset_code, data_model_id, conn
-            )
-            current_status = datasets_table.get_dataset_status(dataset_id, conn)
-            if current_status != "DISABLED":
-                datasets_table.set_dataset_status("DISABLED", dataset_id, conn)
-            else:
-                raise UserInputError("The dataset was already disabled")
+        data_model_id = data_model_table.get_data_model_id(
+            data_model_code, data_model_version, self.db
+        )
+        dataset_id = datasets_table.get_dataset_id(dataset_code, data_model_id, self.db)
+        current_status = datasets_table.get_dataset_status(dataset_id, self.db)
+        if current_status != "DISABLED":
+            datasets_table.set_dataset_status("DISABLED", dataset_id, self.db)
+        else:
+            raise UserInputError("The dataset was already disabled")
 
 
 class TagDataModel(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, code, version, tag) -> None:
-        
-        data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(code, version, conn)
-            properties = Properties(
-                data_model_table.get_data_model_properties(data_model_id, conn)
-            )
-            properties.add_tag(tag)
-            data_model_table.set_data_model_properties(
-                properties.properties, data_model_id, conn
-            )
+        data_model_table = DataModelTable()
+        data_model_id = data_model_table.get_data_model_id(code, version, self.db)
+        properties = Properties(
+            data_model_table.get_data_model_properties(data_model_id, self.db)
+        )
+        properties.add_tag(tag)
+        data_model_table.set_data_model_properties(
+            properties.properties, data_model_id, self.db
+        )
+
 
 class UntagDataModel(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, code, version, tag) -> None:
-        
+
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(code, version, conn)
-            properties = Properties(
-                data_model_table.get_data_model_properties(data_model_id, conn)
-            )
-            properties.remove_tag(tag)
-            data_model_table.set_data_model_properties(
-                properties.properties, data_model_id, conn
-            )
+        data_model_id = data_model_table.get_data_model_id(code, version, self.db)
+        properties = Properties(
+            data_model_table.get_data_model_properties(data_model_id, self.db)
+        )
+        properties.remove_tag(tag)
+        data_model_table.set_data_model_properties(
+            properties.properties, data_model_id, self.db
+        )
 
 
 class AddPropertyToDataModel(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, code, version, key, value, force) -> None:
-        
+
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(code, version, conn)
-            properties = Properties(
-                data_model_table.get_data_model_properties(data_model_id, conn)
-            )
-            properties.add_property(key, value, force)
-            data_model_table.set_data_model_properties(
-                properties.properties, data_model_id, conn
-            )
+        data_model_id = data_model_table.get_data_model_id(code, version, self.db)
+        properties = Properties(
+            data_model_table.get_data_model_properties(data_model_id, self.db)
+        )
+        properties.add_property(key, value, force)
+        data_model_table.set_data_model_properties(
+            properties.properties, data_model_id, self.db
+        )
 
 
 class RemovePropertyFromDataModel(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, code, version, key, value) -> None:
-        
+
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(code, version, conn)
+        data_model_id = data_model_table.get_data_model_id(code, version, self.db)
 
-            properties = Properties(
-                data_model_table.get_data_model_properties(data_model_id, conn)
-            )
-            properties.remove_property(key, value)
-            data_model_table.set_data_model_properties(
-                properties.properties, data_model_id, conn
-            )
+        properties = Properties(
+            data_model_table.get_data_model_properties(data_model_id, self.db)
+        )
+        properties.remove_property(key, value)
+        data_model_table.set_data_model_properties(
+            properties.properties, data_model_id, self.db
+        )
+
 
 class TagDataset(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, dataset_code, data_model_code, data_model_version, tag) -> None:
-        
+
         dataset_table = DatasetsTable()
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(
-                data_model_code, data_model_version, conn
-            )
-            dataset_id = dataset_table.get_dataset_id(dataset_code, data_model_id, conn)
-            properties = Properties(
-                dataset_table.get_dataset_properties(data_model_id, conn)
-            )
-            properties.add_tag(tag)
-            dataset_table.set_dataset_properties(
-                properties.properties, dataset_id, conn
-            )
+        data_model_id = data_model_table.get_data_model_id(
+            data_model_code, data_model_version, self.db
+        )
+        dataset_id = dataset_table.get_dataset_id(dataset_code, data_model_id, self.db)
+        propertirae = dataset_table.get_dataset_properties(data_model_id, self.db)
+        properties = Properties(propertirae)
+        properties.add_tag(tag)
+        dataset_table.set_dataset_properties(properties.properties, dataset_id, self.db)
+
 
 class UntagDataset(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, dataset, data_model_code, version, tag) -> None:
-        
+
         dataset_table = DatasetsTable()
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(
-                data_model_code, version, conn
-            )
-            dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, conn)
-            properties = Properties(
-                dataset_table.get_dataset_properties(data_model_id, conn)
-            )
-            properties.remove_tag(tag)
-            dataset_table.set_dataset_properties(
-                properties.properties, dataset_id, conn
-            )
+        data_model_id = data_model_table.get_data_model_id(
+            data_model_code, version, self.db
+        )
+        dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, self.db)
+        properties = Properties(
+            dataset_table.get_dataset_properties(data_model_id, self.db)
+        )
+        properties.remove_tag(tag)
+        dataset_table.set_dataset_properties(properties.properties, dataset_id, self.db)
+
 
 class AddPropertyToDataset(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, dataset, data_model_code, version, key, value, force) -> None:
-        
+
         dataset_table = DatasetsTable()
         data_model_table = DataModelTable()
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(
-                data_model_code, version, conn
-            )
-            dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, conn)
-            properties = Properties(
-                dataset_table.get_dataset_properties(data_model_id, conn)
-            )
-            properties.add_property(key, value, force)
-            dataset_table.set_dataset_properties(
-                properties.properties, dataset_id, conn
-            )
+        data_model_id = data_model_table.get_data_model_id(
+            data_model_code, version, self.db
+        )
+        dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, self.db)
+        properties = Properties(
+            dataset_table.get_dataset_properties(data_model_id, self.db)
+        )
+        properties.add_property(key, value, force)
+        dataset_table.set_dataset_properties(properties.properties, dataset_id, self.db)
 
 
 class RemovePropertyFromDataset(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self, dataset, data_model_code, version, key, value) -> None:
-        
+
         dataset_table = DatasetsTable()
         data_model_table = DataModelTable()
-        with self.db.begin() as conn:
-            data_model_id = data_model_table.get_data_model_id(
-                data_model_code, version, conn
-            )
-            dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, conn)
-            properties = Properties(
-                dataset_table.get_dataset_properties(data_model_id, conn)
-            )
-            properties.remove_property(key, value)
-            dataset_table.set_dataset_properties(
-                properties.properties, dataset_id, conn
-            )
+        data_model_id = data_model_table.get_data_model_id(
+            data_model_code, version, self.db
+        )
+        dataset_id = dataset_table.get_dataset_id(dataset, data_model_id, self.db)
+        properties = Properties(
+            dataset_table.get_dataset_properties(data_model_id, self.db)
+        )
+        properties.remove_property(key, value)
+        dataset_table.set_dataset_properties(properties.properties, dataset_id, self.db)
 
 
 class ListDataModels(UseCase):
-    def __init__(self, db: DataBase) -> None:
+    def __init__(self, db: SQLiteDB) -> None:
         self.db = db
         is_db_initialized(db)
 
     def execute(self) -> None:
-        
+
         data_model_table = DataModelTable()
 
-        with self.db.begin() as conn:
+        data_model_row_columns = [
+            "data_model_id",
+            "code",
+            "version",
+            "label",
+            "status",
+        ]
 
-            data_model_row_columns = [
-                "data_model_id",
-                "code",
-                "version",
-                "label",
-                "status",
-            ]
+        data_model_rows = data_model_table.get_data_models(
+            db=self.db, columns=data_model_row_columns
+        )
 
-            data_model_rows = data_model_table.get_data_models(
-                db=conn, columns=data_model_row_columns
+        dataset_count_by_data_model_id = {
+            data_model_id: dataset_count
+            for data_model_id, dataset_count in data_model_table.get_dataset_count_by_data_model_id(
+                self.db
             )
+        }
 
-            dataset_count_by_data_model_id = {
-                data_model_id: dataset_count
-                for data_model_id, dataset_count in data_model_table.get_dataset_count_by_data_model_id(
-                    conn
-                )
-            }
+        data_models_info = []
 
-            data_models_info = []
+        for row in data_model_rows:
+            data_model_id, *_ = row
+            dataset_count = (
+                dataset_count_by_data_model_id[data_model_id]
+                if data_model_id in dataset_count_by_data_model_id
+                else 0
+            )
+            data_model_info = list(row) + [dataset_count]
+            data_models_info.append(data_model_info)
 
-            for row in data_model_rows:
-                data_model_id, *_ = row
-                dataset_count = (
-                    dataset_count_by_data_model_id[data_model_id]
-                    if data_model_id in dataset_count_by_data_model_id
-                    else 0
-                )
-                data_model_info = list(row) + [dataset_count]
-                data_models_info.append(data_model_info)
+        if not data_models_info:
+            print("There are no data models.")
+            return
 
-            if not data_models_info:
-                print("There are no data models.")
-                return
-
-            data_model_info_columns = data_model_row_columns + ["count"]
-            df = pd.DataFrame(data_models_info, columns=data_model_info_columns)
-            print(df)
+        data_model_info_columns = data_model_row_columns + ["count"]
+        df = pd.DataFrame(data_models_info, columns=data_model_info_columns)
+        print(df)
 
 
 class ListDatasets(UseCase):
-    def __init__(self, db: DataBase) -> None:
-        self.db = db
-        is_db_initialized(db)
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+        self.sqlite_db = sqlite_db
+        self.monetdb = monetdb
+        is_db_initialized(sqlite_db)
 
     def execute(self) -> None:
-        
+
         data_model_table = DataModelTable()
         dataset_table = DatasetsTable()
 
-        with self.db.begin() as conn:
-            dataset_row_columns = [
-                "dataset_id",
-                "data_model_id",
-                "code",
-                "label",
-                "status",
-            ]
-            dataset_rows = dataset_table.get_values(conn, columns=dataset_row_columns)
+        dataset_row_columns = [
+            "dataset_id",
+            "data_model_id",
+            "code",
+            "label",
+            "status",
+        ]
+        dataset_rows = dataset_table.get_datasets(
+            self.sqlite_db, columns=dataset_row_columns
+        )
 
-            data_model_fullname_by_data_model_id = {
-                data_model_id: get_data_model_fullname(code, version)
-                for data_model_id, code, version in data_model_table.get_data_models(
-                    conn, ["data_model_id", "code", "version"]
-                )
-            }
+        data_model_fullname_by_data_model_id = {
+            data_model_id: get_data_model_fullname(code, version)
+            for data_model_id, code, version in data_model_table.get_data_models(
+                self.sqlite_db, ["data_model_id", "code", "version"]
+            )
+        }
 
-            datasets_info = []
-            for row in dataset_rows:
-                _, data_model_id, dataset_code, *_ = row
-                data_model_fullname = data_model_fullname_by_data_model_id[
-                    data_model_id
-                ]
-
+        datasets_info = []
+        for row in dataset_rows:
+            _, data_model_id, dataset_code, *_ = row
+            data_model_fullname = data_model_fullname_by_data_model_id[data_model_id]
+            with self.monetdb.begin() as conn:
+                data_model = Schema(data_model_fullname)
+                primary_data_table = PrimaryDataTable.from_db(data_model, conn)
                 dataset_count = {
                     dataset: dataset_count
-                    for dataset, dataset_count in dataset_table.get_data_count_by_dataset(
+                    for dataset, dataset_count in primary_data_table.get_data_count_by_dataset(
                         data_model_fullname, conn
                     )
                 }[dataset_code]
 
-                dataset_info = list(row) + [dataset_count]
-                datasets_info.append(dataset_info)
+            dataset_info = list(row) + [dataset_count]
+            datasets_info.append(dataset_info)
 
-            if not datasets_info:
-                print("There are no datasets.")
-                return
+        if not datasets_info:
+            print("There are no datasets.")
+            return
 
-            dataset_info_columns = dataset_row_columns + ["count"]
-            df = pd.DataFrame(datasets_info, columns=dataset_info_columns)
-            print(df)
+        dataset_info_columns = dataset_row_columns + ["count"]
+        df = pd.DataFrame(datasets_info, columns=dataset_info_columns)
+        print(df)
 
 
 class Cleanup(UseCase):
-    def __init__(self, db: DataBase) -> None:
-        self.db = db
-        is_db_initialized(db)
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+        self.sqlite_db = sqlite_db
+        self.monetdb = monetdb
+        is_db_initialized(sqlite_db)
 
     def execute(self) -> None:
-        
-        data_model_table = DataModelTable()
-        data_model_rows = []
 
-        with self.db.begin() as conn:
-            data_model_row_columns = [
-                "code",
-                "version",
-            ]
-            data_model_rows = data_model_table.get_data_models(
-                conn, columns=data_model_row_columns
-            )
+        data_model_table = DataModelTable()
+
+        data_model_row_columns = [
+            "code",
+            "version",
+        ]
+        data_model_rows = data_model_table.get_data_models(
+            self.sqlite_db, columns=data_model_row_columns
+        )
 
         for data_model_row in data_model_rows:
             code, version = data_model_row
-            DeleteDataModel(self.db).execute(code=code, version=version, force=True)
+            DeleteDataModel(sqlite_db=self.sqlite_db, monetdb=self.monetdb).execute(
+                code=code, version=version, force=True
+            )
 
 
 def get_data_model_fullname(code, version):
