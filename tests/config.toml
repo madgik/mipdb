@@ -1,9 +1,0 @@
-DB_IP = "127.0.0.1"
-DB_PORT = 50123
-DB_NAME = "db"
-MONETDB_ADMIN_USERNAME = "admin"
-MONETDB_LOCAL_USERNAME = "executor"
-MONETDB_LOCAL_PASSWORD = "executor"
-MONETDB_PUBLIC_USERNAME = "guest"
-MONETDB_PUBLIC_PASSWORD = "guest"
-SQLITE_DB_PATH = "/home/kfilippopolitis/Desktop/mipdb/tests/sqlite.db"

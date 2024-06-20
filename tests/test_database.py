@@ -9,7 +9,7 @@ import sqlalchemy as sql
 
 from mipdb.exceptions import DataBaseError
 from mipdb.sqlite import DataModel, Dataset
-from tests.conftest import DATASET_FILE, DEFAULT_OPTION
+from tests.conftest import DATASET_FILE, MONETDB_OPTIONS, SQLiteDB_OPTION
 from tests.conftest import DATA_MODEL_FILE
 
 
@@ -18,8 +18,8 @@ from tests.conftest import DATA_MODEL_FILE
 def test_update_data_model_status(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     # Check the status of data model is disabled
     result = sqlite_db.get_values(
         table=DataModel.__table__,
@@ -43,8 +43,8 @@ def test_update_data_model_status(sqlite_db):
 def update_dataset_status(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -56,7 +56,7 @@ def update_dataset_status(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
 
     # Check the status of dataset is disabled
@@ -85,8 +85,8 @@ def test_get_datasets_with_db(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -98,7 +98,7 @@ def test_get_datasets_with_db(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
 
     # Check dataset present
@@ -111,8 +111,8 @@ def test_get_datasets_with_db(sqlite_db):
 def test_get_data_model_id_with_db(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
 
     # Test success
     data_model_id = sqlite_db.get_data_model_id("data_model", "1.0")
@@ -124,7 +124,7 @@ def test_get_data_model_id_with_db(sqlite_db):
 def test_get_data_model_id_not_found_error(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
 
     # Test when there is no schema in the database with the specific code and version
     with pytest.raises(DataBaseError):
@@ -136,8 +136,8 @@ def test_get_data_model_id_not_found_error(sqlite_db):
 def test_get_data_model_id_duplication_error(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     sqlite_db.insert_values_to_table(
         DataModel.__table__,
         {
@@ -159,8 +159,8 @@ def test_get_data_model_id_duplication_error(sqlite_db):
 def test_get_dataset_id_with_db(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -172,7 +172,7 @@ def test_get_dataset_id_with_db(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
 
     # Test
@@ -185,8 +185,8 @@ def test_get_dataset_id_with_db(sqlite_db):
 def test_get_dataset_id_duplication_error(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -198,7 +198,7 @@ def test_get_dataset_id_duplication_error(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
 
     sqlite_db.insert_values_to_table(
@@ -223,8 +223,8 @@ def test_get_dataset_id_duplication_error(sqlite_db):
 def test_get_dataset_id_not_found_error(sqlite_db):
     # Setup
     runner = CliRunner()
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
 
     # Test when there is no dataset in the database with the specific code and data_model_id
     with pytest.raises(DataBaseError):

@@ -1,3 +1,5 @@
+import ipaddress
+
 import click as cl
 import os
 import glob
@@ -32,24 +34,92 @@ from mipdb.usecases import TagDataset
 from mipdb.usecases import UntagDataset
 from mipdb.usecases import ValidateDataset
 
-CONFIG = "/home/config.toml"
 
-
-def get_databases(conf_file_path=CONFIG):
-    credentials = credentials_from_config(conf_file_path)
-
-    monetdb = MonetDB.from_config(
-        {
-            "username": credentials["MONETDB_ADMIN_USERNAME"],
-            "password": credentials["MONETDB_LOCAL_PASSWORD"],
-            "ip": credentials["DB_IP"],
-            "port": credentials["DB_PORT"],
-            "dbfarm": credentials["DB_NAME"],
+class NotRequiredIf(cl.Option):
+    def __init__(self, *args, **kwargs):
+        credentials = credentials_from_config()
+        print(credentials)
+        option_to_env_var = {
+            "--ip": credentials["DB_IP"],
+            "--port": credentials["DB_PORT"],
+            "--username": credentials["MONETDB_ADMIN_USERNAME"],
+            "--password": credentials["MONETDB_LOCAL_PASSWORD"],
+            "--db_name": credentials["DB_NAME"],
+            "--sqlite_db_path": credentials["SQLITE_DB_PATH"],
         }
-    )
+        option = args[0][0]
+        if option_to_env_var[option]:
+            kwargs["required"] = False
+            kwargs["default"] = option_to_env_var[option]
+        super(NotRequiredIf, self).__init__(*args, **kwargs)
 
-    sqlite_db = SQLiteDB.from_config({"db_path": credentials["SQLITE_DB_PATH"]})
-    return sqlite_db, monetdb
+
+_db_configs_options = [
+    cl.option(
+        "--ip",
+        "ip",
+        required=True,
+        help="The ip of the database",
+        cls=NotRequiredIf,
+    ),
+    cl.option(
+        "--port",
+        "port",
+        required=True,
+        help="The port for the database",
+        cls=NotRequiredIf,
+    ),
+    cl.option(
+        "--username",
+        "username",
+        required=True,
+        help="The username for the database",
+        cls=NotRequiredIf,
+    ),
+    cl.option(
+        "--password",
+        "password",
+        required=True,
+        help="The password for the database",
+        cls=NotRequiredIf,
+    ),
+    cl.option(
+        "--db_name",
+        "db_name",
+        required=True,
+        help="The name of the database",
+        cls=NotRequiredIf,
+    ),
+    cl.option(
+        "--sqlite_db_path",
+        "sqlite_db_path",
+        required=True,
+        help="The path for the sqlite database",
+        cls=NotRequiredIf,
+    ),
+]
+
+
+def get_monetdb_config(ip, port, username, password, db_name):
+    try:
+        ipaddress.ip_address(ip)
+    except ValueError:
+        raise UserInputError("Invalid ip provided")
+
+    config = {
+        "ip": ip,
+        "port": port,
+        "dbfarm": db_name,
+        "username": username,
+        "password": password,
+    }
+    return config
+
+
+def db_configs_options(func):
+    for option in reversed(_db_configs_options):
+        func = option(func)
+    return func
 
 
 @cl.group()
@@ -66,14 +136,12 @@ def entry():
     help="Copy the csvs from the filesystem instead of copying them through sockets."
     "The same files should exist both in the mipdb script and the db.",
 )
-@cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+@db_configs_options
 @handle_errors
-def load_folder(file, copy_from_file, conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def load_folder(file, copy_from_file, ip, port, username, password, db_name, sqlite_db_path):
+    dbconfig = get_monetdb_config(ip, port, username, password, db_name)
+    monetdb = MonetDB.from_config(dbconfig)
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
 
     Cleanup(sqlite_db, monetdb).execute()
     if not os.path.exists(file):
@@ -136,32 +204,31 @@ def validate_folder(file):
 
 @entry.command()
 @cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+        "--sqlite_db_path",
+        "sqlite_db_path",
+        required=True,
+        help="The path for the sqlite database",
+        cls=NotRequiredIf,
+    )
 @handle_errors
-def init(conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def init(sqlite_db_path):
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     InitDB(db=sqlite_db).execute()
     print("Database initialized")
 
 
 @entry.command()
 @cl.argument("file", required=True)
-@cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+@db_configs_options
 @handle_errors
-def add_data_model(file, conf_file_path):
+def add_data_model(file, ip, port, username, password, db_name, sqlite_db_path):
     print(f"Data model '{file}' is being loaded...")
-    sqlite_db, monetdb = get_databases(conf_file_path)
+    dbconfig = get_monetdb_config(ip, port, username, password, db_name)
     reader = JsonFileReader(file)
+    monetdb = MonetDB.from_config(dbconfig)
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     data_model_metadata = reader.read()
     ValidateDataModel().execute(data_model_metadata)
-
     AddDataModel(sqlite_db=sqlite_db, monetdb=monetdb).execute(data_model_metadata)
     print(f"Data model '{file}' was successfully added.")
 
@@ -182,15 +249,13 @@ def add_data_model(file, conf_file_path):
     help="Copy the csvs from the filesystem instead of copying them through sockets."
     "The same files should exist both in the mipdb script and the db.",
 )
-@cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+@db_configs_options
 @handle_errors
-def add_dataset(csv_path, data_model, version, copy_from_file, conf_file_path):
+def add_dataset(csv_path, data_model, version, copy_from_file, ip, port, username, password, db_name, sqlite_db_path):
     print(f"CSV '{csv_path}' is being loaded...")
-    sqlite_db, monetdb = get_databases(conf_file_path)
+    dbconfig = get_monetdb_config(ip, port, username, password, db_name)
+    monetdb = MonetDB.from_config(dbconfig)
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     ValidateDataset(sqlite_db=sqlite_db, monetdb=monetdb).execute(
         csv_path, copy_from_file, data_model, version
     )
@@ -216,15 +281,14 @@ def add_dataset(csv_path, data_model, version, copy_from_file, conf_file_path):
     help="Copy the csvs from the filesystem instead of copying them through sockets."
     "The same files should exist both in the mipdb script and the db.",
 )
-@cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+@db_configs_options
 @handle_errors
-def validate_dataset(csv_path, data_model, version, copy_from_file, conf_file_path):
+def validate_dataset(csv_path, data_model, version, copy_from_file, ip, port, username, password, db_name, sqlite_db_path):
     print(f"Dataset '{csv_path}' is being validated...")
-    sqlite_db, monetdb = get_databases(conf_file_path)
+    dbconfig = get_monetdb_config(ip, port, username, password, db_name)
+    monetdb = MonetDB.from_config(dbconfig)
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
+
     ValidateDataset(sqlite_db=sqlite_db, monetdb=monetdb).execute(
         csv_path, copy_from_file, data_model, version
     )
@@ -240,14 +304,12 @@ def validate_dataset(csv_path, data_model, version, copy_from_file, conf_file_pa
     is_flag=True,
     help="Force deletion of dataset that are based on the data model",
 )
-@cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+@db_configs_options
 @handle_errors
-def delete_data_model(name, version, force, conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def delete_data_model(name, version, force, ip, port, username, password, db_name, sqlite_db_path):
+    dbconfig = get_monetdb_config(ip, port, username, password, db_name)
+    monetdb = MonetDB.from_config(dbconfig)
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     DeleteDataModel(sqlite_db=sqlite_db, monetdb=monetdb).execute(name, version, force)
     print(f"Data model '{name}' was successfully removed.")
 
@@ -261,14 +323,12 @@ def delete_data_model(name, version, force, conf_file_path):
     help="The data model to which the dataset is added",
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
-@cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+@db_configs_options
 @handle_errors
-def delete_dataset(dataset, data_model, version, conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def delete_dataset(dataset, data_model, version, ip, port, username, password, db_name, sqlite_db_path):
+    dbconfig = get_monetdb_config(ip, port, username, password, db_name)
+    monetdb = MonetDB.from_config(dbconfig)
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     DeleteDataset(sqlite_db=sqlite_db, monetdb=monetdb).execute(
         dataset, data_model, version
     )
@@ -279,13 +339,15 @@ def delete_dataset(dataset, data_model, version, conf_file_path):
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The data model version")
 @cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+        "--sqlite_db_path",
+        "sqlite_db_path",
+        required=True,
+        help="The path for the sqlite database",
+        cls=NotRequiredIf,
+    )
 @handle_errors
-def enable_data_model(name, version, conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def enable_data_model(name, version, sqlite_db_path):
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     EnableDataModel(db=sqlite_db).execute(name, version)
     print(f"Data model {name} was successfully enabled.")
 
@@ -294,13 +356,15 @@ def enable_data_model(name, version, conf_file_path):
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The data model version")
 @cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+        "--sqlite_db_path",
+        "sqlite_db_path",
+        required=True,
+        help="The path for the sqlite database",
+        cls=NotRequiredIf,
+    )
 @handle_errors
-def disable_data_model(name, version, conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def disable_data_model(name, version, sqlite_db_path):
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     DisableDataModel(db=sqlite_db).execute(name, version)
     print(f"Data model {name} was successfully disabled.")
 
@@ -315,13 +379,15 @@ def disable_data_model(name, version, conf_file_path):
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
 @cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+        "--sqlite_db_path",
+        "sqlite_db_path",
+        required=True,
+        help="The path for the sqlite database",
+        cls=NotRequiredIf,
+    )
 @handle_errors
-def enable_dataset(dataset, data_model, version, conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def enable_dataset(dataset, data_model, version, sqlite_db_path):
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     EnableDataset(db=sqlite_db).execute(dataset, data_model, version)
     print(f"Dataset {dataset} was successfully enabled.")
 
@@ -336,14 +402,18 @@ def enable_dataset(dataset, data_model, version, conf_file_path):
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
 @cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+        "--sqlite_db_path",
+        "sqlite_db_path",
+        required=True,
+        help="The path for the sqlite database",
+        cls=NotRequiredIf,
+    )
 @handle_errors
-def disable_dataset(dataset, data_model, version, conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
-    DisableDataset(db=sqlite_db).execute(dataset, data_model, version)
+def disable_dataset(
+    dataset, data_model, version, sqlite_db_path
+):
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
+    DisableDataset(sqlite_db).execute(dataset, data_model, version)
     print(f"Dataset {dataset} was successfully disabled.")
 
 
@@ -371,13 +441,17 @@ def disable_dataset(dataset, data_model, version, conf_file_path):
     help="Force overwrite on property",
 )
 @cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+        "--sqlite_db_path",
+        "sqlite_db_path",
+        required=True,
+        help="The path for the sqlite database",
+        cls=NotRequiredIf,
+    )
 @handle_errors
-def tag_data_model(name, version, tag, remove, force, conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def tag_data_model(
+    name, version, tag, remove, force, sqlite_db_path
+):
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     if "=" in tag:
         key, value = tag.split("=")
         if remove:
@@ -427,13 +501,24 @@ def tag_data_model(name, version, tag, remove, force, conf_file_path):
     help="Force overwrite on property",
 )
 @cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+        "--sqlite_db_path",
+        "sqlite_db_path",
+        required=True,
+        help="The path for the sqlite database",
+        cls=NotRequiredIf,
+    )
 @handle_errors
-def tag_dataset(dataset, data_model, version, tag, remove, force, conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def tag_dataset(
+    dataset,
+    data_model,
+    version,
+    tag,
+    remove,
+    force,
+    sqlite_db_path,
+):
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
+
     if "=" in tag:
         key, value = tag.split("=")
         if remove:
@@ -457,23 +542,23 @@ def tag_dataset(dataset, data_model, version, tag, remove, force, conf_file_path
 
 @entry.command()
 @cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+        "--sqlite_db_path",
+        "sqlite_db_path",
+        required=True,
+        help="The path for the sqlite database",
+        cls=NotRequiredIf,
+    )
 @handle_errors
-def list_data_models(conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def list_data_models(sqlite_db_path):
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     ListDataModels(db=sqlite_db).execute()
 
 
 @entry.command()
-@cl.option(
-    "--conf_file_path",
-    required=False,
-    help="Specify where the conf file path is.",
-)
+@db_configs_options
 @handle_errors
-def list_datasets(conf_file_path):
-    sqlite_db, monetdb = get_databases(conf_file_path)
+def list_datasets(ip, port, username, password, db_name, sqlite_db_path):
+    dbconfig = get_monetdb_config(ip, port, username, password, db_name)
+    monetdb = MonetDB.from_config(dbconfig)
+    sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     ListDatasets(sqlite_db=sqlite_db, monetdb=monetdb).execute()

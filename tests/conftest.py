@@ -3,14 +3,15 @@ import time
 
 import pytest
 import docker
-import toml
 
-from mipdb.monetdb import MonetDB, credentials_from_config
+from mipdb.commands import get_monetdb_config
+from mipdb.monetdb import MonetDB
 from mipdb.monetdb_tables import User
 from mipdb.reader import JsonFileReader
 from mipdb.sqlite import SQLiteDB
 
 TEST_DIR = os.path.dirname(os.path.realpath(__file__))
+SQLiteDB_PATH = f"{TEST_DIR}/sqlite.db"
 DATA_MODEL_FILE = "tests/data/success/data_model_v_1_0/CDEsMetadata.json"
 DATASET_FILE = "tests/data/success/data_model_v_1_0/dataset.csv"
 DATA_FOLDER = "tests/data/"
@@ -23,16 +24,23 @@ ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET = (
 )
 ABSOLUTE_PATH_SUCCESS_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "success"
 ABSOLUTE_PATH_FAIL_DATA_FOLDER = ABSOLUTE_PATH_DATA_FOLDER + "fail"
-CONF_FILE = f"{TEST_DIR}/config.toml"
 IP = "127.0.0.1"
 PORT = 50123
 USERNAME = "admin"
 PASSWORD = "executor"
 DB_NAME = "db"
-
-DEFAULT_OPTION = [
-    "--conf_file_path",
-    TEST_DIR + "/config.toml",
+SQLiteDB_OPTION = ["--sqlite_db_path", SQLiteDB_PATH]
+MONETDB_OPTIONS = [
+    "--ip",
+    IP,
+    "--port",
+    PORT,
+    "--username",
+    USERNAME,
+    "--password",
+    PASSWORD,
+    "--db_name",
+    DB_NAME,
 ]
 
 
@@ -85,32 +93,12 @@ def monetdb_container():
 
 @pytest.fixture(scope="function")
 def sqlite_db():
-
-    with open(CONF_FILE, "r") as file:
-        toml_data = toml.load(file)
-
-    toml_data["SQLITE_DB_PATH"] = f"{TEST_DIR}/sqlite.db"
-
-    with open(CONF_FILE, "w") as file:
-        toml.dump(toml_data, file)
-
-    credentials = credentials_from_config(CONF_FILE)
-    return SQLiteDB.from_config({"db_path": credentials["SQLITE_DB_PATH"]})
-
+    return SQLiteDB.from_config({"db_path": SQLiteDB_PATH})
 
 @pytest.fixture(scope="function")
 def monetdb():
-    credentials = credentials_from_config(CONF_FILE)
-
-    return MonetDB.from_config(
-        {
-            "username": credentials["MONETDB_ADMIN_USERNAME"],
-            "password": credentials["MONETDB_LOCAL_PASSWORD"],
-            "ip": credentials["DB_IP"],
-            "port": credentials["DB_PORT"],
-            "dbfarm": credentials["DB_NAME"],
-        }
-    )
+    dbconfig = get_monetdb_config(IP, PORT, USERNAME, PASSWORD, DB_NAME)
+    return MonetDB.from_config(dbconfig)
 
 
 def cleanup_monetdb(monetdb):

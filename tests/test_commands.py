@@ -27,7 +27,8 @@ from tests.conftest import (
     ABSOLUTE_PATH_SUCCESS_DATA_FOLDER,
     SUCCESS_DATA_FOLDER,
     ABSOLUTE_PATH_FAIL_DATA_FOLDER,
-    DEFAULT_OPTION,
+    MONETDB_OPTIONS,
+    SQLiteDB_OPTION,
     ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET,
 )
 from tests.conftest import DATA_MODEL_FILE
@@ -40,7 +41,7 @@ def test_init(sqlite_db):
     runner = CliRunner()
     data_model_table = DataModelTable()
     assert not data_model_table.exists(sqlite_db)
-    result = runner.invoke(init, DEFAULT_OPTION)
+    result = runner.invoke(init, SQLiteDB_OPTION)
     assert result.exit_code == ExitCode.OK
     assert sqlite_db.execute_fetchall(f"select * from data_models") == []
 
@@ -52,9 +53,9 @@ def test_add_data_model(sqlite_db):
     runner = CliRunner()
     # Check data_model not present already
 
-    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
     # Test
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     assert result.exit_code == ExitCode.OK
 
     data_models = sqlite_db.execute_fetchall(f"select * from data_models")
@@ -87,13 +88,13 @@ def test_delete_data_model(sqlite_db):
     runner = CliRunner()
     # Check data_model not present already
 
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     assert sqlite_db.get_data_models(["data_model_id"])[0][0] == 1
     # Test
     result = runner.invoke(
         delete_data_model,
-        ["data_model", "-v", "1.0", "-f"] + DEFAULT_OPTION,
+        ["data_model", "-v", "1.0", "-f"] + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -105,8 +106,8 @@ def test_add_dataset_with_volume(sqlite_db, monetdb):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
 
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
@@ -120,7 +121,7 @@ def test_add_dataset_with_volume(sqlite_db, monetdb):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -141,8 +142,8 @@ def test_add_dataset(sqlite_db, monetdb):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
@@ -157,7 +158,7 @@ def test_add_dataset(sqlite_db, monetdb):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -178,11 +179,11 @@ def test_add_two_datasets_with_same_name_different_data_model(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_data_model,
-        ["tests/data/success/data_model1_v_1_0/CDEsMetadata.json"] + DEFAULT_OPTION,
+        ["tests/data/success/data_model1_v_1_0/CDEsMetadata.json"] + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
 
     # Test
@@ -195,7 +196,7 @@ def test_add_two_datasets_with_same_name_different_data_model(sqlite_db):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     result = runner.invoke(
         add_dataset,
@@ -206,7 +207,7 @@ def test_add_two_datasets_with_same_name_different_data_model(sqlite_db):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     assert [(1, "dataset10"), (2, "dataset10")] == sqlite_db.get_values(
@@ -221,8 +222,8 @@ def test_validate_dataset_with_volume(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
@@ -235,7 +236,7 @@ def test_validate_dataset_with_volume(sqlite_db):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -287,7 +288,7 @@ dataset_files = [
 def test_invalid_dataset_error_cases(data_model, dataset, exception_message):
     runner = CliRunner()
 
-    runner.invoke(init, DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
     result = runner.invoke(
         add_data_model,
         [
@@ -296,7 +297,7 @@ def test_invalid_dataset_error_cases(data_model, dataset, exception_message):
             + data_model
             + "_v_1_0/CDEsMetadata.json",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -309,7 +310,7 @@ def test_invalid_dataset_error_cases(data_model, dataset, exception_message):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
 
     assert (
@@ -325,8 +326,8 @@ def test_validate_dataset(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
@@ -341,7 +342,7 @@ def test_validate_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -353,8 +354,8 @@ def test_delete_dataset_with_volume(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -364,7 +365,7 @@ def test_delete_dataset_with_volume(sqlite_db):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert (
         "dataset"
@@ -374,7 +375,7 @@ def test_delete_dataset_with_volume(sqlite_db):
     # Test
     result = runner.invoke(
         delete_dataset,
-        ["dataset", "-d", "data_model", "-v", "1.0"] + DEFAULT_OPTION,
+        ["dataset", "-d", "data_model", "-v", "1.0"] + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -388,12 +389,12 @@ def test_load_folder_with_volume(sqlite_db, monetdb):
     runner = CliRunner()
 
     # Check dataset not present already
-    result = runner.invoke(init, DEFAULT_OPTION)
+    result = runner.invoke(init, SQLiteDB_OPTION)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
     result = runner.invoke(
-        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + DEFAULT_OPTION
+        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS
     )
     assert result.exit_code == ExitCode.OK
 
@@ -421,13 +422,13 @@ def test_load_folder(sqlite_db, monetdb):
     runner = CliRunner()
 
     # Check dataset not present already
-    result = runner.invoke(init, DEFAULT_OPTION)
+    result = runner.invoke(init, SQLiteDB_OPTION)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
     result = runner.invoke(
         load_folder,
-        [SUCCESS_DATA_FOLDER, "--copy_from_file", False] + DEFAULT_OPTION,
+        [SUCCESS_DATA_FOLDER, "--copy_from_file", False] + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -455,16 +456,16 @@ def test_load_folder_twice_with_volume(sqlite_db, monetdb):
     runner = CliRunner()
 
     # Check dataset not present already
-    result = runner.invoke(init, DEFAULT_OPTION)
+    result = runner.invoke(init, SQLiteDB_OPTION)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
     result = runner.invoke(
-        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + DEFAULT_OPTION
+        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
     result = runner.invoke(
-        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + DEFAULT_OPTION
+        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS
     )
     assert result.exit_code == ExitCode.OK
 
@@ -491,13 +492,13 @@ def test_tag_data_model(sqlite_db):
     # Setup
     runner = CliRunner()
 
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
 
     # Test
     result = runner.invoke(
         tag_data_model,
-        ["data_model", "-t", "tag", "-v", "1.0"] + DEFAULT_OPTION,
+        ["data_model", "-t", "tag", "-v", "1.0"] + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
     result = sqlite_db.get_values(table=DataModel.__table__, columns=["properties"])
@@ -512,17 +513,17 @@ def test_untag_data_model(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         tag_data_model,
-        ["data_model", "-t", "tag", "-v", "1.0"] + DEFAULT_OPTION,
+        ["data_model", "-t", "tag", "-v", "1.0"] + SQLiteDB_OPTION,
     )
 
     # Test
     result = runner.invoke(
         tag_data_model,
-        ["data_model", "-t", "tag", "-v", "1.0", "-r"] + DEFAULT_OPTION,
+        ["data_model", "-t", "tag", "-v", "1.0", "-r"] + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
     result = sqlite_db.get_values(table=DataModel.__table__, columns=["properties"])
@@ -536,13 +537,13 @@ def test_property_data_model_addition(sqlite_db):
     # Setup
     runner = CliRunner()
 
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
 
     # Test
     result = runner.invoke(
         tag_data_model,
-        ["data_model", "-t", "key=value", "-v", "1.0"] + DEFAULT_OPTION,
+        ["data_model", "-t", "key=value", "-v", "1.0"] + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
     result = sqlite_db.get_values(table=DataModel.__table__, columns=["properties"])
@@ -559,11 +560,11 @@ def test_property_data_model_deletion(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         tag_data_model,
-        ["data_model", "-t", "key=value", "-v", "1.0"] + DEFAULT_OPTION,
+        ["data_model", "-t", "key=value", "-v", "1.0"] + SQLiteDB_OPTION,
     )
 
     # Test
@@ -577,7 +578,7 @@ def test_property_data_model_deletion(sqlite_db):
             "1.0",
             "-r",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
     result = sqlite_db.get_values(table=DataModel.__table__, columns=["properties"])
@@ -592,8 +593,8 @@ def test_tag_dataset(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -605,7 +606,7 @@ def test_tag_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
 
     # Test
@@ -620,7 +621,7 @@ def test_tag_dataset(sqlite_db):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
@@ -635,8 +636,8 @@ def test_untag_dataset(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(
@@ -650,7 +651,7 @@ def test_untag_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
@@ -664,7 +665,7 @@ def test_untag_dataset(sqlite_db):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -681,7 +682,7 @@ def test_untag_dataset(sqlite_db):
             "1.0",
             "-r",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
@@ -696,8 +697,8 @@ def test_property_dataset_addition(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -709,7 +710,7 @@ def test_property_dataset_addition(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
 
     # Test
@@ -724,7 +725,7 @@ def test_property_dataset_addition(sqlite_db):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
@@ -739,8 +740,8 @@ def test_property_dataset_deletion(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(
@@ -754,7 +755,7 @@ def test_property_dataset_deletion(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
@@ -768,7 +769,7 @@ def test_property_dataset_deletion(sqlite_db):
             "-v",
             "1.0",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -785,7 +786,7 @@ def test_property_dataset_deletion(sqlite_db):
             "1.0",
             "-r",
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
@@ -800,16 +801,16 @@ def test_enable_data_model(sqlite_db):
     runner = CliRunner()
 
     # Check status is disabled
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     result = runner.invoke(
-        disable_data_model, ["data_model", "-v", "1.0"] + DEFAULT_OPTION
+        disable_data_model, ["data_model", "-v", "1.0"] + SQLiteDB_OPTION
     )
     assert _get_status(sqlite_db, "data_models") == "DISABLED"
 
     # Test
     result = runner.invoke(
-        enable_data_model, ["data_model", "-v", "1.0"] + DEFAULT_OPTION
+        enable_data_model, ["data_model", "-v", "1.0"] + SQLiteDB_OPTION
     )
     assert result.exit_code == ExitCode.OK
     assert _get_status(sqlite_db, "data_models") == "ENABLED"
@@ -822,13 +823,13 @@ def test_disable_data_model(sqlite_db):
     runner = CliRunner()
 
     # Check status is enabled
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     assert _get_status(sqlite_db, "data_models") == "ENABLED"
 
     # Test
     result = runner.invoke(
-        disable_data_model, ["data_model", "-v", "1.0"] + DEFAULT_OPTION
+        disable_data_model, ["data_model", "-v", "1.0"] + SQLiteDB_OPTION
     )
     assert result.exit_code == ExitCode.OK
     assert _get_status(sqlite_db, "data_models") == "DISABLED"
@@ -841,8 +842,8 @@ def test_enable_dataset(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -854,18 +855,18 @@ def test_enable_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     result = runner.invoke(
         disable_dataset,
-        ["dataset", "-d", "data_model", "-v", "1.0"] + DEFAULT_OPTION,
+        ["dataset", "-d", "data_model", "-v", "1.0"] + SQLiteDB_OPTION,
     )
     assert _get_status(sqlite_db, "datasets") == "DISABLED"
 
     # Test
     result = runner.invoke(
         enable_dataset,
-        ["dataset", "-d", "data_model", "-v", "1.0"] + DEFAULT_OPTION,
+        ["dataset", "-d", "data_model", "-v", "1.0"] + SQLiteDB_OPTION,
     )
     assert result.exit_code == ExitCode.OK
     assert _get_status(sqlite_db, "datasets") == "ENABLED"
@@ -878,8 +879,8 @@ def test_disable_dataset(sqlite_db):
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -891,14 +892,14 @@ def test_disable_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert _get_status(sqlite_db, "datasets") == "ENABLED"
 
     # Test
     result = runner.invoke(
         disable_dataset,
-        ["dataset", "-d", "data_model", "-v", "1.0"] + DEFAULT_OPTION,
+        ["dataset", "-d", "data_model", "-v", "1.0"] + SQLiteDB_OPTION,
     )
     assert _get_status(sqlite_db, "datasets") == "DISABLED"
     assert result.exit_code == ExitCode.OK
@@ -912,10 +913,10 @@ def test_list_data_models():
 
     # Check data_model not present already
 
-    runner.invoke(init, DEFAULT_OPTION)
-    result = runner.invoke(list_data_models, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
-    result_with_data_model = runner.invoke(list_data_models, DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    result = runner.invoke(list_data_models, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    result_with_data_model = runner.invoke(list_data_models, SQLiteDB_OPTION)
     runner.invoke(
         add_dataset,
         [
@@ -927,9 +928,9 @@ def test_list_data_models():
             "--copy_from_file",
             False,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
-    result_with_data_model_and_dataset = runner.invoke(list_data_models, DEFAULT_OPTION)
+    result_with_data_model_and_dataset = runner.invoke(list_data_models, SQLiteDB_OPTION)
 
     # Test
     assert result.exit_code == ExitCode.OK
@@ -961,9 +962,9 @@ def test_list_datasets():
     runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, DEFAULT_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + DEFAULT_OPTION)
-    result = runner.invoke(list_datasets, DEFAULT_OPTION)
+    runner.invoke(init, SQLiteDB_OPTION)
+    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    result = runner.invoke(list_datasets, SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_dataset,
         [
@@ -975,9 +976,9 @@ def test_list_datasets():
             "--copy_from_file",
             True,
         ]
-        + DEFAULT_OPTION,
+        + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
-    result_with_dataset = runner.invoke(list_datasets, DEFAULT_OPTION)
+    result_with_dataset = runner.invoke(list_datasets, SQLiteDB_OPTION + MONETDB_OPTIONS)
 
     # Test
     assert result.exit_code == ExitCode.OK

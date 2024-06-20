@@ -282,9 +282,10 @@ class MonetDBConnection(DBExecutorMixin, Connection):
         return self._executor.execute(query, *args, **kwargs) or []
 
 
-def credentials_from_config(conf_file_path=CONFIG):
+def credentials_from_config():
     try:
-        return toml.load(conf_file_path)
+
+        return toml.load(CONFIG)
     except FileNotFoundError:
         return {
             "DB_IP": "",
