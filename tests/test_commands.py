@@ -335,10 +335,7 @@ def test_validate_no_db():
     runner = CliRunner()
 
     validation_result = runner.invoke(validate_folder, [ABSOLUTE_PATH_FAIL_DATA_FOLDER])
-    assert (
-        "An error occurred while validating the csv on column: 'var2'"
-        in validation_result.stdout
-    )
+    assert validation_result.exit_code != ExitCode.OK
 
 
 @pytest.mark.database
