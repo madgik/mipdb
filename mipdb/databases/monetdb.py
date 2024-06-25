@@ -1,14 +1,11 @@
-import ipaddress
 from contextlib import contextmanager
 from typing import Union
 
 import sqlalchemy as sql
-import toml
 
 from mipdb.exceptions import DataBaseError
 
 PRIMARYDATA_TABLE = "primary_data"
-CONFIG = "/home/config.toml"
 
 
 def handle_errors(func):
@@ -131,23 +128,6 @@ class MonetDBConnection(DBExecutor):
 
     def __init__(self, conn: sql.engine.Connection) -> None:
         super().__init__(conn)
-
-
-def credentials_from_config():
-    try:
-        return toml.load(CONFIG)
-    except FileNotFoundError:
-        return {
-            "DB_IP": "",
-            "DB_PORT": "",
-            "MONETDB_ADMIN_USERNAME": "",
-            "MONETDB_LOCAL_USERNAME": "",
-            "MONETDB_LOCAL_PASSWORD": "",
-            "MONETDB_PUBLIC_USERNAME": "",
-            "MONETDB_PUBLIC_PASSWORD": "",
-            "DB_NAME": "",
-            "SQLITE_DB_PATH": "",
-        }
 
 
 class MonetDB(DBExecutor):

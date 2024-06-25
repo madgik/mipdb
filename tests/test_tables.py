@@ -1,14 +1,11 @@
-import json
-
 from mipdb.exceptions import DataBaseError
 
 import pytest
 
-from mipdb.monetdb_tables import PrimaryDataTable
+from mipdb.databases.monetdb_tables import PrimaryDataTable
 from mipdb.schema import Schema
-from mipdb.sqlite_tables import (
+from mipdb.databases.sqlite_tables import (
     DataModelTable,
-    DatasetsTable,
     MetadataTable,
 )
 from mipdb.dataelements import CommonDataElement, flatten_cdes

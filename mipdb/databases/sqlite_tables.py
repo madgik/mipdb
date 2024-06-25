@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-import json
 
 import sqlalchemy as sql
-from sqlalchemy import Column, Integer, String, JSON, MetaData
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
+from sqlalchemy import Integer, String, JSON
+from sqlalchemy.ext.declarative import declarative_base
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import DataBaseError
-from mipdb.sqlite import DataModel, Dataset, SQLiteDB
+from mipdb.databases.sqlite import DataModel, Dataset
 
 METADATA_TABLE = "variables_metadata"
 PRIMARYDATA_TABLE = "primary_data"
@@ -192,6 +191,4 @@ class MetadataTable(Table):
         return [{"code": cde.code, "metadata": cde.metadata} for cde in cdes]
 
     def insert_values(self, values, db):
-        # Needs to be overridden because sqlalchemy and monetdb are not cooperating
-        # well when inserting values to JSON columns
         db.execute(f'INSERT INTO "{self.name}" VALUES(:code, :metadata)', values)

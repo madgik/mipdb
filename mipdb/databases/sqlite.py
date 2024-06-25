@@ -1,12 +1,9 @@
-from contextlib import contextmanager
 from typing import List, Any, Dict
 from enum import Enum
-import json
 
 import sqlalchemy as sql
 from sqlalchemy import MetaData, ForeignKey, inspect
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import MultipleResultsFound
 
@@ -75,7 +72,7 @@ class SQLiteDB:
 
     def __init__(self, url: str, echo=False) -> None:
         self._executor = sql.create_engine(url, echo=echo)
-        self.Session = sessionmaker(bind=self._executor)
+        self.Session = sessionmaker(bind=self._executor, autocommit=True)
 
     @classmethod
     def from_config(cls, dbconfig: dict) -> "SQLiteDB":
@@ -85,23 +82,20 @@ class SQLiteDB:
 
     @handle_errors
     def execute(self, query: str, *args, **kwargs) -> None:
-        conn = self._executor.connect()
-        conn.execute(sql.text(query), *args, **kwargs)
-        conn.close()
+        with self._executor.connect() as conn:
+            conn = conn.execution_options(autocommit=True)
+            conn.execute(sql.text(query), *args, **kwargs)
 
     @handle_errors
     def execute_fetchall(self, query: str, *args, **kwargs) -> List[dict]:
-        conn = self._executor.connect()
-        result = conn.execute(sql.text(query), *args, **kwargs)
-        result = result.fetchall() if result else []
-        conn.close()
-        return result
+        with self._executor.connect() as conn:
+            result = conn.execute(sql.text(query), *args, **kwargs)
+            return result.fetchall() if result else []
 
     def insert_values_to_table(self, table: sql.Table, values: List[dict]) -> None:
         session = self.Session()
         try:
             session.execute(table.insert(), values)
-            session.commit()
         finally:
             session.close()
 
@@ -124,7 +118,7 @@ class SQLiteDB:
             session.query(DataModel).filter(
                 DataModel.data_model_id == data_model_id
             ).update({"status": status})
-            session.commit()
+
         finally:
             session.close()
 
@@ -163,7 +157,7 @@ class SQLiteDB:
             session.query(Dataset).filter(Dataset.dataset_id == dataset_id).update(
                 {"status": status}
             )
-            session.commit()
+
         finally:
             session.close()
 
@@ -244,7 +238,7 @@ class SQLiteDB:
         try:
             table = sql.Table(table, metadata, autoload_with=self._executor)
             table.drop(bind=self._executor)
-            session.commit()
+
         finally:
             session.close()
 
@@ -257,10 +251,6 @@ class SQLiteDB:
                     query = query.filter(getattr(table.c, col) == value)
 
             query.delete(synchronize_session=False)
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            raise
         finally:
             session.close()
 
@@ -294,7 +284,7 @@ class SQLiteDB:
             session.query(DataModel).filter(
                 DataModel.data_model_id == data_model_id
             ).update({"properties": properties})
-            session.commit()
+
         finally:
             session.close()
 
@@ -304,7 +294,7 @@ class SQLiteDB:
             session.query(Dataset).filter(Dataset.dataset_id == dataset_id).update(
                 {"properties": properties}
             )
-            session.commit()
+
         finally:
             session.close()
 

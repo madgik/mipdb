@@ -4,10 +4,14 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from mipdb.monetdb import MonetDB
+from mipdb.databases.monetdb import MonetDB
 from mipdb.data_frame_schema import DataFrameSchema
 from mipdb.exceptions import ForeignKeyError, InvalidDatasetError, UserInputError
-from mipdb.monetdb_tables import PrimaryDataTable, TemporaryTable, RECORDS_PER_COPY
+from mipdb.databases.monetdb_tables import (
+    PrimaryDataTable,
+    TemporaryTable,
+    RECORDS_PER_COPY,
+)
 from mipdb.properties import Properties
 from mipdb.reader import CSVDataFrameReader
 from mipdb.dataelements import (
@@ -20,8 +24,8 @@ from mipdb.dataelements import (
     get_dataset_enums,
 )
 from mipdb.schema import Schema
-from mipdb.sqlite import SQLiteDB
-from mipdb.sqlite_tables import DataModelTable, DatasetsTable, MetadataTable
+from mipdb.databases.sqlite import SQLiteDB
+from mipdb.databases.sqlite_tables import DataModelTable, DatasetsTable, MetadataTable
 from mipdb.data_frame import DataFrame, DATASET_COLUMN_NAME
 
 LONGITUDINAL = "longitudinal"

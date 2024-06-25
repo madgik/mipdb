@@ -6,7 +6,7 @@ from mipdb import init
 import pytest
 
 from mipdb.exceptions import DataBaseError
-from mipdb.sqlite import DataModel, Dataset
+from mipdb.databases.sqlite import DataModel, Dataset
 from tests.conftest import DATASET_FILE, MONETDB_OPTIONS, SQLiteDB_OPTION
 from tests.conftest import DATA_MODEL_FILE
 

@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 import json
 from enum import Enum
-from typing import Union, List
+from typing import List
 
 import sqlalchemy as sql
 from sqlalchemy import MetaData
 
-from mipdb.monetdb import credentials_from_config
 from mipdb.data_frame import DATASET_COLUMN_NAME
+from mipdb.databases import credentials_from_config
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema

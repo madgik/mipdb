@@ -20,8 +20,8 @@ from mipdb import list_datasets
 from mipdb import validate_dataset
 from mipdb.commands import validate_folder
 from mipdb.exceptions import ExitCode
-from mipdb.sqlite import Dataset, DataModel
-from mipdb.sqlite_tables import DataModelTable
+from mipdb.databases.sqlite import Dataset, DataModel
+from mipdb.databases.sqlite_tables import DataModelTable
 from tests.conftest import (
     DATASET_FILE,
     ABSOLUTE_PATH_DATASET_FILE,

@@ -4,9 +4,10 @@ import click as cl
 import os
 import glob
 
-from mipdb.monetdb import MonetDB, credentials_from_config
+from mipdb.databases import credentials_from_config
+from mipdb.databases.monetdb import MonetDB
 from mipdb.reader import JsonFileReader
-from mipdb.sqlite import SQLiteDB
+from mipdb.databases.sqlite import SQLiteDB
 from mipdb.usecases import (
     AddDataModel,
     Cleanup,

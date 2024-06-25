@@ -1,14 +1,13 @@
-import json
 from unittest.mock import patch
 
 import pandas as pd
 import pytest
 
-from mipdb.monetdb import MonetDB
+from mipdb.databases.monetdb import MonetDB
 from mipdb.exceptions import ForeignKeyError, DataBaseError, InvalidDatasetError
 from mipdb.exceptions import UserInputError
-from mipdb.sqlite import Dataset
-from mipdb.sqlite_tables import DataModelTable, DatasetsTable
+from mipdb.databases.sqlite import Dataset
+from mipdb.databases.sqlite_tables import DataModelTable, DatasetsTable
 from mipdb.usecases import (
     AddPropertyToDataset,
     check_unique_longitudinal_dataset_primary_keys,
@@ -294,7 +293,7 @@ def test_add_dataset_with_small_record_copy(sqlite_db, monetdb, data_model_metad
     # Setup
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
-    with patch("mipdb.monetdb_tables.RECORDS_PER_COPY", 1):
+    with patch("mipdb.databases.monetdb_tables.RECORDS_PER_COPY", 1):
         # Test
         ImportCSV(sqlite_db, monetdb).execute(
             csv_path=DATASET_FILE,
@@ -316,7 +315,7 @@ def test_add_dataset_with_small_record_copy_with_volume(
     # Setup
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
-    with patch("mipdb.monetdb_tables.RECORDS_PER_COPY", 1):
+    with patch("mipdb.databases.monetdb_tables.RECORDS_PER_COPY", 1):
         # Test
         ImportCSV(sqlite_db, monetdb).execute(
             csv_path=ABSOLUTE_PATH_DATASET_FILE,
@@ -336,7 +335,7 @@ def test_csv_legnth_equals_records_per_copy(sqlite_db, monetdb, data_model_metad
     # Setup
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
-    with patch("mipdb.monetdb_tables.RECORDS_PER_COPY", 5):
+    with patch("mipdb.databases.monetdb_tables.RECORDS_PER_COPY", 5):
         # Test
         ImportCSV(sqlite_db, monetdb).execute(
             csv_path=ABSOLUTE_PATH_DATASET_FILE,

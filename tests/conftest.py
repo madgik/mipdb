@@ -5,10 +5,10 @@ import pytest
 import docker
 
 from mipdb.commands import get_monetdb_config
-from mipdb.monetdb import MonetDB
-from mipdb.monetdb_tables import User
+from mipdb.databases.monetdb import MonetDB
+from mipdb.databases.monetdb_tables import User
 from mipdb.reader import JsonFileReader
-from mipdb.sqlite import SQLiteDB
+from mipdb.databases.sqlite import SQLiteDB
 
 TEST_DIR = os.path.dirname(os.path.realpath(__file__))
 SQLiteDB_PATH = f"{TEST_DIR}/sqlite.db"
