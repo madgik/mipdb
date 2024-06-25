@@ -95,6 +95,7 @@ def monetdb_container():
 def sqlite_db():
     return SQLiteDB.from_config({"db_path": SQLiteDB_PATH})
 
+
 @pytest.fixture(scope="function")
 def monetdb():
     dbconfig = get_monetdb_config(IP, PORT, USERNAME, PASSWORD, DB_NAME)

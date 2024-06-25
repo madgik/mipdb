@@ -1,6 +1,5 @@
 import sqlalchemy as sql
 
-from mipdb.monetdb import DataBase
 from mipdb.exceptions import UserInputError
 
 
@@ -16,10 +15,10 @@ class Schema:
     def __repr__(self) -> str:
         return f"Schema(name={self.name})"
 
-    def create(self, db: DataBase):
+    def create(self, db):
         db.create_schema(self.name)
 
-    def drop(self, db: DataBase):
+    def drop(self, db):
         db.drop_schema(self.name)
 
     def _validate_schema_name(self):

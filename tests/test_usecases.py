@@ -69,7 +69,7 @@ def test_is_db_initialized_with_db_fail(db):
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
 def test_is_db_initialized_with_db_fail(sqlite_db):
     InitDB(sqlite_db).execute()
-    assert is_db_initialized(db=sqlite_db)
+    is_db_initialized(db=sqlite_db)
 
 
 @pytest.mark.database

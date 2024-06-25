@@ -55,7 +55,9 @@ def test_add_data_model(sqlite_db):
 
     runner.invoke(init, SQLiteDB_OPTION)
     # Test
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    result = runner.invoke(
+        add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS
+    )
     assert result.exit_code == ExitCode.OK
 
     data_models = sqlite_db.execute_fetchall(f"select * from data_models")
@@ -121,7 +123,8 @@ def test_add_dataset_with_volume(sqlite_db, monetdb):
             "-v",
             "1.0",
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -158,7 +161,8 @@ def test_add_dataset(sqlite_db, monetdb):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -183,7 +187,9 @@ def test_add_two_datasets_with_same_name_different_data_model(sqlite_db):
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
     runner.invoke(
         add_data_model,
-        ["tests/data/success/data_model1_v_1_0/CDEsMetadata.json"] + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        ["tests/data/success/data_model1_v_1_0/CDEsMetadata.json"]
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
 
     # Test
@@ -196,7 +202,8 @@ def test_add_two_datasets_with_same_name_different_data_model(sqlite_db):
             "-v",
             "1.0",
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     result = runner.invoke(
         add_dataset,
@@ -207,7 +214,8 @@ def test_add_two_datasets_with_same_name_different_data_model(sqlite_db):
             "-v",
             "1.0",
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     assert [(1, "dataset10"), (2, "dataset10")] == sqlite_db.get_values(
@@ -236,7 +244,8 @@ def test_validate_dataset_with_volume(sqlite_db):
             "-v",
             "1.0",
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -297,7 +306,8 @@ def test_invalid_dataset_error_cases(data_model, dataset, exception_message):
             + data_model
             + "_v_1_0/CDEsMetadata.json",
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -310,7 +320,8 @@ def test_invalid_dataset_error_cases(data_model, dataset, exception_message):
             "-v",
             "1.0",
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
 
     assert (
@@ -342,7 +353,8 @@ def test_validate_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -365,7 +377,8 @@ def test_delete_dataset_with_volume(sqlite_db):
             "-v",
             "1.0",
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert (
         "dataset"
@@ -375,7 +388,9 @@ def test_delete_dataset_with_volume(sqlite_db):
     # Test
     result = runner.invoke(
         delete_dataset,
-        ["dataset", "-d", "data_model", "-v", "1.0"] + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        ["dataset", "-d", "data_model", "-v", "1.0"]
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -394,7 +409,8 @@ def test_load_folder_with_volume(sqlite_db, monetdb):
 
     # Test
     result = runner.invoke(
-        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS
+        load_folder,
+        [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -428,7 +444,9 @@ def test_load_folder(sqlite_db, monetdb):
     # Test
     result = runner.invoke(
         load_folder,
-        [SUCCESS_DATA_FOLDER, "--copy_from_file", False] + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        [SUCCESS_DATA_FOLDER, "--copy_from_file", False]
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -459,13 +477,15 @@ def test_load_folder_twice_with_volume(sqlite_db, monetdb):
     result = runner.invoke(init, SQLiteDB_OPTION)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
     result = runner.invoke(
-        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS
+        load_folder,
+        [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
     result = runner.invoke(
-        load_folder, [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS
+        load_folder,
+        [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
 
@@ -606,7 +626,8 @@ def test_tag_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
 
     # Test
@@ -637,7 +658,9 @@ def test_untag_dataset(sqlite_db):
 
     # Check dataset not present already
     runner.invoke(init, SQLiteDB_OPTION)
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    result = runner.invoke(
+        add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS
+    )
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(
@@ -651,7 +674,8 @@ def test_untag_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
@@ -710,7 +734,8 @@ def test_property_dataset_addition(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
 
     # Test
@@ -741,7 +766,9 @@ def test_property_dataset_deletion(sqlite_db):
 
     # Check dataset not present already
     runner.invoke(init, SQLiteDB_OPTION)
-    result = runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    result = runner.invoke(
+        add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS
+    )
     assert result.exit_code == ExitCode.OK
 
     result = runner.invoke(
@@ -755,7 +782,8 @@ def test_property_dataset_deletion(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert result.exit_code == ExitCode.OK
     result = runner.invoke(
@@ -855,7 +883,8 @@ def test_enable_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     result = runner.invoke(
         disable_dataset,
@@ -892,7 +921,8 @@ def test_disable_dataset(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
     assert _get_status(sqlite_db, "datasets") == "ENABLED"
 
@@ -928,9 +958,12 @@ def test_list_data_models():
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
-    result_with_data_model_and_dataset = runner.invoke(list_data_models, SQLiteDB_OPTION)
+    result_with_data_model_and_dataset = runner.invoke(
+        list_data_models, SQLiteDB_OPTION
+    )
 
     # Test
     assert result.exit_code == ExitCode.OK
@@ -976,9 +1009,12 @@ def test_list_datasets():
             "--copy_from_file",
             True,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
-    result_with_dataset = runner.invoke(list_datasets, SQLiteDB_OPTION + MONETDB_OPTIONS)
+    result_with_dataset = runner.invoke(
+        list_datasets, SQLiteDB_OPTION + MONETDB_OPTIONS
+    )
 
     # Test
     assert result.exit_code == ExitCode.OK

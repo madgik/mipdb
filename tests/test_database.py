@@ -5,8 +5,6 @@ from mipdb import add_data_model
 from mipdb import init
 import pytest
 
-import sqlalchemy as sql
-
 from mipdb.exceptions import DataBaseError
 from mipdb.sqlite import DataModel, Dataset
 from tests.conftest import DATASET_FILE, MONETDB_OPTIONS, SQLiteDB_OPTION
@@ -56,7 +54,8 @@ def update_dataset_status(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
 
     # Check the status of dataset is disabled
@@ -98,7 +97,8 @@ def test_get_datasets_with_db(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
 
     # Check dataset present
@@ -172,7 +172,8 @@ def test_get_dataset_id_with_db(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
 
     # Test
@@ -198,7 +199,8 @@ def test_get_dataset_id_duplication_error(sqlite_db):
             "--copy_from_file",
             False,
         ]
-        + SQLiteDB_OPTION + MONETDB_OPTIONS,
+        + SQLiteDB_OPTION
+        + MONETDB_OPTIONS,
     )
 
     sqlite_db.insert_values_to_table(

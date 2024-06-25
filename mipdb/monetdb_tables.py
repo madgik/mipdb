@@ -8,7 +8,6 @@ from sqlalchemy import MetaData
 
 from mipdb.monetdb import credentials_from_config
 from mipdb.data_frame import DATASET_COLUMN_NAME
-from mipdb.monetdb import DataBase, Connection
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import UserInputError
 from mipdb.schema import Schema
@@ -56,17 +55,17 @@ class Table(ABC):
     def table(self):
         return self._table
 
-    def create(self, db: Union[DataBase, Connection]):
+    def create(self, db):
         db.create_table(self._table)
         db.grant_select_access_rights(self._table, User.executor.value)
 
-    def exists(self, db: Union[DataBase, Connection]):
+    def exists(self, db):
         return db.table_exists(self._table)
 
-    def insert_values(self, values, db: Union[DataBase, Connection]):
+    def insert_values(self, values, db):
         db.insert_values_to_table(self._table, values)
 
-    def delete(self, db: Union[DataBase, Connection]):
+    def delete(self, db):
         db.delete_table_values(self._table)
 
     def get_row_count(self, db):
@@ -75,7 +74,7 @@ class Table(ABC):
     def get_column_distinct(self, column, db):
         return db.get_column_distinct(column, self.table.fullname)
 
-    def drop(self, db: Union[DataBase, Connection]):
+    def drop(self, db):
         db.drop_table(self._table)
 
 
@@ -121,7 +120,7 @@ class PrimaryDataTable(Table):
         return db.get_data_count_by_dataset(data_model_fullname)
 
     @classmethod
-    def from_db(cls, schema: Schema, db: DataBase) -> "PrimaryDataTable":
+    def from_db(cls, schema: Schema, db) -> "PrimaryDataTable":
         table = sql.Table(
             "primary_data", schema.schema, autoload_with=db.get_executor()
         )

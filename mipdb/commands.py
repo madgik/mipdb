@@ -138,7 +138,9 @@ def entry():
 )
 @db_configs_options
 @handle_errors
-def load_folder(file, copy_from_file, ip, port, username, password, db_name, sqlite_db_path):
+def load_folder(
+    file, copy_from_file, ip, port, username, password, db_name, sqlite_db_path
+):
     dbconfig = get_monetdb_config(ip, port, username, password, db_name)
     monetdb = MonetDB.from_config(dbconfig)
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
@@ -204,12 +206,12 @@ def validate_folder(file):
 
 @entry.command()
 @cl.option(
-        "--sqlite_db_path",
-        "sqlite_db_path",
-        required=True,
-        help="The path for the sqlite database",
-        cls=NotRequiredIf,
-    )
+    "--sqlite_db_path",
+    "sqlite_db_path",
+    required=True,
+    help="The path for the sqlite database",
+    cls=NotRequiredIf,
+)
 @handle_errors
 def init(sqlite_db_path):
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
@@ -251,7 +253,18 @@ def add_data_model(file, ip, port, username, password, db_name, sqlite_db_path):
 )
 @db_configs_options
 @handle_errors
-def add_dataset(csv_path, data_model, version, copy_from_file, ip, port, username, password, db_name, sqlite_db_path):
+def add_dataset(
+    csv_path,
+    data_model,
+    version,
+    copy_from_file,
+    ip,
+    port,
+    username,
+    password,
+    db_name,
+    sqlite_db_path,
+):
     print(f"CSV '{csv_path}' is being loaded...")
     dbconfig = get_monetdb_config(ip, port, username, password, db_name)
     monetdb = MonetDB.from_config(dbconfig)
@@ -283,7 +296,18 @@ def add_dataset(csv_path, data_model, version, copy_from_file, ip, port, usernam
 )
 @db_configs_options
 @handle_errors
-def validate_dataset(csv_path, data_model, version, copy_from_file, ip, port, username, password, db_name, sqlite_db_path):
+def validate_dataset(
+    csv_path,
+    data_model,
+    version,
+    copy_from_file,
+    ip,
+    port,
+    username,
+    password,
+    db_name,
+    sqlite_db_path,
+):
     print(f"Dataset '{csv_path}' is being validated...")
     dbconfig = get_monetdb_config(ip, port, username, password, db_name)
     monetdb = MonetDB.from_config(dbconfig)
@@ -306,7 +330,9 @@ def validate_dataset(csv_path, data_model, version, copy_from_file, ip, port, us
 )
 @db_configs_options
 @handle_errors
-def delete_data_model(name, version, force, ip, port, username, password, db_name, sqlite_db_path):
+def delete_data_model(
+    name, version, force, ip, port, username, password, db_name, sqlite_db_path
+):
     dbconfig = get_monetdb_config(ip, port, username, password, db_name)
     monetdb = MonetDB.from_config(dbconfig)
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
@@ -325,7 +351,9 @@ def delete_data_model(name, version, force, ip, port, username, password, db_nam
 @cl.option("-v", "--version", required=True, help="The data model version")
 @db_configs_options
 @handle_errors
-def delete_dataset(dataset, data_model, version, ip, port, username, password, db_name, sqlite_db_path):
+def delete_dataset(
+    dataset, data_model, version, ip, port, username, password, db_name, sqlite_db_path
+):
     dbconfig = get_monetdb_config(ip, port, username, password, db_name)
     monetdb = MonetDB.from_config(dbconfig)
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
@@ -339,12 +367,12 @@ def delete_dataset(dataset, data_model, version, ip, port, username, password, d
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The data model version")
 @cl.option(
-        "--sqlite_db_path",
-        "sqlite_db_path",
-        required=True,
-        help="The path for the sqlite database",
-        cls=NotRequiredIf,
-    )
+    "--sqlite_db_path",
+    "sqlite_db_path",
+    required=True,
+    help="The path for the sqlite database",
+    cls=NotRequiredIf,
+)
 @handle_errors
 def enable_data_model(name, version, sqlite_db_path):
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
@@ -356,12 +384,12 @@ def enable_data_model(name, version, sqlite_db_path):
 @cl.argument("name", required=True)
 @cl.option("-v", "--version", required=True, help="The data model version")
 @cl.option(
-        "--sqlite_db_path",
-        "sqlite_db_path",
-        required=True,
-        help="The path for the sqlite database",
-        cls=NotRequiredIf,
-    )
+    "--sqlite_db_path",
+    "sqlite_db_path",
+    required=True,
+    help="The path for the sqlite database",
+    cls=NotRequiredIf,
+)
 @handle_errors
 def disable_data_model(name, version, sqlite_db_path):
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
@@ -379,12 +407,12 @@ def disable_data_model(name, version, sqlite_db_path):
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
 @cl.option(
-        "--sqlite_db_path",
-        "sqlite_db_path",
-        required=True,
-        help="The path for the sqlite database",
-        cls=NotRequiredIf,
-    )
+    "--sqlite_db_path",
+    "sqlite_db_path",
+    required=True,
+    help="The path for the sqlite database",
+    cls=NotRequiredIf,
+)
 @handle_errors
 def enable_dataset(dataset, data_model, version, sqlite_db_path):
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
@@ -402,16 +430,14 @@ def enable_dataset(dataset, data_model, version, sqlite_db_path):
 )
 @cl.option("-v", "--version", required=True, help="The data model version")
 @cl.option(
-        "--sqlite_db_path",
-        "sqlite_db_path",
-        required=True,
-        help="The path for the sqlite database",
-        cls=NotRequiredIf,
-    )
+    "--sqlite_db_path",
+    "sqlite_db_path",
+    required=True,
+    help="The path for the sqlite database",
+    cls=NotRequiredIf,
+)
 @handle_errors
-def disable_dataset(
-    dataset, data_model, version, sqlite_db_path
-):
+def disable_dataset(dataset, data_model, version, sqlite_db_path):
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     DisableDataset(sqlite_db).execute(dataset, data_model, version)
     print(f"Dataset {dataset} was successfully disabled.")
@@ -441,16 +467,14 @@ def disable_dataset(
     help="Force overwrite on property",
 )
 @cl.option(
-        "--sqlite_db_path",
-        "sqlite_db_path",
-        required=True,
-        help="The path for the sqlite database",
-        cls=NotRequiredIf,
-    )
+    "--sqlite_db_path",
+    "sqlite_db_path",
+    required=True,
+    help="The path for the sqlite database",
+    cls=NotRequiredIf,
+)
 @handle_errors
-def tag_data_model(
-    name, version, tag, remove, force, sqlite_db_path
-):
+def tag_data_model(name, version, tag, remove, force, sqlite_db_path):
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
     if "=" in tag:
         key, value = tag.split("=")
@@ -501,12 +525,12 @@ def tag_data_model(
     help="Force overwrite on property",
 )
 @cl.option(
-        "--sqlite_db_path",
-        "sqlite_db_path",
-        required=True,
-        help="The path for the sqlite database",
-        cls=NotRequiredIf,
-    )
+    "--sqlite_db_path",
+    "sqlite_db_path",
+    required=True,
+    help="The path for the sqlite database",
+    cls=NotRequiredIf,
+)
 @handle_errors
 def tag_dataset(
     dataset,
@@ -542,12 +566,12 @@ def tag_dataset(
 
 @entry.command()
 @cl.option(
-        "--sqlite_db_path",
-        "sqlite_db_path",
-        required=True,
-        help="The path for the sqlite database",
-        cls=NotRequiredIf,
-    )
+    "--sqlite_db_path",
+    "sqlite_db_path",
+    required=True,
+    help="The path for the sqlite database",
+    cls=NotRequiredIf,
+)
 @handle_errors
 def list_data_models(sqlite_db_path):
     sqlite_db = SQLiteDB.from_config({"db_path": sqlite_db_path})
