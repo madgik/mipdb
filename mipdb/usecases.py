@@ -774,7 +774,9 @@ class ListDatasets(UseCase):
         data_model_table = DataModelTable()
         dataset_table = DatasetsTable()
         dataset_row_columns = ["dataset_id", "data_model_id", "code", "label", "status"]
-        dataset_rows = dataset_table.get_datasets(self.sqlite_db, columns=dataset_row_columns)
+        dataset_rows = dataset_table.get_datasets(
+            self.sqlite_db, columns=dataset_row_columns
+        )
         data_model_fullname_by_data_model_id = {
             data_model_id: get_data_model_fullname(code, version)
             for data_model_id, code, version in data_model_table.get_data_models(

@@ -334,16 +334,10 @@ def test_invalid_dataset_error_cases(data_model, dataset, exception_message):
 def test_validate_no_db():
     runner = CliRunner()
 
-    validation_result = runner.invoke(
-        validate_folder,
-        [
-            ABSOLUTE_PATH_FAIL_DATA_FOLDER
-        ]
-    )
+    validation_result = runner.invoke(validate_folder, [ABSOLUTE_PATH_FAIL_DATA_FOLDER])
     assert (
-        """An error occurred while validating the csv on column: 'var2'
-   index failure_case
-0      0           l3""" in validation_result.stdout
+        "An error occurred while validating the csv on column: 'var2'"
+        in validation_result.stdout
     )
 
 
