@@ -97,11 +97,6 @@ class SQLiteDB:
         conn.close()
         return result
 
-    @contextmanager
-    def begin(self) -> Engine:
-        with self._executor.begin() as conn:
-            yield conn
-
     def insert_values_to_table(self, table: sql.Table, values: List[dict]) -> None:
         session = self.Session()
         try:

@@ -38,7 +38,6 @@ from mipdb.usecases import ValidateDataset
 class NotRequiredIf(cl.Option):
     def __init__(self, *args, **kwargs):
         credentials = credentials_from_config()
-        print(credentials)
         option_to_env_var = {
             "--ip": credentials["DB_IP"],
             "--port": credentials["DB_PORT"],

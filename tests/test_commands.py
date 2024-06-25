@@ -18,6 +18,7 @@ from mipdb import tag_data_model
 from mipdb import list_data_models
 from mipdb import list_datasets
 from mipdb import validate_dataset
+from mipdb.commands import validate_folder
 from mipdb.exceptions import ExitCode
 from mipdb.sqlite import Dataset, DataModel
 from mipdb.sqlite_tables import DataModelTable
@@ -327,6 +328,22 @@ def test_invalid_dataset_error_cases(data_model, dataset, exception_message):
     assert (
         validation_result.exception.__str__() == exception_message
         or exception_message in validation_result.stdout
+    )
+
+
+def test_validate_no_db():
+    runner = CliRunner()
+
+    validation_result = runner.invoke(
+        validate_folder,
+        [
+            ABSOLUTE_PATH_FAIL_DATA_FOLDER
+        ]
+    )
+    assert (
+        """An error occurred while validating the csv on column: 'var2'
+   index failure_case
+0      0           l3""" in validation_result.stdout
     )
 
 
