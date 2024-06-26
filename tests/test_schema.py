@@ -3,13 +3,13 @@ from unittest.mock import Mock
 import pytest
 
 from mipdb.exceptions import UserInputError
+from mipdb.databases.monetdb import MonetDB
 from mipdb.schema import Schema
-from mipdb.database import DataBase
 
 
 @pytest.fixture
 def mockdb():
-    return Mock(spec_set=DataBase)
+    return Mock(spec_set=MonetDB)
 
 
 def test_create_schema(mockdb):

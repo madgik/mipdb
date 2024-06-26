@@ -164,4 +164,6 @@ def validate_metadata(code, metadata):
     valid_metadata_types = ["nominal", "real", "integer", "text"]
 
     if metadata["type"] not in valid_metadata_types:
-        raise InvalidDataModelError(f"The CDE {code} has an 'type' the only valid types are:{valid_metadata_types} ")
+        raise InvalidDataModelError(
+            f"The CDE {code} has an 'type' the only valid types are:{valid_metadata_types} "
+        )
