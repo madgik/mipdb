@@ -252,8 +252,8 @@ def test_add_dataset(sqlite_db, monetdb, data_model_metadata):
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
     # Test success
     ImportCSV(sqlite_db, monetdb).execute(
-        csv_path=DATASET_FILE,
-        copy_from_file=False,
+        csv_path=ABSOLUTE_PATH_DATASET_FILE,
+        copy_from_file=True,
         data_model_code="data_model",
         data_model_version="1.0",
     )

@@ -63,7 +63,7 @@ class Dataset(Base):
     code = sql.Column(sql.String, nullable=False)
     label = sql.Column(sql.String, nullable=False)
     status = sql.Column(sql.String, nullable=False)
-    csv_path = sql.Column(sql.String, nullable=False)
+    csv_path = sql.Column(sql.String, nullable=True)
     properties = sql.Column(sql.JSON, nullable=True)
 
 

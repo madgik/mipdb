@@ -191,8 +191,6 @@ class ImportCSV(UseCase):
         cdes = metadata_table.table
         dataset_enumerations = get_dataset_enums(cdes)
         sql_type_per_column = get_sql_type_per_column(cdes)
-        # In case the DATA_PATH is empty it will return the whole path.
-        relative_csv_path = csv_path.split(os.getenv("DATA_PATH"))[-1]
 
         with self.monetdb.begin() as monetdb_conn:
             imported_datasets = (
@@ -200,7 +198,7 @@ class ImportCSV(UseCase):
                     csv_path, sql_type_per_column, data_model, monetdb_conn
                 )
                 if copy_from_file
-                else self._import_csv(relative_csv_path, data_model, monetdb_conn)
+                else self._import_csv(csv_path, data_model, monetdb_conn)
             )
 
         existing_datasets = DatasetsTable().get_dataset_codes(
@@ -213,7 +211,7 @@ class ImportCSV(UseCase):
                 dataset_id=dataset_id,
                 code=dataset,
                 label=dataset_enumerations[dataset],
-                csv_path=relative_csv_path,
+                csv_path=csv_path if copy_from_file else None,
                 status="ENABLED",
                 properties=None,
             )
