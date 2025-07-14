@@ -146,12 +146,20 @@ class TemporaryTable(Table):
             for name, sql_type in dataframe_sql_type_per_column.items()
         ]
 
+        self._metadata = MetaData()
+
         self._table = sql.Table(
             TEMPORARY_TABLE_NAME,
-            MetaData(bind=db.get_executor()),
+            self._metadata,
             *columns,
             prefixes=["TEMPORARY"],
         )
+
+        self._table.create(bind=db.get_executor())
+
+    def create(self, db):
+            db.execute(f'DROP TABLE IF EXISTS "{self.table.name}"')
+            self.table.create(bind=db.get_executor())
 
     def validate_csv(self, csv_path, cdes_with_min_max, cdes_with_enumerations, db):
         validated_datasets = []

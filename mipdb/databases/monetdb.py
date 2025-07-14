@@ -2,6 +2,8 @@ from contextlib import contextmanager
 from typing import Union
 
 import sqlalchemy as sql
+from sqlalchemy import text, inspect
+from sqlalchemy.engine import Engine, Connection as SAConnection
 
 from mipdb.exceptions import DataBaseError
 
@@ -29,12 +31,33 @@ def handle_errors(func):
 class DBExecutor:
     """Class to handle SQL execution using SQLAlchemy's Engine and Connection."""
 
-    def __init__(self, executor: Union[sql.engine.Engine, sql.engine.Connection]):
+    def __init__(self, executor: Union[Engine, SAConnection]):
         self._executor = executor
 
+    def _get_connection(self):
+        # SQLAlchemy 2.x: if executor is Engine, open a new Connection; if already Connection, use it
+        if isinstance(self._executor, Engine):
+            return self._executor.connect()
+        if isinstance(self._executor, SAConnection):
+            return self._executor
+        raise DataBaseError(f"Unsupported executor type: {type(self._executor)}")
+
     @handle_errors
-    def execute(self, query, *args, **kwargs) -> list:
-        return self._executor.execute(query, *args, **kwargs) or []
+    def execute(self, query, *args, **kwargs) -> sql.engine.CursorResult | None:
+        conn = self._get_connection()
+        own_conn = isinstance(self._executor, sql.engine.Engine)
+        try:
+            stmt = text(query) if isinstance(query, str) else query
+
+            params = kwargs or None
+            result = conn.execute(stmt, params) if params else conn.execute(stmt, *args)
+
+            if own_conn:
+                conn.commit()
+            return result
+        finally:
+            if own_conn:
+                conn.close()
 
     def create_schema(self, schema_name):
         self.execute(sql.schema.CreateSchema(schema_name))
@@ -50,22 +73,24 @@ class DBExecutor:
         res = self.execute(
             f"""
             SELECT dataset, COUNT(dataset) as count
-            FROM "{schema_fullname}"."primary_data"
+            FROM "{schema_fullname}"."{PRIMARYDATA_TABLE}"
             GROUP BY dataset
         """
         )
         return list(res)
 
     def get_row_count(self, table):
-        res = self.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
-        return res[0]
+        res = self.execute(f"SELECT COUNT(*) FROM {table}")
+        return res.scalar_one() if res is not None else 0
 
     def get_column_distinct(self, column, table):
         datasets = self.execute(f"SELECT DISTINCT({column}) FROM {table};")
         return [dataset[0] for dataset in datasets]
 
-    def table_exists(self, table):
-        return table.exists(bind=self._executor)
+    def table_exists(self, table) -> bool:
+        inspector = inspect(self._executor)
+        schema = table.schema or None
+        return inspector.has_table(table.name, schema)
 
     @handle_errors
     def create_table(self, table):
@@ -84,7 +109,7 @@ class DBExecutor:
             f"""
             COPY {records_query} OFFSET {offset} INTO {table_name}
             FROM '{file_location}'
-            USING DELIMITERS ',', E'\n', '\"'
+            USING DELIMITERS ',', E'\n', '"'
             NULL AS '';
         """
         )
@@ -116,8 +141,8 @@ class DBExecutor:
         self.execute(table.insert(), values)
 
     def get_current_user(self):
-        (user, *_), *_ = self.execute("SELECT CURRENT_USER")
-        return user
+        res = self.execute("SELECT CURRENT_USER")
+        return res[0][0] if res else None
 
     def get_executor(self):
         return self._executor
@@ -126,7 +151,7 @@ class DBExecutor:
 class MonetDBConnection(DBExecutor):
     """Concrete connection object for MonetDB within transaction boundaries."""
 
-    def __init__(self, conn: sql.engine.Connection) -> None:
+    def __init__(self, conn: SAConnection) -> None:
         super().__init__(conn)
 
 
