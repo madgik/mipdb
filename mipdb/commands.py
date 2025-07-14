@@ -1,4 +1,5 @@
 import ipaddress
+from pathlib import Path
 
 import click as cl
 import os
@@ -153,6 +154,7 @@ def load_folder(
         print(f"The directory {file} is empty.")
         return
 
+    root = Path(file).resolve()
     for subdir, dirs, files in os.walk(file):
         if dirs:
             continue

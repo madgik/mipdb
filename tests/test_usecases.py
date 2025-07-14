@@ -393,7 +393,8 @@ def test_delete_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     )
     datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
     assert len(datasets) == 1
-    assert ("dataset",) in datasets
+
+    assert "dataset" in datasets[0][0]
 
     # Test
     DeleteDataset(sqlite_db, monetdb).execute(

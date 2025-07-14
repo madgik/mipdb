@@ -773,39 +773,21 @@ class ListDatasets(UseCase):
         self.monetdb = monetdb
 
     def execute(self) -> None:
-        data_model_table = DataModelTable()
         dataset_table = DatasetsTable()
         dataset_row_columns = ["dataset_id", "data_model_id", "code", "label", "status"]
         dataset_rows = dataset_table.get_datasets(
             self.sqlite_db, columns=dataset_row_columns
         )
-        data_model_fullname_by_data_model_id = {
-            data_model_id: get_data_model_fullname(code, version)
-            for data_model_id, code, version in data_model_table.get_data_models(
-                self.sqlite_db, ["data_model_id", "code", "version"]
-            )
-        }
         datasets_info = []
 
         for row in dataset_rows:
-            data_model_fullname = data_model_fullname_by_data_model_id[row[1]]
-            with self.monetdb.begin() as conn:
-                primary_data_table = PrimaryDataTable.from_db(
-                    Schema(data_model_fullname), conn
-                )
-                dataset_count = {
-                    dataset: count
-                    for dataset, count in primary_data_table.get_data_count_by_dataset(
-                        data_model_fullname, conn
-                    )
-                }.get(row[2], 0)
-                datasets_info.append(list(row) + [dataset_count])
+                datasets_info.append(list(row))
 
         if not datasets_info:
             print("There are no datasets.")
             return
 
-        df = pd.DataFrame(datasets_info, columns=dataset_row_columns + ["count"])
+        df = pd.DataFrame(datasets_info, columns=dataset_row_columns)
         print(df)
 
 

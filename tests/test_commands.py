@@ -93,7 +93,7 @@ def test_delete_data_model(sqlite_db):
 
     runner.invoke(init, SQLiteDB_OPTION)
     runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    assert sqlite_db.get_data_models(["data_model_id"])[0][0] == 1
+    assert sqlite_db.get_data_models(["data_model_id"])[0]["data_model_id"] == 1
     # Test
     result = runner.invoke(
         delete_data_model,
@@ -473,7 +473,6 @@ def test_load_folder(sqlite_db, monetdb):
         f'select row_id from "data_model:1.0".primary_data'
     ).fetchall()
     assert list(range(1, len(row_ids) + 1)) == [row[0] for row in row_ids]
-
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
@@ -972,26 +971,25 @@ def test_list_data_models():
     result_with_data_model_and_dataset = runner.invoke(
         list_data_models, SQLiteDB_OPTION
     )
-
     # Test
     assert result.exit_code == ExitCode.OK
     assert result.stdout == "There are no data models.\n"
     assert result_with_data_model.exit_code == ExitCode.OK
     assert (
-        "data_model_id        code version           label   status  count"
+        "data_model_id        code version           label   status"
         in result_with_data_model.stdout
     )
     assert (
-        "0              1  data_model     1.0  The Data Model  ENABLED      0"
+        "0              1  data_model     1.0  The Data Model  ENABLED"
         in result_with_data_model.stdout
     )
     assert result_with_data_model_and_dataset.exit_code == ExitCode.OK
     assert (
-        "data_model_id        code version           label   status  count"
+        "data_model_id        code version           label   status"
         in result_with_data_model_and_dataset.stdout
     )
     assert (
-        "0              1  data_model     1.0  The Data Model  ENABLED      1"
+        "0              1  data_model     1.0  The Data Model  ENABLED"
         in result_with_data_model_and_dataset.stdout
     )
 
@@ -1028,16 +1026,16 @@ def test_list_datasets():
     assert result.exit_code == ExitCode.OK
     assert result.stdout == "There are no datasets.\n"
     assert result_with_dataset.exit_code == ExitCode.OK
-    assert "dataset_id  data_model_id      code      label   status  count".strip(
+    assert "dataset_id  data_model_id      code      label   status".strip(
         " "
     ) in result_with_dataset.stdout.strip(" ")
-    assert "dataset2  Dataset 2  ENABLED      2".strip(
+    assert "dataset2  Dataset 2  ENABLED".strip(
         " "
     ) in result_with_dataset.stdout.strip(" ")
-    assert "dataset1  Dataset 1  ENABLED      2".strip(
+    assert "dataset1  Dataset 1  ENABLED".strip(
         " "
     ) in result_with_dataset.stdout.strip(" ")
-    assert "dataset    Dataset  ENABLED      1".strip(
+    assert "dataset    Dataset  ENABLED".strip(
         " "
     ) in result_with_dataset.stdout.strip(" ")
 

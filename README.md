@@ -6,15 +6,15 @@ mipdb is a tool to validate datasets for the MIP platform.
 
 Before you begin, ensure you have met the following requirements:
 
-- **python3.8**
+- **python3.10**
 - **pip**
 
 ## Installation
 
-You can easily install mipdb using `pip` on python3.8:
+You can easily install mipdb using `pip` on python3.10:
 
 ```bash
-python3.8 -m pip install mipdb
+python3.10 -m pip install mipdb
 ```
 
 ## Usage

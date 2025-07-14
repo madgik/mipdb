@@ -1,8 +1,12 @@
+import warnings
 from abc import ABC, abstractmethod
 
 import sqlalchemy as sql
-from sqlalchemy import Integer, String, JSON
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Integer, String, JSON,  select
+
+from typing import List
+
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import DataBaseError
 from mipdb.databases.sqlite import DataModel, Dataset
@@ -73,7 +77,6 @@ class Table(ABC):
     def drop(self, db):
         db.drop_table(self._table)
 
-
 class DataModelTable(Table):
     def __init__(self):
         self._table = DataModel.__table__
@@ -107,9 +110,10 @@ class DataModelTable(Table):
     def delete_data_model(self, code, version, db):
         db.delete_from(self._table, where_conditions={"code": code, "version": version})
 
-    def get_next_data_model_id(self, db):
-        result = db.get_max_data_model_id()
-        return result + 1 if result else 1
+    def get_next_data_model_id(self, db) -> int:
+        res = db.execute_fetchall('SELECT MAX(data_model_id) FROM data_models;')
+        max_id = res[0][0] if res and res[0][0] is not None else 0
+        return max_id + 1
 
 
 class DatasetsTable(Table):
@@ -119,13 +123,22 @@ class DatasetsTable(Table):
     def get_datasets(self, db, columns: list = None):
         return db.get_values(table=self._table, columns=columns, where_conditions={})
 
-    def get_dataset_codes(self, db, data_model_id=None, columns=None):
-        result = db.get_values(
-            table=self._table,
-            columns=columns,
-            where_conditions={"data_model_id": data_model_id},
+    def get_dataset_codes(self, db, columns: List[str] = None, data_model_id: int = None) -> List[str]:
+        cols = columns or ['code']
+        stmt = select(*[self.table.c[col] for col in cols])
+        if data_model_id is not None:
+            stmt = stmt.where(self.table.c.data_model_id == data_model_id)
+        compiled_sql = str(
+            stmt.compile(compile_kwargs={"literal_binds": True})
         )
-        return [dataset[0] for dataset in result]
+        rows = db.execute_fetchall(compiled_sql)
+        codes: List[str] = []
+        for row in rows:
+            try:
+                codes.append(row[0])
+            except Exception:
+                codes.append(row.get(cols[0]))
+        return codes
 
     def get_dataset(self, db, dataset_id=None, columns=None):
         return db.get_values(

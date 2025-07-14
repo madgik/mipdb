@@ -2,7 +2,7 @@ from typing import List, Any, Dict
 from enum import Enum
 
 import sqlalchemy as sql
-from sqlalchemy import MetaData, ForeignKey, inspect
+from sqlalchemy import MetaData, ForeignKey, inspect, text, select, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import MultipleResultsFound
@@ -11,6 +11,7 @@ from mipdb.exceptions import DataBaseError
 
 METADATA_TABLE = "variables_metadata"
 PRIMARYDATA_TABLE = "primary_data"
+
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
 
@@ -29,19 +30,7 @@ class SQLTYPES:
     INTEGER = sql.Integer
     STRING = sql.String(255)
     FLOAT = sql.Float
-    JSON = sql.types.JSON
-
-
-def handle_errors(func):
-    """Decorator for any function susceptible to raise a DB related exception."""
-
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as exc:  # Use generic Exception to capture all errors
-            raise DataBaseError(f"Database error: {exc}")
-
-    return wrapper
+    JSON = sql.JSON
 
 
 class DataModel(Base):
@@ -58,7 +47,9 @@ class Dataset(Base):
     __tablename__ = "datasets"
     dataset_id = sql.Column(sql.Integer, primary_key=True, autoincrement=True)
     data_model_id = sql.Column(
-        sql.Integer, ForeignKey("data_models.data_model_id"), nullable=False
+        sql.Integer,
+        ForeignKey("data_models.data_model_id"),
+        nullable=False,
     )
     code = sql.Column(sql.String, nullable=False)
     label = sql.Column(sql.String, nullable=False)
@@ -72,102 +63,103 @@ class SQLiteDB:
 
     def __init__(self, url: str, echo=False) -> None:
         self._executor = sql.create_engine(url, echo=echo)
-        self.Session = sessionmaker(bind=self._executor, autocommit=True)
+        self.Session = sessionmaker(bind=self._executor, future=True)
 
     @classmethod
-    def from_config(cls, dbconfig: dict) -> "SQLiteDB":
+    def from_config(cls, dbconfig: Dict[str, Any]) -> "SQLiteDB":
         db_path = dbconfig["db_path"]
         url = f"sqlite:///{db_path}"
         return SQLiteDB(url)
 
-    @handle_errors
-    def execute(self, query: str, *args, **kwargs) -> None:
+    def execute(self, query: str, *args, **kwargs) -> List[Any]:
+        """Execute a statement without returning rows."""
         with self._executor.connect() as conn:
-            conn = conn.execution_options(autocommit=True)
-            conn.execute(sql.text(query), *args, **kwargs)
+            conn.execute(text(query), *args, **kwargs)
+            conn.commit()
+        return []
 
-    @handle_errors
-    def execute_fetchall(self, query: str, *args, **kwargs) -> List[dict]:
+    def execute_fetchall(self, query: str, *args, **kwargs) -> List[Any]:
+        """Execute a query and return all rows."""
         with self._executor.connect() as conn:
-            result = conn.execute(sql.text(query), *args, **kwargs)
-            return result.fetchall() if result else []
+            result = conn.execute(text(query), *args, **kwargs)
+            return result.fetchall()
 
-    def insert_values_to_table(self, table: sql.Table, values: List[dict]) -> None:
+    def insert_values_to_table(self, table: sql.Table, values: List[Dict[str, Any]]) -> None:
         session = self.Session()
         try:
             session.execute(table.insert(), values)
+            session.commit()
         finally:
             session.close()
 
     def get_data_model_status(self, data_model_id: int) -> Any:
         session = self.Session()
         try:
-            query = session.query(DataModel.status).filter(
-                DataModel.data_model_id == data_model_id
-            )
-            result = query.one_or_none()
+            result = session.execute(
+                select(Base.metadata.tables["data_models"].c.status)
+                .where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+            ).scalar_one_or_none()
         finally:
             session.close()
-        if result:
-            return result[0]
-        return None
+        return result
 
     def update_data_model_status(self, status: str, data_model_id: int) -> None:
         session = self.Session()
         try:
-            session.query(DataModel).filter(
-                DataModel.data_model_id == data_model_id
-            ).update({"status": status})
-
+            session.execute(
+                sql.update(Base.metadata.tables["data_models"])
+                .where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+                .values(status=status)
+            )
+            session.commit()
         finally:
             session.close()
 
     def get_dataset_status(self, dataset_id: int) -> Any:
         session = self.Session()
         try:
-            query = session.query(Dataset.status).filter(
-                Dataset.dataset_id == dataset_id
-            )
-            result = query.one_or_none()
+            result = session.execute(
+                select(Base.metadata.tables["datasets"].c.status)
+                .where(Base.metadata.tables["datasets"].c.dataset_id == dataset_id)
+            ).scalar_one_or_none()
         finally:
             session.close()
-        if result:
-            return result[0]
-        return None
+        return result
 
-    def get_metadata(self, data_model: str) -> dict:
+    def get_metadata(self, data_model: str) -> Dict[str, Any]:
+        table = sql.Table(
+            f"{data_model}_{METADATA_TABLE}",
+            Base.metadata,
+            sql.Column("code", SQLTYPES.STRING, primary_key=True),
+            sql.Column("metadata", SQLTYPES.JSON),
+            extend_existing=True,
+        )
         session = self.Session()
         try:
-            table = sql.Table(
-                f"{data_model}_{METADATA_TABLE}",
-                Base.metadata,
-                sql.Column("code", SQLTYPES.STRING, primary_key=True),
-                sql.Column("metadata", SQLTYPES.JSON),
-                extend_existing=True,
-            )
-            query = session.query(table.c.code, table.c.metadata)
-            res = query.all()
+            result = session.execute(select(table.c.code, table.c.metadata)).all()
         finally:
             session.close()
-        return {row.code: row.metadata for row in res}
+        return {code: meta for code, meta in result}
 
     def update_dataset_status(self, status: str, dataset_id: int) -> None:
         session = self.Session()
         try:
-            session.query(Dataset).filter(Dataset.dataset_id == dataset_id).update(
-                {"status": status}
+            session.execute(
+                sql.update(Base.metadata.tables["datasets"])
+                .where(Base.metadata.tables["datasets"].c.dataset_id == dataset_id)
+                .values(status=status)
             )
-
+            session.commit()
         finally:
             session.close()
 
     def get_dataset(self, dataset_id: int, columns: List[str]) -> Any:
         session = self.Session()
         try:
-            query = session.query(*[getattr(Dataset, col) for col in columns]).filter(
-                Dataset.dataset_id == dataset_id
-            )
-            result = query.one_or_none()
+            cols = [getattr(Base.metadata.tables["datasets"].c, col) for col in columns]
+            result = session.execute(
+                select(*cols).where(Base.metadata.tables["datasets"].c.dataset_id == dataset_id)
+            ).one_or_none()
         finally:
             session.close()
         return result
@@ -175,189 +167,196 @@ class SQLiteDB:
     def get_data_model(self, data_model_id: int, columns: List[str]) -> Any:
         session = self.Session()
         try:
-            query = session.query(*[getattr(DataModel, col) for col in columns]).filter(
-                DataModel.data_model_id == data_model_id
-            )
-            result = query.one_or_none()
+            cols = [getattr(Base.metadata.tables["data_models"].c, col) for col in columns]
+            result = session.execute(
+                select(*cols).where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+            ).one_or_none()
         finally:
             session.close()
         return result
+
+    from sqlalchemy import select
+
+    # ...
 
     def get_values(
-        self, table, columns: List[str] = None, where_conditions: Dict[str, Any] = None
-    ) -> List[dict]:
+            self,
+            table: sql.Table,
+            columns: List[str] | None = None,
+            where_conditions: Dict[str, Any] | None = None,
+    ) -> List[sql.Row]:
+        """Return rows (SQLAlchemy Row objects) respecting an optional WHERE."""
+        stmt = select(
+            *[table.c[col] for col in (columns or [c.name for c in table.columns])]
+        )
+        if where_conditions:
+            for col, val in where_conditions.items():
+                stmt = stmt.where(table.c[col] == val)
+
+        with self.Session() as session:
+            return session.execute(stmt).all()  # <-- rows, not dicts
+
+    def get_data_models(self, columns: List[str]) -> List[Dict[str, Any]]:
         session = self.Session()
         try:
-            if columns is None:
-                columns = [
-                    col.name for col in table.columns
-                ]  # Get all columns if none are specified
-            query = session.query(*[getattr(table.c, col) for col in columns])
-
-            if where_conditions:
-                for col, value in where_conditions.items():
-                    query = query.filter(getattr(table.c, col) == value)
-
-            result = query.all()
+            cols = [getattr(Base.metadata.tables["data_models"].c, col) for col in columns]
+            rows = session.execute(select(*cols)).all()
         finally:
             session.close()
-        return result
+        return [dict(zip(columns, row)) for row in rows]
 
-    def get_data_models(self, columns: List[str]) -> List[dict]:
+    def get_dataset_count_by_data_model_id(self) -> List[Dict[str, Any]]:
         session = self.Session()
         try:
-            query = session.query(*[getattr(DataModel, col) for col in columns])
-            result = query.all()
+            stmt = (
+                select(
+                    Base.metadata.tables["datasets"].c.data_model_id,
+                    func.count(Base.metadata.tables["datasets"].c.data_model_id).label("count"),
+                )
+                .group_by(Base.metadata.tables["datasets"].c.data_model_id)
+            )
+            rows = session.execute(stmt).all()
         finally:
             session.close()
-        return result
+        return [dict(data_model_id=row[0], count=row[1]) for row in rows]
 
-    def get_dataset_count_by_data_model_id(self) -> List[dict]:
+    def get_row_count(self, table_name: str) -> int:
         session = self.Session()
         try:
-            query = session.query(
-                Dataset.data_model_id,
-                sql.func.count(Dataset.data_model_id).label("count"),
-            ).group_by(Dataset.data_model_id)
-            result = query.all()
+            count = session.execute(select(func.count()).select_from(text(table_name))).scalar_one()
         finally:
             session.close()
-        return result
+        return count
 
-    def get_row_count(self, table: str) -> int:
+    def drop_table(self, table_name: str) -> None:
         session = self.Session()
         try:
-            query = session.query(sql.func.count()).select_from(sql.text(table))
-            result = query.scalar()
-        finally:
-            session.close()
-        return result
-
-    def drop_table(self, table: str) -> None:
-        session = self.Session()
-        try:
-            table = sql.Table(table, metadata, autoload_with=self._executor)
+            table = sql.Table(table_name, metadata, autoload_with=self._executor)
             table.drop(bind=self._executor)
-
+            session.commit()
         finally:
             session.close()
 
-    def delete_from(self, table, where_conditions: Dict[str, Any]) -> None:
+    def delete_from(self, table: sql.Table, where_conditions: Dict[str, Any]) -> None:
         session = self.Session()
         try:
-            query = session.query(table)
+            stmt = table.delete()
             if where_conditions:
-                for col, value in where_conditions.items():
-                    query = query.filter(getattr(table.c, col) == value)
-
-            query.delete(synchronize_session=False)
+                for col_name, val in where_conditions.items():
+                    stmt = stmt.where(table.c[col_name] == val)
+            session.execute(stmt)
+            session.commit()
         finally:
             session.close()
 
     def get_dataset_properties(self, dataset_id: int) -> Any:
         session = self.Session()
         try:
-            query = session.query(Dataset.properties).filter(
-                Dataset.dataset_id == dataset_id
-            )
-            result = query.one_or_none()
+            result = session.execute(
+                select(Base.metadata.tables["datasets"].c.properties)
+                .where(Base.metadata.tables["datasets"].c.dataset_id == dataset_id)
+            ).scalar_one_or_none()
         finally:
             session.close()
-
-        return result[0] if result else {}
+        return result or {}
 
     def get_data_model_properties(self, data_model_id: int) -> Any:
         session = self.Session()
         try:
-            query = session.query(DataModel.properties).filter(
-                DataModel.data_model_id == data_model_id
+            result = session.execute(
+                select(Base.metadata.tables["data_models"].c.properties)
+                .where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+            ).scalar_one_or_none()
+        finally:
+            session.close()
+        return result or {}
+
+    def set_data_model_properties(self, properties: Dict[str, Any], data_model_id: int) -> None:
+        session = self.Session()
+        try:
+            session.execute(
+                sql.update(Base.metadata.tables["data_models"])
+                .where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+                .values(properties=properties)
             )
-            result = query.one_or_none()
+            session.commit()
         finally:
             session.close()
 
-        return result[0] if result else {}
-
-    def set_data_model_properties(self, properties: dict, data_model_id: int) -> None:
+    def set_dataset_properties(self, properties: Dict[str, Any], dataset_id: int) -> None:
         session = self.Session()
         try:
-            session.query(DataModel).filter(
-                DataModel.data_model_id == data_model_id
-            ).update({"properties": properties})
-
-        finally:
-            session.close()
-
-    def set_dataset_properties(self, properties: dict, dataset_id: int) -> None:
-        session = self.Session()
-        try:
-            session.query(Dataset).filter(Dataset.dataset_id == dataset_id).update(
-                {"properties": properties}
+            session.execute(
+                sql.update(Base.metadata.tables["datasets"])
+                .where(Base.metadata.tables["datasets"].c.dataset_id == dataset_id)
+                .values(properties=properties)
             )
-
+            session.commit()
         finally:
             session.close()
 
     def get_data_model_id(self, code: str, version: str) -> int:
         session = self.Session()
         try:
-            query = session.query(DataModel.data_model_id).filter(
-                DataModel.code == code, DataModel.version == version
+            stmt = (
+                select(Base.metadata.tables["data_models"].c.data_model_id)
+                .where(
+                    Base.metadata.tables["data_models"].c.code == code,
+                    Base.metadata.tables["data_models"].c.version == version,
+                )
             )
-            data_model_id = query.scalar()
+            data_model_id = session.execute(stmt).scalar_one_or_none()
         except MultipleResultsFound:
-            raise DataBaseError(
-                f"Got more than one data_model ids for {code=} and {version=}."
-            )
+            raise DataBaseError(f"Got more than one data_model ids for code={code} and version={version}.")
         finally:
             session.close()
-
         if not data_model_id:
-            raise DataBaseError(
-                f"Data_models table doesn't have a record with {code=}, {version=}"
-            )
-
+            raise DataBaseError(f"Data_models table doesn't have a record with code={code}, version={version}")
         return data_model_id
 
     def get_max_data_model_id(self) -> int:
         session = self.Session()
         try:
-            result = session.query(sql.func.max(DataModel.data_model_id)).scalar()
+            max_id = session.execute(
+                select(func.max(Base.metadata.tables["data_models"].c.data_model_id))
+            ).scalar_one()
         finally:
             session.close()
-        return result
+        return max_id
 
     def get_max_dataset_id(self) -> int:
         session = self.Session()
         try:
-            result = session.query(sql.func.max(Dataset.dataset_id)).scalar()
+            max_id = session.execute(
+                select(func.max(Base.metadata.tables["datasets"].c.dataset_id))
+            ).scalar_one()
         finally:
             session.close()
-        return result
+        return max_id
 
-    def get_dataset_id(self, code, data_model_id) -> int:
+    def get_dataset_id(self, code: str, data_model_id: int) -> int:
         session = self.Session()
         try:
-            query = session.query(Dataset.dataset_id).filter(
-                Dataset.code == code, Dataset.data_model_id == data_model_id
+            stmt = (
+                select(Base.metadata.tables["datasets"].c.dataset_id)
+                .where(
+                    Base.metadata.tables["datasets"].c.code == code,
+                    Base.metadata.tables["datasets"].c.data_model_id == data_model_id,
+                )
             )
-            dataset_id = query.scalar()
+            dataset_id = session.execute(stmt).scalar_one_or_none()
         except MultipleResultsFound:
-            raise DataBaseError(
-                f"Got more than one dataset ids for {code=} and {data_model_id=}."
-            )
+            raise DataBaseError(f"Got more than one dataset ids for code={code} and data_model_id={data_model_id}.")
         finally:
             session.close()
-
         if not dataset_id:
-            raise DataBaseError(
-                f"Datasets table doesn't have a record with {code=}, {data_model_id=}"
-            )
-
+            raise DataBaseError(f"Datasets table doesn't have a record with code={code}, data_model_id={data_model_id}")
         return dataset_id
 
-    def table_exists(self, table) -> bool:
-        return table.exists(bind=self._executor)
+    def table_exists(self, table: sql.Table) -> bool:
+        inspector = inspect(self._executor)
+        schema = table.schema or None
+        return inspector.has_table(table.name, schema)
 
     def create_table(self, table: sql.Table) -> None:
         table.create(bind=self._executor)
