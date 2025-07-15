@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mipdb"
-version = "3.0.7"
+version = "3.0.8"
 description = ""
 authors = ["Your Name <you@example.com>"]
 
@@ -10,7 +10,7 @@ SQLAlchemy        = "~2.0"
 sqlalchemy_monetdb = "~2.0"
 pymonetdb         = "~1.8"
 pandas            = "~2.3"
-pandera           = "~2.3"
+pandera           = "~0.25"
 click             = "~8.2"
 toml              = "~0.10"
 numpy             = "~2.2"
@@ -22,7 +22,7 @@ pytest-xdist      = "~3.8"
 ipython           = "~8.37"
 pdbpp             = "~0.11"
 black             = "~25.1"
-pre-commit        = "~1.21"
+pre-commit        = "~4.2"
 coverage          = {extras = ["toml"], version = "~7.9"}
 pytest-cov        = "~6.2"
 pylint            = "~3.3"
