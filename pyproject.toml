@@ -1,33 +1,33 @@
 [tool.poetry]
 name = "mipdb"
-version = "3.0.1"
+version = "3.0.7"
 description = ""
 authors = ["Your Name <you@example.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
-SQLAlchemy = "^2.0"
-sqlalchemy_monetdb = "^2.0"
-pymonetdb = "^1.8.2"
-pandas = "~1.5"
-pandera = "~0.13"
-click = "~8.1"
-toml = "^0.10.2"
-numpy = "^1.23"
-setuptools = "*"
+python            = "~3.10"
+SQLAlchemy        = "~2.0"
+sqlalchemy_monetdb = "~2.0"
+pymonetdb         = "~1.8"
+pandas            = "~2.3"
+pandera           = "~2.3"
+click             = "~8.2"
+toml              = "~0.10"
+numpy             = "~2.2"
+setuptools        = "~80.9"
 
 [tool.poetry.dev-dependencies]
-pytest = "^7.2"
-pytest-xdist = "~3.1"
-ipython = "~8.8"
-pdbpp = "^0.11.6"
-black = "~22.12"
-pre-commit = "~2.21"
-coverage = {extras = ["toml"], version = "~7.0"}
-pytest-cov = "~4.0"
-pylint = "~2.15"
-rope = "~1.7"
-docker = "^7.1.0"
+pytest            = "~8.4"
+pytest-xdist      = "~3.8"
+ipython           = "~8.37"
+pdbpp             = "~0.11"
+black             = "~25.1"
+pre-commit        = "~1.21"
+coverage          = {extras = ["toml"], version = "~7.9"}
+pytest-cov        = "~6.2"
+pylint            = "~3.3"
+rope              = "~1.14"
+docker            = "~7.1"
 
 [tool.poetry.scripts]
 mipdb = "mipdb.commands:entry"
@@ -48,7 +48,3 @@ show_missing = true
 
 [tool.coverage.html]
 show_contexts = true
-
-[build-system]
-requires = ["poetry-core>=1.4.0"]
-build-backend = "poetry.core.masonry.api"
