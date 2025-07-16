@@ -3,11 +3,11 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
-from mipdb.databases.monetdb import MonetDB
+from mipdb.monetdb.monetdb import MonetDB
 from mipdb.exceptions import ForeignKeyError, DataBaseError, InvalidDatasetError
 from mipdb.exceptions import UserInputError
-from mipdb.databases.sqlite import Dataset
-from mipdb.databases.sqlite_tables import DataModelTable, DatasetsTable
+from mipdb.sqlite.sqlite import Dataset
+from mipdb.sqlite.sqlite_tables import DataModelTable, DatasetsTable
 from mipdb.usecases import (
     AddPropertyToDataset,
     check_unique_longitudinal_dataset_primary_keys,
@@ -44,7 +44,7 @@ from tests.conftest import DATASET_FILE, ABSOLUTE_PATH_DATASET_FILE
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_init_with_db(db):
     # Setup
     InitDB(sqlite_db).execute()
@@ -58,21 +58,21 @@ def test_init_with_db(db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_is_db_initialized_with_db_fail(db):
     with pytest.raises(UserInputError):
         is_db_initialized(db=db)
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_is_db_initialized_with_db_fail(sqlite_db):
     InitDB(sqlite_db).execute()
     is_db_initialized(db=sqlite_db)
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_init_with_db(sqlite_db):
     # Setup
     InitDB(sqlite_db).execute()
@@ -86,7 +86,7 @@ def test_init_with_db(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_re_init_with_missing_schema_with_db(sqlite_db):
     # Setup
     InitDB(sqlite_db).execute()
@@ -99,7 +99,7 @@ def test_re_init_with_missing_schema_with_db(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_re_init_with_missing_actions_table_with_db(sqlite_db):
     # Setup
     InitDB(sqlite_db).execute()
@@ -117,7 +117,7 @@ def test_re_init_with_missing_actions_table_with_db(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_re_init_with_missing_data_models_table_with_db(sqlite_db):
     # Setup
     InitDB(sqlite_db).execute()
@@ -136,7 +136,7 @@ def test_re_init_with_missing_data_models_table_with_db(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_re_init_with_missing_datasets_table_with_db(sqlite_db):
     # Setup
     InitDB(sqlite_db).execute()
@@ -156,7 +156,7 @@ def test_re_init_with_missing_datasets_table_with_db(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -166,7 +166,7 @@ def test_add_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_delete_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -181,7 +181,7 @@ def test_delete_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_delete_data_model_with_db_with_force(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -196,7 +196,7 @@ def test_delete_data_model_with_db_with_force(sqlite_db, monetdb, data_model_met
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_delete_data_model_with_datasets_with_db(
     sqlite_db, monetdb, data_model_metadata
 ):
@@ -221,7 +221,7 @@ def test_delete_data_model_with_datasets_with_db(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_delete_data_model_with_datasets_with_db_with_force(
     sqlite_db, monetdb, data_model_metadata
 ):
@@ -245,7 +245,7 @@ def test_delete_data_model_with_datasets_with_db_with_force(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_dataset(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -266,7 +266,7 @@ def test_add_dataset(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_dataset_with_db_with_multiple_datasets(
     sqlite_db, monetdb, data_model_metadata
 ):
@@ -288,12 +288,12 @@ def test_add_dataset_with_db_with_multiple_datasets(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_dataset_with_small_record_copy(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
-    with patch("mipdb.databases.monetdb_tables.RECORDS_PER_COPY", 1):
+    with patch("mipdb.monetdb.monetdb_tables.RECORDS_PER_COPY", 1):
         # Test
         ImportCSV(sqlite_db, monetdb).execute(
             csv_path=DATASET_FILE,
@@ -308,14 +308,14 @@ def test_add_dataset_with_small_record_copy(sqlite_db, monetdb, data_model_metad
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_dataset_with_small_record_copy_with_volume(
     sqlite_db, monetdb, data_model_metadata
 ):
     # Setup
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
-    with patch("mipdb.databases.monetdb_tables.RECORDS_PER_COPY", 1):
+    with patch("mipdb.monetdb.monetdb_tables.RECORDS_PER_COPY", 1):
         # Test
         ImportCSV(sqlite_db, monetdb).execute(
             csv_path=ABSOLUTE_PATH_DATASET_FILE,
@@ -330,12 +330,12 @@ def test_add_dataset_with_small_record_copy_with_volume(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_csv_legnth_equals_records_per_copy(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
-    with patch("mipdb.databases.monetdb_tables.RECORDS_PER_COPY", 5):
+    with patch("mipdb.monetdb.monetdb_tables.RECORDS_PER_COPY", 5):
         # Test
         ImportCSV(sqlite_db, monetdb).execute(
             csv_path=ABSOLUTE_PATH_DATASET_FILE,
@@ -365,7 +365,7 @@ def test_check_duplicate_pairs_fail():
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_validate_dataset(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -380,7 +380,7 @@ def test_validate_dataset(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_delete_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -408,7 +408,7 @@ def test_delete_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_enable_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata=data_model_metadata)
@@ -425,7 +425,7 @@ def test_enable_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_enable_data_model_already_enabled_with_db(
     sqlite_db, monetdb, data_model_metadata
 ):
@@ -441,7 +441,7 @@ def test_enable_data_model_already_enabled_with_db(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_disable_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
@@ -455,7 +455,7 @@ def test_disable_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_disable_data_model_already_disabled_with_db(
     sqlite_db, monetdb, data_model_metadata
 ):
@@ -474,7 +474,7 @@ def test_disable_data_model_already_disabled_with_db(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_enable_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
@@ -501,7 +501,7 @@ def test_enable_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_enable_dataset_already_enabled_with_db(
     sqlite_db, monetdb, data_model_metadata
 ):
@@ -525,7 +525,7 @@ def test_enable_dataset_already_enabled_with_db(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_disable_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     InitDB(sqlite_db).execute()
     AddDataModel(sqlite_db, monetdb).execute(data_model_metadata)
@@ -547,7 +547,7 @@ def test_disable_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_disable_dataset_already_disabled_with_db(
     sqlite_db, monetdb, data_model_metadata
 ):
@@ -576,7 +576,7 @@ def test_disable_dataset_already_disabled_with_db(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_tag_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -594,7 +594,7 @@ def test_tag_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_untag_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -626,7 +626,7 @@ def test_untag_data_model_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_property2data_model_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -648,7 +648,7 @@ def test_add_property2data_model_with_db(sqlite_db, monetdb, data_model_metadata
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_property2data_model_with_force_and_db(
     sqlite_db, monetdb, data_model_metadata
 ):
@@ -680,7 +680,7 @@ def test_add_property2data_model_with_force_and_db(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_remove_property_from_data_model_with_db(
     sqlite_db, monetdb, data_model_metadata
 ):
@@ -717,7 +717,7 @@ def test_remove_property_from_data_model_with_db(
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_tag_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -737,7 +737,7 @@ def test_tag_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_untag_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -775,7 +775,7 @@ def test_untag_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_property2dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -797,7 +797,7 @@ def test_add_property2dataset_with_db(sqlite_db, monetdb, data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_remove_property_from_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()
@@ -841,7 +841,7 @@ def test_remove_property_from_dataset_with_db(sqlite_db, monetdb, data_model_met
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_grant_select_access_rights(sqlite_db, monetdb, data_model_metadata):
     # Setup
     InitDB(sqlite_db).execute()

@@ -6,11 +6,11 @@ from typing import List
 import sqlalchemy as sql
 from sqlalchemy import MetaData
 
+from mipdb.credentials import credentials_from_config
 from mipdb.data_frame import DATASET_COLUMN_NAME
-from mipdb.databases import credentials_from_config
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import UserInputError
-from mipdb.schema import Schema
+from mipdb.monetdb.schema import Schema
 
 RECORDS_PER_COPY = 100000
 
@@ -158,8 +158,8 @@ class TemporaryTable(Table):
         self._table.create(bind=db.get_executor())
 
     def create(self, db):
-            db.execute(f'DROP TABLE IF EXISTS "{self.table.name}"')
-            self.table.create(bind=db.get_executor())
+        db.execute(f'DROP TABLE IF EXISTS "{self.table.name}"')
+        self.table.create(bind=db.get_executor())
 
     def validate_csv(self, csv_path, cdes_with_min_max, cdes_with_enumerations, db):
         validated_datasets = []

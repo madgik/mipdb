@@ -2,9 +2,9 @@ from mipdb.exceptions import DataBaseError
 
 import pytest
 
-from mipdb.databases.monetdb_tables import PrimaryDataTable
-from mipdb.schema import Schema
-from mipdb.databases.sqlite_tables import (
+from mipdb.monetdb.monetdb_tables import PrimaryDataTable
+from mipdb.monetdb.schema import Schema
+from mipdb.sqlite.sqlite_tables import (
     DataModelTable,
     MetadataTable,
 )
@@ -17,7 +17,7 @@ def cdes(data_model_metadata):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_data_models_table_realdb(sqlite_db):
     # Test
     DataModelTable().create(sqlite_db)
@@ -26,7 +26,7 @@ def test_data_models_table_realdb(sqlite_db):
 
 class TestVariablesMetadataTable:
     @pytest.mark.database
-    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
     def test_create_table_with_db(self, sqlite_db):
         # Setup
 
@@ -37,7 +37,7 @@ class TestVariablesMetadataTable:
         assert res == {}
 
     @pytest.mark.database
-    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
     def test_insert_values_with_db(self, sqlite_db, data_model_metadata):
         # Setup
 
@@ -66,7 +66,7 @@ class TestVariablesMetadataTable:
         assert len(result) == 6
 
     @pytest.mark.database
-    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
     def test_load_from_db(self, data_model_metadata, sqlite_db):
         # Setup
 
@@ -86,7 +86,7 @@ class TestVariablesMetadataTable:
 
 class TestPrimaryDataTable:
     @pytest.mark.database
-    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
     def test_create_table_with_db(self, cdes, monetdb):
         # Setup
         schema = Schema("schema:1.0")
@@ -98,7 +98,7 @@ class TestPrimaryDataTable:
         assert res == []
 
     @pytest.mark.database
-    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
     def test_drop_table_with_db(self, cdes, monetdb):
         # Setup
         schema = Schema("schema:1.0")
@@ -112,7 +112,7 @@ class TestPrimaryDataTable:
             monetdb.execute('SELECT * FROM "schema:1.0".primary_data').fetchall()
 
     @pytest.mark.database
-    @pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+    @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
     def test_reflect_table_from_db(self, cdes, monetdb):
         # Setup
         schema = Schema("schema:1.0")

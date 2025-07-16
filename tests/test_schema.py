@@ -3,8 +3,8 @@ from unittest.mock import Mock
 import pytest
 
 from mipdb.exceptions import UserInputError
-from mipdb.databases.monetdb import MonetDB
-from mipdb.schema import Schema
+from mipdb.monetdb.monetdb import MonetDB
+from mipdb.monetdb.schema import Schema
 
 
 @pytest.fixture
