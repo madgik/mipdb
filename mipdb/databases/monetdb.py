@@ -1,9 +1,11 @@
 from contextlib import contextmanager
 from typing import Union
 
+from sqlalchemy import inspect
 import sqlalchemy as sql
-from sqlalchemy import text, inspect
-from sqlalchemy.engine import Engine, Connection as SAConnection
+from sqlalchemy import text
+from sqlalchemy.engine import Connection as SAConnection
+from sqlalchemy.engine import Engine
 
 from mipdb.exceptions import DataBaseError
 
@@ -170,7 +172,7 @@ class MonetDB(DBExecutor):
             dbconfig["port"],
             dbconfig["dbfarm"],
         )
-        url = f"monetdb://{username}:{password}@{ip}:{port}/{dbfarm}"
+        url = f"monetdb+patched://{username}:{password}@{ip}:{port}/{dbfarm}"
         return cls(url)
 
     @contextmanager

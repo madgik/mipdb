@@ -20,3 +20,8 @@ def credentials_from_config():
             "DB_NAME": "",
             "SQLITE_DB_PATH": "",
         }
+
+from sqlalchemy.dialects import registry
+
+from mipdb.databases.monetdb_patch import PatchedMonetDialect
+registry.register("monetdb.patched", "mipdb.databases.monetdb_patch", "PatchedMonetDialect")
