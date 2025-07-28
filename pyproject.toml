@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mipdb"
-version = "3.0.8"
+version = "3.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
 
@@ -11,7 +11,7 @@ sqlalchemy_monetdb = "~2.0"
 pymonetdb         = "~1.8"
 pandas            = "~2.3"
 pandera           = "~0.25"
-click             = "~8.2"
+click             = "~8.1"
 toml              = "~0.10"
 numpy             = "~2.2"
 setuptools        = "~80.9"

@@ -1,13 +1,14 @@
 import copy
-import os
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import pandas as pd
 
-from mipdb.databases.monetdb import MonetDB
+from mipdb.logger import LOGGER
+from mipdb.monetdb.monetdb import MonetDB
 from mipdb.data_frame_schema import DataFrameSchema
 from mipdb.exceptions import ForeignKeyError, InvalidDatasetError, UserInputError
-from mipdb.databases.monetdb_tables import (
+from mipdb.monetdb.monetdb_tables import (
     PrimaryDataTable,
     TemporaryTable,
     RECORDS_PER_COPY,
@@ -23,9 +24,9 @@ from mipdb.dataelements import (
     get_cdes_with_enumerations,
     get_dataset_enums,
 )
-from mipdb.schema import Schema
-from mipdb.databases.sqlite import SQLiteDB
-from mipdb.databases.sqlite_tables import DataModelTable, DatasetsTable, MetadataTable
+from mipdb.monetdb.schema import Schema
+from mipdb.sqlite.sqlite import SQLiteDB
+from mipdb.sqlite.sqlite_tables import DataModelTable, DatasetsTable, MetadataTable
 from mipdb.data_frame import DataFrame, DATASET_COLUMN_NAME
 
 LONGITUDINAL = "longitudinal"
@@ -57,61 +58,80 @@ class InitDB(UseCase):
 
 
 class AddDataModel(UseCase):
-    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: Optional[MonetDB] | None) -> None:
         self.sqlite_db = sqlite_db
+
         self.monetdb = monetdb
         is_db_initialized(sqlite_db)
 
-    def execute(self, data_model_metadata) -> None:
+    def execute(self, data_model_metadata: dict) -> None:
         code, version = data_model_metadata["code"], data_model_metadata["version"]
         data_model = get_data_model_fullname(code, version)
+
         cdes = flatten_cdes(copy.deepcopy(data_model_metadata))
-        data_model_table = DataModelTable()
-        data_model_id = data_model_table.get_next_data_model_id(self.sqlite_db)
         self._create_primary_data_table(data_model, cdes)
+
         self._create_metadata_table(data_model, cdes)
-        properties = Properties(
-            data_model_table.get_data_model_properties(data_model_id, self.sqlite_db)
-        )
-        properties.add_property("cdes", data_model_metadata, True)
-        values = dict(
-            data_model_id=data_model_id,
-            code=code,
-            version=version,
-            label=data_model_metadata["label"],
-            status="ENABLED",
-            properties=properties.properties,
-        )
-        data_model_table.insert_values(values, self.sqlite_db)
+
+        self._insert_data_model_row(data_model_metadata)
+
         self._tag_longitudinal_if_needed(data_model_metadata, code, version)
 
-    def _create_primary_data_table(self, data_model, cdes):
+    def _create_primary_data_table(self, data_model: str, cdes: list) -> None:
+        if self.monetdb is None:
+            LOGGER.debug("MonetDB disabled – skipping primary data table creation.")
+            return
+
         with self.monetdb.begin() as conn:
             schema = Schema(data_model)
             schema.create(conn)
             PrimaryDataTable.from_cdes(schema, cdes).create(conn)
 
-    def _create_metadata_table(self, data_model, cdes):
+    def _create_metadata_table(self, data_model: str, cdes: list) -> None:
         metadata_table = MetadataTable(data_model)
         metadata_table.create(self.sqlite_db)
-        values = metadata_table.get_values_from_cdes(cdes)
-        metadata_table.insert_values(values, self.sqlite_db)
+        metadata_table.insert_values(
+            metadata_table.get_values_from_cdes(cdes), self.sqlite_db
+        )
 
-    def _tag_longitudinal_if_needed(self, data_model_metadata, code, version):
-        if LONGITUDINAL in data_model_metadata:
-            longitudinal = data_model_metadata[LONGITUDINAL]
-            if not isinstance(longitudinal, bool):
-                raise UserInputError(
-                    f"Longitudinal flag should be boolean, value given: {longitudinal}"
-                )
-            if longitudinal:
-                TagDataModel(self.sqlite_db).execute(
-                    code=code, version=version, tag=LONGITUDINAL
-                )
+    def _insert_data_model_row(self, data_model_metadata: dict) -> None:
+        code, version = data_model_metadata["code"], data_model_metadata["version"]
+        dm_table = DataModelTable()
+        new_id = dm_table.get_next_data_model_id(self.sqlite_db)
+
+        props = Properties(dm_table.get_data_model_properties(new_id, self.sqlite_db))
+        props.add_property("cdes", data_model_metadata, force=True)
+        dm_table.insert_values(
+            dict(
+                data_model_id=new_id,
+                code=code,
+                version=version,
+                label=data_model_metadata["label"],
+                status="ENABLED",
+                properties=props.properties,
+            ),
+            self.sqlite_db,
+        )
+
+    def _tag_longitudinal_if_needed(self, meta: dict, code: str, version: str) -> None:
+        if LONGITUDINAL not in meta:
+            return
+
+        longitudinal = meta[LONGITUDINAL]
+        if not isinstance(longitudinal, bool):
+            raise UserInputError(
+                f"Longitudinal flag should be boolean, value given: {longitudinal}"
+            )
+
+        if longitudinal:
+            TagDataModel(self.sqlite_db).execute(
+                code=code, version=version, tag=LONGITUDINAL
+            )
 
 
 class ValidateDataModel(UseCase):
     def execute(self, data_model_metadata) -> None:
+
         if "version" not in data_model_metadata:
             raise UserInputError(
                 "You need to include a version on the CDEsMetadata.json"
@@ -129,12 +149,13 @@ class ValidateDataModel(UseCase):
 
 
 class DeleteDataModel(UseCase):
-    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: Optional[MonetDB] | None) -> None:
         self.sqlite_db = sqlite_db
         self.monetdb = monetdb
         is_db_initialized(sqlite_db)
 
     def execute(self, code, version, force) -> None:
+
         name = get_data_model_fullname(code, version)
         schema = Schema(name)
         data_model_table = DataModelTable()
@@ -145,9 +166,16 @@ class DeleteDataModel(UseCase):
             self._validate_data_model_deletion(name, data_model_id)
         MetadataTable(data_model=name).drop(self.sqlite_db)
         self._delete_datasets(data_model_id, code, version)
+        self._drop_schema(schema)
+        data_model_table.delete_data_model(code, version, self.sqlite_db)
+
+    def _drop_schema(self, schema):
+        if self.monetdb is None:
+            LOGGER.debug("MonetDB disabled – skipping primary data table creation.")
+            return
+
         with self.monetdb.begin() as conn:
             schema.drop(conn)
-        data_model_table.delete_data_model(code, version, self.sqlite_db)
 
     def _validate_data_model_deletion(self, data_model_name, data_model_id):
         datasets = DatasetsTable().get_dataset_codes(
@@ -172,7 +200,7 @@ class DeleteDataModel(UseCase):
 
 
 class ImportCSV(UseCase):
-    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: Optional[MonetDB] | None) -> None:
         self.sqlite_db = sqlite_db
         self.monetdb = monetdb
         is_db_initialized(sqlite_db)
@@ -180,6 +208,7 @@ class ImportCSV(UseCase):
     def execute(
         self, csv_path, copy_from_file, data_model_code, data_model_version
     ) -> None:
+
         data_model_name = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
@@ -190,16 +219,10 @@ class ImportCSV(UseCase):
         metadata_table = MetadataTable.from_db(data_model_name, self.sqlite_db)
         cdes = metadata_table.table
         dataset_enumerations = get_dataset_enums(cdes)
-        sql_type_per_column = get_sql_type_per_column(cdes)
 
-        with self.monetdb.begin() as monetdb_conn:
-            imported_datasets = (
-                self.import_csv_with_volume(
-                    csv_path, sql_type_per_column, data_model, monetdb_conn
-                )
-                if copy_from_file
-                else self._import_csv(csv_path, data_model, monetdb_conn)
-            )
+        imported_datasets = self._import_datasets(
+            csv_path, data_model, cdes, copy_from_file
+        )
 
         existing_datasets = DatasetsTable().get_dataset_codes(
             columns=["code"], data_model_id=data_model_id, db=self.sqlite_db
@@ -211,12 +234,31 @@ class ImportCSV(UseCase):
                 dataset_id=dataset_id,
                 code=dataset,
                 label=dataset_enumerations[dataset],
-                csv_path=csv_path if copy_from_file else None,
+                csv_path=str(csv_path) if copy_from_file else None,
                 status="ENABLED",
                 properties=None,
             )
             DatasetsTable().insert_values(values, self.sqlite_db)
             dataset_id += 1
+
+    def _import_datasets(self, csv_path, data_model, cdes, copy_from_file):
+        sql_type_per_column = get_sql_type_per_column(cdes)
+
+        if self.monetdb is None:
+            LOGGER.debug("MonetDB disabled – skipping primary data table creation.")
+            df = pd.read_csv(csv_path, usecols=["dataset"])
+            unique_datasets = df["dataset"].unique().tolist()
+            return unique_datasets
+
+        with self.monetdb.begin() as monetdb_conn:
+            imported_datasets = (
+                self.import_csv_with_volume(
+                    csv_path, sql_type_per_column, data_model, monetdb_conn
+                )
+                if copy_from_file
+                else self._import_csv(csv_path, data_model, monetdb_conn)
+            )
+        return imported_datasets
 
     def _get_next_dataset_id(self):
         return DatasetsTable().get_next_dataset_id(self.sqlite_db)
@@ -329,7 +371,7 @@ class ValidateDataset(UseCase):
     Database constraints must NOT be used as part of the validation process since that could result in partially imported csvs.
     """
 
-    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: Optional[MonetDB] | None) -> None:
         self.sqlite_db = sqlite_db
         self.monetdb = monetdb
         is_db_initialized(sqlite_db)
@@ -337,23 +379,39 @@ class ValidateDataset(UseCase):
     def execute(
         self, csv_path, copy_from_file, data_model_code, data_model_version
     ) -> None:
+        print(f"validate{csv_path}")
+
         data_model = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
+
+        metadata_table = MetadataTable.from_db(data_model, self.sqlite_db)
+        cdes = metadata_table.table
+
+        dataset_enumerations = get_dataset_enums(cdes)
+        if self.is_data_model_longitudinal(data_model_code, data_model_version):
+            are_data_valid_longitudinal(csv_path)
+        validated_datasets = self._validate_datasets(csv_path, cdes, copy_from_file)
+        self.verify_datasets_exist_in_enumerations(
+            validated_datasets, dataset_enumerations
+        )
+
+    def _validate_datasets(self, csv_path, cdes, copy_from_file):
         csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
         if DATASET_COLUMN_NAME not in csv_columns:
             raise InvalidDatasetError(
                 "The 'dataset' column is required to exist in the csv."
             )
-        metadata_table = MetadataTable.from_db(data_model, self.sqlite_db)
-        cdes = metadata_table.table
+
+        if self.monetdb is None:
+            LOGGER.debug("MonetDB disabled – skipping primary data table creation.")
+            df = pd.read_csv(csv_path, usecols=["dataset"])
+            unique_datasets = df["dataset"].unique().tolist()
+            return unique_datasets
+
         sql_type_per_column = get_sql_type_per_column(cdes)
         cdes_with_min_max = get_cdes_with_min_max(cdes, csv_columns)
         cdes_with_enumerations = get_cdes_with_enumerations(cdes, csv_columns)
-        dataset_enumerations = get_dataset_enums(cdes)
-        if self.is_data_model_longitudinal(data_model_code, data_model_version):
-            are_data_valid_longitudinal(csv_path)
-
         if copy_from_file:
             with self.monetdb.begin() as monetdb_conn:
                 validated_datasets = self.validate_csv_with_volume(
@@ -367,9 +425,7 @@ class ValidateDataset(UseCase):
             validated_datasets = self.validate_csv(
                 csv_path, sql_type_per_column, cdes_with_min_max, cdes_with_enumerations
             )
-        self.verify_datasets_exist_in_enumerations(
-            validated_datasets, dataset_enumerations
-        )
+        return validated_datasets
 
     def is_data_model_longitudinal(self, data_model_code, data_model_version):
         data_model_id = DataModelTable().get_data_model_id(
@@ -507,7 +563,7 @@ class ValidateDatasetNoDatabase(UseCase):
 
 
 class DeleteDataset(UseCase):
-    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: Optional[MonetDB] | None) -> None:
         self.sqlite_db = sqlite_db
         self.monetdb = monetdb
         is_db_initialized(sqlite_db)
@@ -516,11 +572,7 @@ class DeleteDataset(UseCase):
         data_model_fullname = get_data_model_fullname(
             code=data_model_code, version=data_model_version
         )
-        with self.monetdb.begin() as conn:
-            primary_data_table = PrimaryDataTable.from_db(
-                Schema(data_model_fullname), conn
-            )
-            primary_data_table.remove_dataset(dataset_code, data_model_fullname, conn)
+        self._remove_dataset(data_model_fullname, dataset_code)
         data_model_id = DataModelTable().get_data_model_id(
             data_model_code, data_model_version, self.sqlite_db
         )
@@ -528,6 +580,17 @@ class DeleteDataset(UseCase):
             dataset_code, data_model_id, self.sqlite_db
         )
         DatasetsTable().delete_dataset(dataset_id, data_model_id, self.sqlite_db)
+
+    def _remove_dataset(self, data_model_fullname, dataset_code):
+        if self.monetdb is None:
+            LOGGER.debug("MonetDB disabled – skipping primary data table creation.")
+            return
+
+        with self.monetdb.begin() as conn:
+            primary_data_table = PrimaryDataTable.from_db(
+                Schema(data_model_fullname), conn
+            )
+            primary_data_table.remove_dataset(dataset_code, data_model_fullname, conn)
 
 
 class EnableDataModel(UseCase):
@@ -768,9 +831,8 @@ class ListDataModels(UseCase):
 
 
 class ListDatasets(UseCase):
-    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+    def __init__(self, sqlite_db: SQLiteDB) -> None:
         self.sqlite_db = sqlite_db
-        self.monetdb = monetdb
 
     def execute(self) -> None:
         dataset_table = DatasetsTable()
@@ -781,7 +843,7 @@ class ListDatasets(UseCase):
         datasets_info = []
 
         for row in dataset_rows:
-                datasets_info.append(list(row))
+            datasets_info.append(list(row))
 
         if not datasets_info:
             print("There are no datasets.")
@@ -792,7 +854,7 @@ class ListDatasets(UseCase):
 
 
 class Cleanup(UseCase):
-    def __init__(self, sqlite_db: SQLiteDB, monetdb: MonetDB) -> None:
+    def __init__(self, sqlite_db: SQLiteDB, monetdb: Optional[MonetDB] | None) -> None:
         self.sqlite_db = sqlite_db
         self.monetdb = monetdb
 
@@ -803,6 +865,7 @@ class Cleanup(UseCase):
         )
 
         for code, version in data_model_rows:
+
             DeleteDataModel(sqlite_db=self.sqlite_db, monetdb=self.monetdb).execute(
                 code=code, version=version, force=True
             )
