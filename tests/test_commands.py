@@ -2,26 +2,10 @@ import json
 
 import pytest
 from click.testing import CliRunner
-
-from mipdb import init
-from mipdb import add_data_model
-from mipdb import delete_data_model
-from mipdb import add_dataset
-from mipdb import delete_dataset
-from mipdb import disable_dataset
-from mipdb import disable_data_model
-from mipdb import enable_dataset
-from mipdb import enable_data_model
-from mipdb import load_folder
-from mipdb import tag_dataset
-from mipdb import tag_data_model
-from mipdb import list_data_models
-from mipdb import list_datasets
-from mipdb import validate_dataset
-from mipdb.commands import validate_folder
 from mipdb.exceptions import ExitCode
-from mipdb.databases.sqlite import Dataset, DataModel
-from mipdb.databases.sqlite_tables import DataModelTable
+from mipdb.sqlite.sqlite import Dataset, DataModel
+from mipdb.sqlite.sqlite_tables import DataModelTable
+from mipdb.commands import entry as cli
 from tests.conftest import (
     DATASET_FILE,
     ABSOLUTE_PATH_DATASET_FILE,
@@ -30,36 +14,91 @@ from tests.conftest import (
     ABSOLUTE_PATH_FAIL_DATA_FOLDER,
     MONETDB_OPTIONS,
     SQLiteDB_OPTION,
-    ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET,
+    ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET, NO_MONETDB_OPTIONS,
 )
 from tests.conftest import DATA_MODEL_FILE
+import pytest
+
+def _bootstrap_data_model(sqlite_db):
+    run_cli_command("init")
+    # Test
+    result = run_cli_command("add-data-model", DATA_MODEL_FILE)
+    assert result.exit_code == ExitCode.OK
+
+def _bootstrap_dataset(sqlite_db):
+    _bootstrap_data_model(sqlite_db)
+    res = run_cli_command(
+        "add-dataset",
+        DATASET_FILE,
+        "-d",
+        "data_model",
+        "-v",
+        "1.0",
+        "--no-copy",
+    )
+    assert res.exit_code == ExitCode.OK
+    assert _get_status(sqlite_db, "datasets") == "ENABLED"
+
+
+def _bootstrap_dataset_without_monetdb(sqlite_db):
+    run_cli_command_without_monetdb("init")
+    run_cli_command_without_monetdb("add-data-model", DATA_MODEL_FILE)
+    res = run_cli_command_without_monetdb(
+        "add-dataset",
+        DATASET_FILE,
+        "-d",
+        "data_model",
+        "-v",
+        "1.0",
+        "--no-copy",
+    )
+    assert res.exit_code == ExitCode.OK
+    assert _get_status(sqlite_db, "datasets") == "ENABLED"
+
+
+def _bootstrap_disabled_dataset(sqlite_db):
+    _bootstrap_dataset(sqlite_db)
+    res = run_cli_command(
+        "disable-dataset",
+        "dataset",
+        "-d",
+        "data_model",
+        "-v",
+        "1.0",
+    )
+    assert res.exit_code == ExitCode.OK
+    assert _get_status(sqlite_db, "datasets") == "DISABLED"
+
+
+def run_cli_command(command_name, *args):
+    runner = CliRunner()
+    return runner.invoke(cli, [*SQLiteDB_OPTION, *MONETDB_OPTIONS, command_name, *args])
+
+
+def run_cli_command_without_monetdb(command_name, *args):
+    runner = CliRunner()
+    return runner.invoke(cli, [*SQLiteDB_OPTION, *NO_MONETDB_OPTIONS, command_name, *args])
+
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("cleanup_sqlite")
 def test_init(sqlite_db):
-    # Setup
-    runner = CliRunner()
+
     data_model_table = DataModelTable()
     assert not data_model_table.exists(sqlite_db)
-    result = runner.invoke(init, SQLiteDB_OPTION)
+    result = run_cli_command("init")
     assert result.exit_code == ExitCode.OK
     assert sqlite_db.execute_fetchall(f"select * from data_models") == []
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_data_model(sqlite_db):
-    # Setup
-    runner = CliRunner()
+
     # Check data_model not present already
 
-    runner.invoke(init, SQLiteDB_OPTION)
-    # Test
-    result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS
-    )
-    assert result.exit_code == ExitCode.OK
+    _bootstrap_data_model(sqlite_db)
 
     data_models = sqlite_db.execute_fetchall(f"select * from data_models")
     data_model_id, code, version, desc, status, properties = data_models[0]
@@ -85,47 +124,36 @@ def test_add_data_model(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_delete_data_model(sqlite_db):
-    # Setup
-    runner = CliRunner()
+
     # Check data_model not present already
 
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    _bootstrap_data_model(sqlite_db)
     assert sqlite_db.get_data_models(["data_model_id"])[0]["data_model_id"] == 1
     # Test
-    result = runner.invoke(
-        delete_data_model,
-        ["data_model", "-v", "1.0", "-f"] + SQLiteDB_OPTION + MONETDB_OPTIONS,
-    )
+    result = run_cli_command("delete-data-model", "data_model", "-v", "1.0", "-f")
+
     assert result.exit_code == ExitCode.OK
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_dataset_with_volume(sqlite_db, monetdb):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    _bootstrap_data_model(sqlite_db)
 
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
-    result = runner.invoke(
-        add_dataset,
-        [
-            ABSOLUTE_PATH_DATASET_FILE,
-            "--data-model",
-            "data_model",
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    result = run_cli_command(
+        "add-dataset",
+        ABSOLUTE_PATH_DATASET_FILE,
+        "--data-model",
+        "data_model",
+        "-v",
+        "1.0",
     )
     assert result.exit_code == ExitCode.OK
 
@@ -140,31 +168,18 @@ def test_add_dataset_with_volume(sqlite_db, monetdb):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_dataset(sqlite_db, monetdb):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    _bootstrap_data_model(sqlite_db)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
-    result = runner.invoke(
-        add_dataset,
-        [
-            DATASET_FILE,
-            "--data-model",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            False,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    result = run_cli_command(
+        "add-dataset", DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--no-copy"
     )
+
     assert result.exit_code == ExitCode.OK
 
     assert (
@@ -178,76 +193,52 @@ def test_add_dataset(sqlite_db, monetdb):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_add_two_datasets_with_same_name_different_data_model(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    runner.invoke(
-        add_data_model,
-        ["tests/data/success/data_model1_v_1_0/CDEsMetadata.json"]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    _bootstrap_data_model(sqlite_db)
+    run_cli_command(
+        "add-data-model", "tests/data/success/data_model1_v_1_0/CDEsMetadata.json"
     )
 
     # Test
-    result = runner.invoke(
-        add_dataset,
-        [
-            ABSOLUTE_PATH_SUCCESS_DATA_FOLDER + "/data_model_v_1_0/dataset10.csv",
-            "--data-model",
-            "data_model",
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    run_cli_command(
+        "add-dataset",
+        ABSOLUTE_PATH_SUCCESS_DATA_FOLDER + "/data_model_v_1_0/dataset10.csv",
+        "--data-model",
+        "data_model",
+        "-v",
+        "1.0",
     )
-    result = runner.invoke(
-        add_dataset,
-        [
-            ABSOLUTE_PATH_SUCCESS_DATA_FOLDER + "/data_model1_v_1_0/dataset10.csv",
-            "--data-model",
-            "data_model1",
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    result = run_cli_command(
+        "add-dataset",
+        ABSOLUTE_PATH_SUCCESS_DATA_FOLDER + "/data_model1_v_1_0/dataset10.csv",
+        "--data-model",
+        "data_model1",
+        "-v",
+        "1.0",
     )
+
     assert result.exit_code == ExitCode.OK
     assert [(1, "dataset10"), (2, "dataset10")] == sqlite_db.get_values(
         Dataset.__table__, columns=["data_model_id", "code"]
     )
 
-
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_validate_dataset_with_volume(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    _bootstrap_data_model(sqlite_db)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
-    result = runner.invoke(
-        validate_dataset,
-        [
-            ABSOLUTE_PATH_DATASET_FILE,
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+
+    result = run_cli_command(
+        "validate-dataset", ABSOLUTE_PATH_DATASET_FILE, "-d", "data_model", "-v", "1.0"
     )
+
     assert result.exit_code == ExitCode.OK
 
 
@@ -293,36 +284,24 @@ dataset_files = [
 ]
 
 
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 @pytest.mark.parametrize("data_model,dataset,exception_message", dataset_files)
 def test_invalid_dataset_error_cases(data_model, dataset, exception_message):
-    runner = CliRunner()
+    run_cli_command("init")
 
-    runner.invoke(init, SQLiteDB_OPTION)
-    result = runner.invoke(
-        add_data_model,
-        [
-            ABSOLUTE_PATH_FAIL_DATA_FOLDER
-            + "/"
-            + data_model
-            + "_v_1_0/CDEsMetadata.json",
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    result = run_cli_command(
+        "add-data-model",
+        ABSOLUTE_PATH_FAIL_DATA_FOLDER + "/" + data_model + "_v_1_0/CDEsMetadata.json",
     )
-    assert result.exit_code == ExitCode.OK
 
-    validation_result = runner.invoke(
-        validate_dataset,
-        [
-            ABSOLUTE_PATH_FAIL_DATA_FOLDER + "/" + data_model + "_v_1_0/" + dataset,
-            "-d",
-            data_model,
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    assert result.exit_code == ExitCode.OK
+    validation_result = run_cli_command(
+        "validate-dataset",
+        ABSOLUTE_PATH_FAIL_DATA_FOLDER + "/" + data_model + "_v_1_0/" + dataset,
+        "-d",
+        data_model,
+        "-v",
+        "1.0",
     )
 
     assert (
@@ -332,61 +311,41 @@ def test_invalid_dataset_error_cases(data_model, dataset, exception_message):
 
 
 def test_validate_no_db():
-    runner = CliRunner()
-
-    validation_result = runner.invoke(validate_folder, [ABSOLUTE_PATH_FAIL_DATA_FOLDER])
+    validation_result = run_cli_command(
+        "validate-folder", ABSOLUTE_PATH_FAIL_DATA_FOLDER
+    )
     assert validation_result.exit_code != ExitCode.OK
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_validate_dataset(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    _bootstrap_data_model(sqlite_db)
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
-    result = runner.invoke(
-        validate_dataset,
-        [
-            DATASET_FILE,
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            False,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    result = run_cli_command(
+        "validate-dataset", DATASET_FILE, "-d", "data_model", "-v", "1.0", "--no-copy"
     )
+
     assert result.exit_code == ExitCode.OK
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_delete_dataset_with_volume(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    runner.invoke(
-        add_dataset,
-        [
-            ABSOLUTE_PATH_DATASET_FILE,
-            "--data-model",
-            "data_model",
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    _bootstrap_data_model(sqlite_db)
+    run_cli_command(
+        "add-dataset",
+        ABSOLUTE_PATH_DATASET_FILE,
+        "--data-model",
+        "data_model",
+        "-v",
+        "1.0",
     )
     assert (
         "dataset"
@@ -394,11 +353,8 @@ def test_delete_dataset_with_volume(sqlite_db):
     )
 
     # Test
-    result = runner.invoke(
-        delete_dataset,
-        ["dataset", "-d", "data_model", "-v", "1.0"]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    result = run_cli_command(
+        "delete-dataset", "dataset", "-d", "data_model", "-v", "1.0"
     )
     assert result.exit_code == ExitCode.OK
 
@@ -406,20 +362,16 @@ def test_delete_dataset_with_volume(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_load_folder_with_volume(sqlite_db, monetdb):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    result = runner.invoke(init, SQLiteDB_OPTION)
+    result = run_cli_command("init")
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
-    result = runner.invoke(
-        load_folder,
-        [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS,
-    )
+
+    result = run_cli_command("load-folder", ABSOLUTE_PATH_SUCCESS_DATA_FOLDER, )
     assert result.exit_code == ExitCode.OK
 
     datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
@@ -440,22 +392,15 @@ def test_load_folder_with_volume(sqlite_db, monetdb):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_load_folder(sqlite_db, monetdb):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    result = runner.invoke(init, SQLiteDB_OPTION)
+    result = run_cli_command("init")
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
 
     # Test
-    result = runner.invoke(
-        load_folder,
-        [SUCCESS_DATA_FOLDER, "--copy_from_file", False]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
-    )
+    result = run_cli_command("load-folder", SUCCESS_DATA_FOLDER, "--no-copy")
     assert result.exit_code == ExitCode.OK
 
     datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
@@ -474,26 +419,70 @@ def test_load_folder(sqlite_db, monetdb):
     ).fetchall()
     assert list(range(1, len(row_ids) + 1)) == [row[0] for row in row_ids]
 
-@pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_load_folder_twice_with_volume(sqlite_db, monetdb):
-    # Setup
-    runner = CliRunner()
+@pytest.mark.usefixtures("cleanup_sqlite")
+def test_load_folder_no_monetdb(sqlite_db, monetdb):
 
     # Check dataset not present already
-    result = runner.invoke(init, SQLiteDB_OPTION)
+    result = run_cli_command_without_monetdb("init")
     assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
-    result = runner.invoke(
-        load_folder,
-        [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS,
-    )
+
+    # Test
+    result = run_cli_command_without_monetdb("load-folder", SUCCESS_DATA_FOLDER)
+    assert result.exit_code == ExitCode.OK
+
+    datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
+    dataset_codes = [code for code, *_ in datasets]
+    expected = [
+        "dataset",
+        "dataset1",
+        "dataset2",
+        "dataset10",
+        "dataset20",
+        "dataset_longitudinal",
+    ]
+    assert set(expected) == set(dataset_codes)
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
+def test_load_folder_monetdb_deployed_not_used_monetdb(sqlite_db, monetdb):
+
+    # Check dataset not present already
+    result = run_cli_command_without_monetdb("init")
+    assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
+
+    # Test
+    result = run_cli_command_without_monetdb("load-folder", SUCCESS_DATA_FOLDER)
+    assert result.exit_code == ExitCode.OK
+
+    datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
+    dataset_codes = [code for code, *_ in datasets]
+    expected = [
+        "dataset",
+        "dataset1",
+        "dataset2",
+        "dataset10",
+        "dataset20",
+        "dataset_longitudinal",
+    ]
+    assert set(expected) == set(dataset_codes)
+
+
+
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
+def test_load_folder_twice_with_volume(sqlite_db, monetdb):
+
+    # Check dataset not present already
+    result = run_cli_command("init")
+    assert not sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
+    result = run_cli_command("load-folder", ABSOLUTE_PATH_SUCCESS_DATA_FOLDER)
+
     assert result.exit_code == ExitCode.OK
 
     # Test
-    result = runner.invoke(
-        load_folder,
-        [ABSOLUTE_PATH_SUCCESS_DATA_FOLDER] + SQLiteDB_OPTION + MONETDB_OPTIONS,
-    )
+    result = run_cli_command("load-folder", ABSOLUTE_PATH_SUCCESS_DATA_FOLDER)
     assert result.exit_code == ExitCode.OK
 
     datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
@@ -514,19 +503,13 @@ def test_load_folder_twice_with_volume(sqlite_db, monetdb):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_tag_data_model(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    _bootstrap_data_model(sqlite_db)
 
     # Test
-    result = runner.invoke(
-        tag_data_model,
-        ["data_model", "-t", "tag", "-v", "1.0"] + SQLiteDB_OPTION,
-    )
+    result = run_cli_command("tag-data-model", "data_model", "-t", "tag", "-v", "1.0")
     assert result.exit_code == ExitCode.OK
     result = sqlite_db.get_values(table=DataModel.__table__, columns=["properties"])
     properties = result[0][0]
@@ -534,23 +517,16 @@ def test_tag_data_model(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_untag_data_model(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    runner.invoke(
-        tag_data_model,
-        ["data_model", "-t", "tag", "-v", "1.0"] + SQLiteDB_OPTION,
-    )
+    _bootstrap_data_model(sqlite_db)
+    result = run_cli_command("tag-data-model", "data_model", "-t", "tag", "-v", "1.0")
 
     # Test
-    result = runner.invoke(
-        tag_data_model,
-        ["data_model", "-t", "tag", "-v", "1.0", "-r"] + SQLiteDB_OPTION,
+    result = run_cli_command(
+        "tag-data-model", "data_model", "-t", "tag", "-v", "1.0", "-r"
     )
     assert result.exit_code == ExitCode.OK
     result = sqlite_db.get_values(table=DataModel.__table__, columns=["properties"])
@@ -559,18 +535,14 @@ def test_untag_data_model(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_property_data_model_addition(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    _bootstrap_data_model(sqlite_db)
 
     # Test
-    result = runner.invoke(
-        tag_data_model,
-        ["data_model", "-t", "key=value", "-v", "1.0"] + SQLiteDB_OPTION,
+    result = run_cli_command(
+        "tag-data-model", "data_model", "-t", "key=value", "-v", "1.0"
     )
     assert result.exit_code == ExitCode.OK
     result = sqlite_db.get_values(table=DataModel.__table__, columns=["properties"])
@@ -581,75 +553,42 @@ def test_property_data_model_addition(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_property_data_model_deletion(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    runner.invoke(
-        tag_data_model,
-        ["data_model", "-t", "key=value", "-v", "1.0"] + SQLiteDB_OPTION,
-    )
+    _bootstrap_data_model(sqlite_db)
+    run_cli_command("tag-data-model", "data_model", "-t", "key=value", "-v", "1.0")
 
     # Test
-    result = runner.invoke(
-        tag_data_model,
-        [
-            "data_model",
-            "-t",
-            "key=value",
-            "-v",
-            "1.0",
-            "-r",
-        ]
-        + SQLiteDB_OPTION,
+    result = run_cli_command(
+        "tag-data-model", "data_model", "-t", "key=value", "-v", "1.0", "-r"
     )
+
     assert result.exit_code == ExitCode.OK
     result = sqlite_db.get_values(table=DataModel.__table__, columns=["properties"])
     properties = result[0][0]
     assert "key" not in properties["properties"]
 
-
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_tag_dataset(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    runner.invoke(
-        add_dataset,
-        [
-            DATASET_FILE,
-            "--data-model",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            False,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    _bootstrap_data_model(sqlite_db)
+    run_cli_command(
+        "add-dataset",
+        DATASET_FILE,
+        "--data-model",
+        "data_model",
+        "-v",
+        "1.0",
+        "--no-copy",
     )
 
     # Test
-    result = runner.invoke(
-        tag_dataset,
-        [
-            "dataset",
-            "-t",
-            "tag",
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION,
+    result = run_cli_command(
+        "tag-dataset", "dataset", "-t", "tag", "-d", "data_model", "-v", "1.0"
     )
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
@@ -658,62 +597,31 @@ def test_tag_dataset(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_untag_dataset(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS
+    run_cli_command("init")
+    run_cli_command("add-data-model", DATA_MODEL_FILE)
+    result = run_cli_command(
+        "add-dataset",
+        DATASET_FILE,
+        "--data-model",
+        "data_model",
+        "-v",
+        "1.0",
+        "--no-copy",
     )
-    assert result.exit_code == ExitCode.OK
 
-    result = runner.invoke(
-        add_dataset,
-        [
-            DATASET_FILE,
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            False,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
-    )
     assert result.exit_code == ExitCode.OK
-    result = runner.invoke(
-        tag_dataset,
-        [
-            "dataset",
-            "-t",
-            "tag",
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION,
+    result = run_cli_command(
+        "tag-dataset", "dataset", "-t", "tag", "-d", "data_model", "-v", "1.0"
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
-    result = runner.invoke(
-        tag_dataset,
-        [
-            "dataset",
-            "-t",
-            "tag",
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-            "-r",
-        ]
-        + SQLiteDB_OPTION,
+    result = run_cli_command(
+        "tag-dataset", "dataset", "-t", "tag", "-d", "data_model", "-v", "1.0", "-r"
     )
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
@@ -722,42 +630,24 @@ def test_untag_dataset(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_property_dataset_addition(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    runner.invoke(
-        add_dataset,
-        [
-            DATASET_FILE,
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            False,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    _bootstrap_data_model(sqlite_db)
+    run_cli_command(
+        "add-dataset",
+        DATASET_FILE,
+        "--data-model",
+        "data_model",
+        "-v",
+        "1.0",
+        "--no-copy",
     )
 
     # Test
-    result = runner.invoke(
-        tag_dataset,
-        [
-            "dataset",
-            "-t",
-            "key=value",
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION,
+    result = run_cli_command(
+        "tag-dataset", "dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"
     )
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
@@ -766,62 +656,19 @@ def test_property_dataset_addition(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_property_dataset_deletion(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    result = runner.invoke(
-        add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS
-    )
-    assert result.exit_code == ExitCode.OK
-
-    result = runner.invoke(
-        add_dataset,
-        [
-            DATASET_FILE,
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            False,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
-    )
-    assert result.exit_code == ExitCode.OK
-    result = runner.invoke(
-        tag_dataset,
-        [
-            "dataset",
-            "-t",
-            "key=value",
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-        ]
-        + SQLiteDB_OPTION,
+    _bootstrap_dataset(sqlite_db)
+    result = run_cli_command(
+        "tag-dataset", "dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0"
     )
     assert result.exit_code == ExitCode.OK
 
     # Test
-    result = runner.invoke(
-        tag_dataset,
-        [
-            "dataset",
-            "-t",
-            "key=value",
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-            "-r",
-        ]
-        + SQLiteDB_OPTION,
+    result = run_cli_command(
+        "tag-dataset", "dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0", "-r"
     )
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
@@ -830,147 +677,91 @@ def test_property_dataset_deletion(sqlite_db):
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_enable_data_model(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check status is disabled
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    result = runner.invoke(
-        disable_data_model, ["data_model", "-v", "1.0"] + SQLiteDB_OPTION
-    )
+    _bootstrap_data_model(sqlite_db)
+    run_cli_command("disable-data-model", "data_model", "-v", "1.0")
     assert _get_status(sqlite_db, "data_models") == "DISABLED"
 
     # Test
-    result = runner.invoke(
-        enable_data_model, ["data_model", "-v", "1.0"] + SQLiteDB_OPTION
-    )
+    result = run_cli_command("enable-data-model", "data_model", "-v", "1.0")
     assert result.exit_code == ExitCode.OK
     assert _get_status(sqlite_db, "data_models") == "ENABLED"
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_disable_data_model(sqlite_db):
-    # Setup
-    runner = CliRunner()
-
     # Check status is enabled
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
+    _bootstrap_data_model(sqlite_db)
     assert _get_status(sqlite_db, "data_models") == "ENABLED"
 
     # Test
-    result = runner.invoke(
-        disable_data_model, ["data_model", "-v", "1.0"] + SQLiteDB_OPTION
-    )
+    result = run_cli_command("disable-data-model", "data_model", "-v", "1.0")
     assert result.exit_code == ExitCode.OK
     assert _get_status(sqlite_db, "data_models") == "DISABLED"
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_enable_dataset(sqlite_db):
-    # Setup
-    runner = CliRunner()
+    _bootstrap_disabled_dataset(sqlite_db)
+    result = run_cli_command(
+        "enable-dataset",
+        "dataset",
+        "-d",
+        "data_model",
+        "-v",
+        "1.0",
+    )
 
-    # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    runner.invoke(
-        add_dataset,
-        [
-            DATASET_FILE,
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            False,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
-    )
-    result = runner.invoke(
-        disable_dataset,
-        ["dataset", "-d", "data_model", "-v", "1.0"] + SQLiteDB_OPTION,
-    )
-    assert _get_status(sqlite_db, "datasets") == "DISABLED"
-
-    # Test
-    result = runner.invoke(
-        enable_dataset,
-        ["dataset", "-d", "data_model", "-v", "1.0"] + SQLiteDB_OPTION,
-    )
     assert result.exit_code == ExitCode.OK
     assert _get_status(sqlite_db, "datasets") == "ENABLED"
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_disable_dataset(sqlite_db):
-    # Setup
-    runner = CliRunner()
 
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    runner.invoke(
-        add_dataset,
-        [
-            DATASET_FILE,
-            "-d",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            False,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
-    )
-    assert _get_status(sqlite_db, "datasets") == "ENABLED"
+    _bootstrap_dataset(sqlite_db)
 
     # Test
-    result = runner.invoke(
-        disable_dataset,
-        ["dataset", "-d", "data_model", "-v", "1.0"] + SQLiteDB_OPTION,
+    result = run_cli_command(
+        "disable-dataset",
+        "dataset",
+        "-d",
+        "data_model",
+        "-v",
+        "1.0",
     )
     assert _get_status(sqlite_db, "datasets") == "DISABLED"
     assert result.exit_code == ExitCode.OK
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_list_data_models():
-    # Setup
-    runner = CliRunner()
 
     # Check data_model not present already
 
-    runner.invoke(init, SQLiteDB_OPTION)
-    result = runner.invoke(list_data_models, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    result_with_data_model = runner.invoke(list_data_models, SQLiteDB_OPTION)
-    runner.invoke(
-        add_dataset,
-        [
-            DATASET_FILE,
-            "--data-model",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            False,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    run_cli_command("init")
+    result = run_cli_command("list-data-models")
+    run_cli_command("add-data-model", DATA_MODEL_FILE)
+    result_with_data_model = run_cli_command("list-data-models")
+    run_cli_command(
+        "add-dataset",
+        DATASET_FILE,
+        "-d",
+        "data_model",
+        "-v",
+        "1.0",
+        "--no-copy",
     )
-    result_with_data_model_and_dataset = runner.invoke(
-        list_data_models, SQLiteDB_OPTION
-    )
+
+    result_with_data_model_and_dataset = run_cli_command("list-data-models")
     # Test
     assert result.exit_code == ExitCode.OK
     assert result.stdout == "There are no data models.\n"
@@ -995,32 +786,21 @@ def test_list_data_models():
 
 
 @pytest.mark.database
-@pytest.mark.usefixtures("monetdb_container", "cleanup_db")
-def test_list_datasets():
-    # Setup
-    runner = CliRunner()
-
+@pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
+def test_list_datasets(sqlite_db):
     # Check dataset not present already
-    runner.invoke(init, SQLiteDB_OPTION)
-    runner.invoke(add_data_model, [DATA_MODEL_FILE] + SQLiteDB_OPTION + MONETDB_OPTIONS)
-    result = runner.invoke(list_datasets, SQLiteDB_OPTION + MONETDB_OPTIONS)
-    runner.invoke(
-        add_dataset,
-        [
-            ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET,
-            "--data-model",
-            "data_model",
-            "-v",
-            "1.0",
-            "--copy_from_file",
-            True,
-        ]
-        + SQLiteDB_OPTION
-        + MONETDB_OPTIONS,
+    _bootstrap_data_model(sqlite_db)
+    result = run_cli_command("list-datasets")
+    run_cli_command(
+        "add-dataset",
+        ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET,
+        "--data-model",
+        "data_model",
+        "-v",
+        "1.0",
+        "--no-copy",
     )
-    result_with_dataset = runner.invoke(
-        list_datasets, SQLiteDB_OPTION + MONETDB_OPTIONS
-    )
+    result_with_dataset = run_cli_command("list-datasets")
 
     # Test
     assert result.exit_code == ExitCode.OK
@@ -1035,10 +815,9 @@ def test_list_datasets():
     assert "dataset1  Dataset 1  ENABLED".strip(
         " "
     ) in result_with_dataset.stdout.strip(" ")
-    assert "dataset    Dataset  ENABLED".strip(
+    assert "dataset    Dataset  ENABLED".strip(" ") in result_with_dataset.stdout.strip(
         " "
-    ) in result_with_dataset.stdout.strip(" ")
-
+    )
 
 def _get_status(db, schema_name):
     (status, *_), *_ = db.execute_fetchall(f"SELECT status FROM {schema_name}")

@@ -3,13 +3,13 @@ from abc import ABC, abstractmethod
 
 import sqlalchemy as sql
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Integer, String, JSON,  select
+from sqlalchemy import Integer, String, JSON, select
 
 from typing import List
 
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import DataBaseError
-from mipdb.databases.sqlite import DataModel, Dataset
+from mipdb.sqlite.sqlite import DataModel, Dataset
 
 METADATA_TABLE = "variables_metadata"
 PRIMARYDATA_TABLE = "primary_data"
@@ -77,6 +77,7 @@ class Table(ABC):
     def drop(self, db):
         db.drop_table(self._table)
 
+
 class DataModelTable(Table):
     def __init__(self):
         self._table = DataModel.__table__
@@ -111,7 +112,7 @@ class DataModelTable(Table):
         db.delete_from(self._table, where_conditions={"code": code, "version": version})
 
     def get_next_data_model_id(self, db) -> int:
-        res = db.execute_fetchall('SELECT MAX(data_model_id) FROM data_models;')
+        res = db.execute_fetchall("SELECT MAX(data_model_id) FROM data_models;")
         max_id = res[0][0] if res and res[0][0] is not None else 0
         return max_id + 1
 
@@ -123,14 +124,14 @@ class DatasetsTable(Table):
     def get_datasets(self, db, columns: list = None):
         return db.get_values(table=self._table, columns=columns, where_conditions={})
 
-    def get_dataset_codes(self, db, columns: List[str] = None, data_model_id: int = None) -> List[str]:
-        cols = columns or ['code']
+    def get_dataset_codes(
+        self, db, columns: List[str] = None, data_model_id: int = None
+    ) -> List[str]:
+        cols = columns or ["code"]
         stmt = select(*[self.table.c[col] for col in cols])
         if data_model_id is not None:
             stmt = stmt.where(self.table.c.data_model_id == data_model_id)
-        compiled_sql = str(
-            stmt.compile(compile_kwargs={"literal_binds": True})
-        )
+        compiled_sql = str(stmt.compile(compile_kwargs={"literal_binds": True}))
         rows = db.execute_fetchall(compiled_sql)
         codes: List[str] = []
         for row in rows:
