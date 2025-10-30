@@ -4,11 +4,10 @@ import time
 import pytest
 import docker
 
-from mipdb.commands import get_monetdb_config
-from mipdb.databases.monetdb import MonetDB
-from mipdb.databases.monetdb_tables import User
+from mipdb.monetdb.monetdb import MonetDB
+from mipdb.monetdb.monetdb_tables import User
 from mipdb.reader import JsonFileReader
-from mipdb.databases.sqlite import SQLiteDB
+from mipdb.sqlite.sqlite import SQLiteDB
 
 TEST_DIR = os.path.dirname(os.path.realpath(__file__))
 SQLiteDB_PATH = f"{TEST_DIR}/sqlite.db"
@@ -29,8 +28,10 @@ PORT = 50123
 USERNAME = "admin"
 PASSWORD = "executor"
 DB_NAME = "db"
-SQLiteDB_OPTION = ["--sqlite_db_path", SQLiteDB_PATH]
-MONETDB_OPTIONS = [
+SQLiteDB_OPTION = ["--sqlite", SQLiteDB_PATH]
+
+NO_MONETDB_OPTIONS = [
+    "--no-monetdb",
     "--ip",
     IP,
     "--port",
@@ -39,7 +40,21 @@ MONETDB_OPTIONS = [
     USERNAME,
     "--password",
     PASSWORD,
-    "--db_name",
+    "--db-name",
+    DB_NAME,
+]
+
+MONETDB_OPTIONS = [
+    "--monetdb",
+    "--ip",
+    IP,
+    "--port",
+    PORT,
+    "--username",
+    USERNAME,
+    "--password",
+    PASSWORD,
+    "--db-name",
     DB_NAME,
 ]
 
@@ -98,10 +113,17 @@ def sqlite_db():
 
 @pytest.fixture(scope="function")
 def monetdb():
-    dbconfig = get_monetdb_config(IP, PORT, USERNAME, PASSWORD, DB_NAME)
+    dbconfig = {
+        "ip": IP,
+        "port": PORT,
+        "dbfarm": DB_NAME,
+        "username": USERNAME,
+        "password": PASSWORD,
+    }
     return MonetDB.from_config(dbconfig)
 
 
+@pytest.fixture(scope="function")
 def cleanup_monetdb(monetdb):
     schemas = monetdb.get_schemas()
     for schema in schemas:
@@ -109,15 +131,9 @@ def cleanup_monetdb(monetdb):
             monetdb.drop_schema(schema)
 
 
+@pytest.fixture(scope="function")
 def cleanup_sqlite(sqlite_db):
     sqlite_tables = sqlite_db.get_all_tables()
     if sqlite_tables:
         for table in sqlite_tables:
             sqlite_db.execute(f'DROP TABLE "{table}";')
-
-
-@pytest.fixture(scope="function")
-def cleanup_db(sqlite_db, monetdb):
-    yield
-    cleanup_sqlite(sqlite_db)
-    cleanup_monetdb(monetdb)

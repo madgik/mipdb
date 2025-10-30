@@ -84,7 +84,9 @@ class SQLiteDB:
             result = conn.execute(text(query), *args, **kwargs)
             return result.fetchall()
 
-    def insert_values_to_table(self, table: sql.Table, values: List[Dict[str, Any]]) -> None:
+    def insert_values_to_table(
+        self, table: sql.Table, values: List[Dict[str, Any]]
+    ) -> None:
         session = self.Session()
         try:
             session.execute(table.insert(), values)
@@ -96,8 +98,9 @@ class SQLiteDB:
         session = self.Session()
         try:
             result = session.execute(
-                select(Base.metadata.tables["data_models"].c.status)
-                .where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+                select(Base.metadata.tables["data_models"].c.status).where(
+                    Base.metadata.tables["data_models"].c.data_model_id == data_model_id
+                )
             ).scalar_one_or_none()
         finally:
             session.close()
@@ -108,7 +111,9 @@ class SQLiteDB:
         try:
             session.execute(
                 sql.update(Base.metadata.tables["data_models"])
-                .where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+                .where(
+                    Base.metadata.tables["data_models"].c.data_model_id == data_model_id
+                )
                 .values(status=status)
             )
             session.commit()
@@ -119,8 +124,9 @@ class SQLiteDB:
         session = self.Session()
         try:
             result = session.execute(
-                select(Base.metadata.tables["datasets"].c.status)
-                .where(Base.metadata.tables["datasets"].c.dataset_id == dataset_id)
+                select(Base.metadata.tables["datasets"].c.status).where(
+                    Base.metadata.tables["datasets"].c.dataset_id == dataset_id
+                )
             ).scalar_one_or_none()
         finally:
             session.close()
@@ -158,7 +164,9 @@ class SQLiteDB:
         try:
             cols = [getattr(Base.metadata.tables["datasets"].c, col) for col in columns]
             result = session.execute(
-                select(*cols).where(Base.metadata.tables["datasets"].c.dataset_id == dataset_id)
+                select(*cols).where(
+                    Base.metadata.tables["datasets"].c.dataset_id == dataset_id
+                )
             ).one_or_none()
         finally:
             session.close()
@@ -167,9 +175,13 @@ class SQLiteDB:
     def get_data_model(self, data_model_id: int, columns: List[str]) -> Any:
         session = self.Session()
         try:
-            cols = [getattr(Base.metadata.tables["data_models"].c, col) for col in columns]
+            cols = [
+                getattr(Base.metadata.tables["data_models"].c, col) for col in columns
+            ]
             result = session.execute(
-                select(*cols).where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+                select(*cols).where(
+                    Base.metadata.tables["data_models"].c.data_model_id == data_model_id
+                )
             ).one_or_none()
         finally:
             session.close()
@@ -180,10 +192,10 @@ class SQLiteDB:
     # ...
 
     def get_values(
-            self,
-            table: sql.Table,
-            columns: List[str] | None = None,
-            where_conditions: Dict[str, Any] | None = None,
+        self,
+        table: sql.Table,
+        columns: List[str] | None = None,
+        where_conditions: Dict[str, Any] | None = None,
     ) -> List[sql.Row]:
         """Return rows (SQLAlchemy Row objects) respecting an optional WHERE."""
         stmt = select(
@@ -199,7 +211,9 @@ class SQLiteDB:
     def get_data_models(self, columns: List[str]) -> List[Dict[str, Any]]:
         session = self.Session()
         try:
-            cols = [getattr(Base.metadata.tables["data_models"].c, col) for col in columns]
+            cols = [
+                getattr(Base.metadata.tables["data_models"].c, col) for col in columns
+            ]
             rows = session.execute(select(*cols)).all()
         finally:
             session.close()
@@ -208,13 +222,12 @@ class SQLiteDB:
     def get_dataset_count_by_data_model_id(self) -> List[Dict[str, Any]]:
         session = self.Session()
         try:
-            stmt = (
-                select(
-                    Base.metadata.tables["datasets"].c.data_model_id,
-                    func.count(Base.metadata.tables["datasets"].c.data_model_id).label("count"),
-                )
-                .group_by(Base.metadata.tables["datasets"].c.data_model_id)
-            )
+            stmt = select(
+                Base.metadata.tables["datasets"].c.data_model_id,
+                func.count(Base.metadata.tables["datasets"].c.data_model_id).label(
+                    "count"
+                ),
+            ).group_by(Base.metadata.tables["datasets"].c.data_model_id)
             rows = session.execute(stmt).all()
         finally:
             session.close()
@@ -223,7 +236,9 @@ class SQLiteDB:
     def get_row_count(self, table_name: str) -> int:
         session = self.Session()
         try:
-            count = session.execute(select(func.count()).select_from(text(table_name))).scalar_one()
+            count = session.execute(
+                select(func.count()).select_from(text(table_name))
+            ).scalar_one()
         finally:
             session.close()
         return count
@@ -253,8 +268,9 @@ class SQLiteDB:
         session = self.Session()
         try:
             result = session.execute(
-                select(Base.metadata.tables["datasets"].c.properties)
-                .where(Base.metadata.tables["datasets"].c.dataset_id == dataset_id)
+                select(Base.metadata.tables["datasets"].c.properties).where(
+                    Base.metadata.tables["datasets"].c.dataset_id == dataset_id
+                )
             ).scalar_one_or_none()
         finally:
             session.close()
@@ -264,26 +280,33 @@ class SQLiteDB:
         session = self.Session()
         try:
             result = session.execute(
-                select(Base.metadata.tables["data_models"].c.properties)
-                .where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+                select(Base.metadata.tables["data_models"].c.properties).where(
+                    Base.metadata.tables["data_models"].c.data_model_id == data_model_id
+                )
             ).scalar_one_or_none()
         finally:
             session.close()
         return result or {}
 
-    def set_data_model_properties(self, properties: Dict[str, Any], data_model_id: int) -> None:
+    def set_data_model_properties(
+        self, properties: Dict[str, Any], data_model_id: int
+    ) -> None:
         session = self.Session()
         try:
             session.execute(
                 sql.update(Base.metadata.tables["data_models"])
-                .where(Base.metadata.tables["data_models"].c.data_model_id == data_model_id)
+                .where(
+                    Base.metadata.tables["data_models"].c.data_model_id == data_model_id
+                )
                 .values(properties=properties)
             )
             session.commit()
         finally:
             session.close()
 
-    def set_dataset_properties(self, properties: Dict[str, Any], dataset_id: int) -> None:
+    def set_dataset_properties(
+        self, properties: Dict[str, Any], dataset_id: int
+    ) -> None:
         session = self.Session()
         try:
             session.execute(
@@ -298,20 +321,21 @@ class SQLiteDB:
     def get_data_model_id(self, code: str, version: str) -> int:
         session = self.Session()
         try:
-            stmt = (
-                select(Base.metadata.tables["data_models"].c.data_model_id)
-                .where(
-                    Base.metadata.tables["data_models"].c.code == code,
-                    Base.metadata.tables["data_models"].c.version == version,
-                )
+            stmt = select(Base.metadata.tables["data_models"].c.data_model_id).where(
+                Base.metadata.tables["data_models"].c.code == code,
+                Base.metadata.tables["data_models"].c.version == version,
             )
             data_model_id = session.execute(stmt).scalar_one_or_none()
         except MultipleResultsFound:
-            raise DataBaseError(f"Got more than one data_model ids for code={code} and version={version}.")
+            raise DataBaseError(
+                f"Got more than one data_model ids for code={code} and version={version}."
+            )
         finally:
             session.close()
         if not data_model_id:
-            raise DataBaseError(f"Data_models table doesn't have a record with code={code}, version={version}")
+            raise DataBaseError(
+                f"Data_models table doesn't have a record with code={code}, version={version}"
+            )
         return data_model_id
 
     def get_max_data_model_id(self) -> int:
@@ -337,20 +361,21 @@ class SQLiteDB:
     def get_dataset_id(self, code: str, data_model_id: int) -> int:
         session = self.Session()
         try:
-            stmt = (
-                select(Base.metadata.tables["datasets"].c.dataset_id)
-                .where(
-                    Base.metadata.tables["datasets"].c.code == code,
-                    Base.metadata.tables["datasets"].c.data_model_id == data_model_id,
-                )
+            stmt = select(Base.metadata.tables["datasets"].c.dataset_id).where(
+                Base.metadata.tables["datasets"].c.code == code,
+                Base.metadata.tables["datasets"].c.data_model_id == data_model_id,
             )
             dataset_id = session.execute(stmt).scalar_one_or_none()
         except MultipleResultsFound:
-            raise DataBaseError(f"Got more than one dataset ids for code={code} and data_model_id={data_model_id}.")
+            raise DataBaseError(
+                f"Got more than one dataset ids for code={code} and data_model_id={data_model_id}."
+            )
         finally:
             session.close()
         if not dataset_id:
-            raise DataBaseError(f"Datasets table doesn't have a record with code={code}, data_model_id={data_model_id}")
+            raise DataBaseError(
+                f"Datasets table doesn't have a record with code={code}, data_model_id={data_model_id}"
+            )
         return dataset_id
 
     def table_exists(self, table: sql.Table) -> bool:
