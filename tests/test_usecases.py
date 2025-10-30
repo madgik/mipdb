@@ -733,7 +733,12 @@ def test_tag_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     )
 
     properties = sqlite_db.get_dataset_properties(1)
-    assert properties == {"tags": ["tag"], "properties": {}}
+    assert properties == {
+        "tags": ["tag"],
+        "properties": {
+            "variables": ["subjectcode", "var1", "var2", "var3", "var4", "dataset"],
+        },
+    }
 
 
 @pytest.mark.database
@@ -771,7 +776,12 @@ def test_untag_dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     )
 
     properties = sqlite_db.get_dataset_properties(1)
-    assert properties == {"tags": ["tag2", "tag3"], "properties": {}}
+    assert properties == {
+        "tags": ["tag2", "tag3"],
+        "properties": {
+            "variables": ["subjectcode", "var1", "var2", "var3", "var4", "dataset"],
+        },
+    }
 
 
 @pytest.mark.database
@@ -793,7 +803,13 @@ def test_add_property2dataset_with_db(sqlite_db, monetdb, data_model_metadata):
     )
 
     properties = sqlite_db.get_dataset_properties(1)
-    assert properties == {"tags": [], "properties": {"key": "value"}}
+    assert properties == {
+        "tags": [],
+        "properties": {
+            "variables": ["subjectcode", "var1", "var2", "var3", "var4", "dataset"],
+            "key": "value",
+        },
+    }
 
 
 @pytest.mark.database
@@ -837,7 +853,14 @@ def test_remove_property_from_dataset_with_db(sqlite_db, monetdb, data_model_met
         value="value2",
     )
     properties = sqlite_db.get_dataset_properties(1)
-    assert properties == {"tags": [], "properties": {"key": "value", "key1": "value1"}}
+    assert properties == {
+        "tags": [],
+        "properties": {
+            "variables": ["subjectcode", "var1", "var2", "var3", "var4", "dataset"],
+            "key": "value",
+            "key1": "value1",
+        },
+    }
 
 
 @pytest.mark.database

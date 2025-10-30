@@ -14,16 +14,19 @@ from tests.conftest import (
     ABSOLUTE_PATH_FAIL_DATA_FOLDER,
     MONETDB_OPTIONS,
     SQLiteDB_OPTION,
-    ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET, NO_MONETDB_OPTIONS,
+    ABSOLUTE_PATH_DATASET_FILE_MULTIPLE_DATASET,
+    NO_MONETDB_OPTIONS,
 )
 from tests.conftest import DATA_MODEL_FILE
 import pytest
+
 
 def _bootstrap_data_model(sqlite_db):
     run_cli_command("init")
     # Test
     result = run_cli_command("add-data-model", DATA_MODEL_FILE)
     assert result.exit_code == ExitCode.OK
+
 
 def _bootstrap_dataset(sqlite_db):
     _bootstrap_data_model(sqlite_db)
@@ -77,8 +80,9 @@ def run_cli_command(command_name, *args):
 
 def run_cli_command_without_monetdb(command_name, *args):
     runner = CliRunner()
-    return runner.invoke(cli, [*SQLiteDB_OPTION, *NO_MONETDB_OPTIONS, command_name, *args])
-
+    return runner.invoke(
+        cli, [*SQLiteDB_OPTION, *NO_MONETDB_OPTIONS, command_name, *args]
+    )
 
 
 @pytest.mark.database
@@ -177,7 +181,13 @@ def test_add_dataset(sqlite_db, monetdb):
 
     # Test
     result = run_cli_command(
-        "add-dataset", DATASET_FILE, "--data-model", "data_model", "-v", "1.0", "--no-copy"
+        "add-dataset",
+        DATASET_FILE,
+        "--data-model",
+        "data_model",
+        "-v",
+        "1.0",
+        "--no-copy",
     )
 
     assert result.exit_code == ExitCode.OK
@@ -224,6 +234,7 @@ def test_add_two_datasets_with_same_name_different_data_model(sqlite_db):
     assert [(1, "dataset10"), (2, "dataset10")] == sqlite_db.get_values(
         Dataset.__table__, columns=["data_model_id", "code"]
     )
+
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
@@ -371,7 +382,10 @@ def test_load_folder_with_volume(sqlite_db, monetdb):
 
     # Test
 
-    result = run_cli_command("load-folder", ABSOLUTE_PATH_SUCCESS_DATA_FOLDER, )
+    result = run_cli_command(
+        "load-folder",
+        ABSOLUTE_PATH_SUCCESS_DATA_FOLDER,
+    )
     assert result.exit_code == ExitCode.OK
 
     datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
@@ -419,6 +433,7 @@ def test_load_folder(sqlite_db, monetdb):
     ).fetchall()
     assert list(range(1, len(row_ids) + 1)) == [row[0] for row in row_ids]
 
+
 @pytest.mark.usefixtures("cleanup_sqlite")
 def test_load_folder_no_monetdb(sqlite_db, monetdb):
 
@@ -441,6 +456,7 @@ def test_load_folder_no_monetdb(sqlite_db, monetdb):
         "dataset_longitudinal",
     ]
     assert set(expected) == set(dataset_codes)
+
 
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
@@ -467,9 +483,6 @@ def test_load_folder_monetdb_deployed_not_used_monetdb(sqlite_db, monetdb):
     assert set(expected) == set(dataset_codes)
 
 
-
-
-
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_load_folder_twice_with_volume(sqlite_db, monetdb):
@@ -485,17 +498,76 @@ def test_load_folder_twice_with_volume(sqlite_db, monetdb):
     result = run_cli_command("load-folder", ABSOLUTE_PATH_SUCCESS_DATA_FOLDER)
     assert result.exit_code == ExitCode.OK
 
-    datasets = sqlite_db.get_values(table=Dataset.__table__, columns=["code"])
-    dataset_codes = [dataset[0] for dataset in datasets]
+    datasets = sqlite_db.get_values(
+        table=Dataset.__table__, columns=["code", "properties"]
+    )
     expected = [
-        "dataset",
-        "dataset1",
-        "dataset2",
-        "dataset10",
-        "dataset20",
-        "dataset_longitudinal",
+        (
+            "dataset20",
+            {
+                "tags": [],
+                "properties": {
+                    "variables": ["subjectcode", "var2", "var3", "var4", "dataset"]
+                },
+            },
+        ),
+        (
+            "dataset10",
+            {
+                "tags": [],
+                "properties": {"variables": ["subjectcode", "var1", "var3", "dataset"]},
+            },
+        ),
+        (
+            "dataset10",
+            {
+                "tags": [],
+                "properties": {"variables": ["subjectcode", "var1", "var3", "dataset"]},
+            },
+        ),
+        (
+            "dataset",
+            {
+                "tags": [],
+                "properties": {
+                    "variables": [
+                        "subjectcode",
+                        "var1",
+                        "var2",
+                        "var3",
+                        "var4",
+                        "dataset",
+                    ]
+                },
+            },
+        ),
+        (
+            "dataset2",
+            {
+                "tags": [],
+                "properties": {
+                    "variables": ["subjectcode", "var2", "var3", "var4", "dataset"]
+                },
+            },
+        ),
+        (
+            "dataset1",
+            {
+                "tags": [],
+                "properties": {
+                    "variables": ["subjectcode", "var2", "var3", "var4", "dataset"]
+                },
+            },
+        ),
+        (
+            "dataset_longitudinal",
+            {
+                "tags": [],
+                "properties": {"variables": ["subjectid", "visitid", "dataset"]},
+            },
+        ),
     ]
-    assert set(expected) == set(dataset_codes)
+    assert expected == datasets
     row_ids = monetdb.execute(
         f'select row_id from "data_model:1.0".primary_data'
     ).fetchall()
@@ -570,6 +642,7 @@ def test_property_data_model_deletion(sqlite_db):
     properties = result[0][0]
     assert "key" not in properties["properties"]
 
+
 @pytest.mark.database
 @pytest.mark.usefixtures("monetdb_container", "cleanup_monetdb", "cleanup_sqlite")
 def test_tag_dataset(sqlite_db):
@@ -593,7 +666,12 @@ def test_tag_dataset(sqlite_db):
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
 
-    assert {"tags": ["tag"], "properties": {}} == properties[0][0]
+    assert {
+        "tags": ["tag"],
+        "properties": {
+            "variables": ["subjectcode", "var1", "var2", "var3", "var4", "dataset"]
+        },
+    } == properties[0][0]
 
 
 @pytest.mark.database
@@ -626,7 +704,12 @@ def test_untag_dataset(sqlite_db):
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
 
-    assert {"tags": [], "properties": {}} == properties[0][0]
+    assert {
+        "tags": [],
+        "properties": {
+            "variables": ["subjectcode", "var1", "var2", "var3", "var4", "dataset"]
+        },
+    } == properties[0][0]
 
 
 @pytest.mark.database
@@ -652,7 +735,13 @@ def test_property_dataset_addition(sqlite_db):
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
 
-    assert {"tags": [], "properties": {"key": "value"}} == properties[0][0]
+    assert {
+        "tags": [],
+        "properties": {
+            "variables": ["subjectcode", "var1", "var2", "var3", "var4", "dataset"],
+            "key": "value",
+        },
+    } == properties[0][0]
 
 
 @pytest.mark.database
@@ -668,12 +757,25 @@ def test_property_dataset_deletion(sqlite_db):
 
     # Test
     result = run_cli_command(
-        "tag-dataset", "dataset", "-t", "key=value", "-d", "data_model", "-v", "1.0", "-r"
+        "tag-dataset",
+        "dataset",
+        "-t",
+        "key=value",
+        "-d",
+        "data_model",
+        "-v",
+        "1.0",
+        "-r",
     )
     assert result.exit_code == ExitCode.OK
     properties = sqlite_db.get_values(table=Dataset.__table__, columns=["properties"])
 
-    assert {"tags": [], "properties": {}} == properties[0][0]
+    assert {
+        "tags": [],
+        "properties": {
+            "variables": ["subjectcode", "var1", "var2", "var3", "var4", "dataset"]
+        },
+    } == properties[0][0]
 
 
 @pytest.mark.database
@@ -818,6 +920,7 @@ def test_list_datasets(sqlite_db):
     assert "dataset    Dataset  ENABLED".strip(" ") in result_with_dataset.stdout.strip(
         " "
     )
+
 
 def _get_status(db, schema_name):
     (status, *_), *_ = db.execute_fetchall(f"SELECT status FROM {schema_name}")

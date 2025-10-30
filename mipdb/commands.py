@@ -141,7 +141,6 @@ def cli(
     Root command: resolves configuration and stores DB handles in ``ctx.obj``.
     """
 
-
     cfg = credentials_from_config()
 
     monetdb_enabled: bool = (

@@ -220,6 +220,7 @@ class ImportCSV(UseCase):
         cdes = metadata_table.table
         dataset_enumerations = get_dataset_enums(cdes)
 
+        csv_columns = pd.read_csv(csv_path, nrows=0).columns.tolist()
         imported_datasets = self._import_datasets(
             csv_path, data_model, cdes, copy_from_file
         )
@@ -236,7 +237,10 @@ class ImportCSV(UseCase):
                 label=dataset_enumerations[dataset],
                 csv_path=str(csv_path) if copy_from_file else None,
                 status="ENABLED",
-                properties=None,
+                properties={
+                    "tags": [],
+                    "properties": {"variables": csv_columns},
+                },
             )
             DatasetsTable().insert_values(values, self.sqlite_db)
             dataset_id += 1
