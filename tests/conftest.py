@@ -85,7 +85,7 @@ def monetdb_container():
         container = client.containers.get("mipdb-testing")
     except docker.errors.NotFound:
         container = client.containers.run(
-            "madgik/exareme2_db:latest",
+            "madgik/exareme2_db:develop",
             detach=True,
             ports={"50000/tcp": PORT},
             name="mipdb-testing",

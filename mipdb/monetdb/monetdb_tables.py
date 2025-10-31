@@ -9,7 +9,7 @@ from sqlalchemy import MetaData
 from mipdb.credentials import credentials_from_config
 from mipdb.data_frame import DATASET_COLUMN_NAME
 from mipdb.dataelements import CommonDataElement
-from mipdb.exceptions import UserInputError
+from mipdb.exceptions import UserInputError, DataBaseError
 from mipdb.monetdb.schema import Schema
 
 RECORDS_PER_COPY = 100000
@@ -121,13 +121,21 @@ class PrimaryDataTable(Table):
 
     @classmethod
     def from_db(cls, schema: Schema, db) -> "PrimaryDataTable":
+        column_names = db.get_table_column_names(
+            "primary_data", schema_name=schema.name
+        )
+        if not column_names:
+            raise DataBaseError(
+                f"Table primary_data does not exist in schema '{schema.name}'"
+            )
+
+        table_metadata = sql.MetaData(schema=schema.name)
         table = sql.Table(
-            "primary_data", schema.schema, autoload_with=db.get_executor()
+            "primary_data",
+            table_metadata,
+            *[sql.Column(column_name, quote=True) for column_name in column_names],
         )
         new_table = cls()
-        table.columns = [
-            sql.Column(column.name, quote=True) for column in list(table.columns)
-        ]
         new_table.set_table(table)
         return new_table
 

@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from typing import Union
 
 import sqlalchemy as sql
-from sqlalchemy import text, inspect
+from sqlalchemy import text
 from sqlalchemy.engine import Engine, Connection as SAConnection
 
 from mipdb.exceptions import DataBaseError
@@ -88,9 +88,79 @@ class DBExecutor:
         return [dataset[0] for dataset in datasets]
 
     def table_exists(self, table) -> bool:
-        inspector = inspect(self._executor)
-        schema = table.schema or None
-        return inspector.has_table(table.name, schema)
+        table_name = table.name
+        schema_name = str(table.schema) if table.schema else None
+
+        if schema_name:
+            result = self.execute(
+                text(
+                    """
+                    SELECT 1
+                    FROM sys.tables AS t
+                    JOIN sys.schemas AS s ON s.id = t.schema_id
+                    WHERE t.name = :table_name
+                      AND s.name = :schema_name
+                      AND t.type IN (0, 1, 30)
+                    LIMIT 1
+                    """
+                ),
+                table_name=table_name,
+                schema_name=schema_name,
+            )
+        else:
+            result = self.execute(
+                text(
+                    """
+                    SELECT 1
+                    FROM sys.tables AS t
+                    WHERE t.name = :table_name
+                      AND t.schema_id = (
+                          SELECT id FROM sys.schemas WHERE name = CURRENT_SCHEMA
+                      )
+                      AND t.type IN (0, 1, 30)
+                    LIMIT 1
+                    """
+                ),
+                table_name=table_name,
+            )
+
+        return bool(result.scalar_one_or_none() if result is not None else None)
+
+    def get_table_column_names(self, table_name: str, schema_name: str | None = None):
+        if schema_name:
+            result = self.execute(
+                text(
+                    """
+                    SELECT c.name
+                    FROM sys.columns AS c
+                    JOIN sys.tables AS t ON c.table_id = t.id
+                    JOIN sys.schemas AS s ON s.id = t.schema_id
+                    WHERE t.name = :table_name
+                      AND s.name = :schema_name
+                    ORDER BY c.number
+                    """
+                ),
+                table_name=table_name,
+                schema_name=schema_name,
+            )
+        else:
+            result = self.execute(
+                text(
+                    """
+                    SELECT c.name
+                    FROM sys.columns AS c
+                    JOIN sys.tables AS t ON c.table_id = t.id
+                    WHERE t.name = :table_name
+                      AND t.schema_id = (
+                          SELECT id FROM sys.schemas WHERE name = CURRENT_SCHEMA
+                      )
+                    ORDER BY c.number
+                    """
+                ),
+                table_name=table_name,
+            )
+
+        return [row[0] for row in result] if result else []
 
     @handle_errors
     def create_table(self, table):
