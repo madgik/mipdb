@@ -22,5 +22,11 @@ class DataFrame:
     def datasets(self):
         return self._datasets
 
-    def to_dict(self):
-        return self._data.to_dict("records")
+    def to_dict(self, columns: list[str] | None = None):
+        data = self._data
+        if columns:
+            missing_columns = [col for col in columns if col not in data.columns]
+            if missing_columns:
+                data = data.assign(**{col: None for col in missing_columns})
+            data = data[columns]
+        return data.to_dict("records")

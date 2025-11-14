@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import ipaddress
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import click as cl
 
 from mipdb.credentials import credentials_from_config
 from mipdb.logger import LOGGER
-from mipdb.monetdb.monetdb import MonetDB
-from mipdb.sqlite.sqlite import SQLiteDB
+from mipdb.duckdb import DuckDB
 from mipdb.reader import JsonFileReader
 from mipdb.usecases import (
     AddDataModel,
@@ -39,57 +37,18 @@ from mipdb.usecases import (
 from mipdb.exceptions import handle_errors
 
 
-class IPAddressType(cl.ParamType):
-    name = "ip"
-
-    def convert(self, value, param, ctx):  # type: ignore[override]
-        if value in (None, ""):
-            return None
-        try:
-            ipaddress.ip_address(value)
-            return value
-        except ValueError:
-            self.fail(f"{value!r} is not a valid IP address", param, ctx)
+def _open_duckdb(path: str | Path) -> DuckDB:
+    return DuckDB.from_config({"db_path": str(path)})
 
 
-IP_ADDRESS = IPAddressType()
-
-
-def _open_sqlite(path: str | Path) -> SQLiteDB:
-    return SQLiteDB.from_config({"db_path": str(path)})
-
-
-def _open_monetdb(enabled: bool, cfg: Dict[str, Any]) -> Optional[MonetDB]:
-    if not enabled:
-        LOGGER.debug("MonetDB disabled – operating in SQLite‑only mode.")
-        return None
-    return MonetDB.from_config(cfg)
-
-
-def with_dbs(func):
+def with_db(func):
 
     @cl.pass_context
     def _wrapper(ctx: cl.Context, *args, **kwargs):
-        kwargs.setdefault("sqlite_db", ctx.obj["sqlite_db"])
-        kwargs.setdefault("monetdb", ctx.obj["monetdb"])
+        kwargs.setdefault("duckdb", ctx.obj["duckdb"])
         return ctx.invoke(func, *args, **kwargs)
 
     return cl.decorators.update_wrapper(_wrapper, func)
-
-
-def resolve_copy_flag(
-    copy_from_file: Optional[bool], monetdb: Optional[MonetDB]
-) -> bool:
-
-    if monetdb is None:
-        if copy_from_file is not None:
-            raise cl.BadParameter(
-                "--copy/--no-copy is only valid when MonetDB is enabled."
-            )
-        return True
-    if copy_from_file is None:
-        copy_from_file = True
-    return copy_from_file
 
 
 def _require(
@@ -115,82 +74,30 @@ def _require(
 
 @cl.group()
 @cl.option(
-    "--monetdb/--no-monetdb",
-    "monetdb_opt",
+    "--duckdb",
+    "duckdb_path",
     default=None,
-    help="Enable or disable MonetDB integration (overrides config).",
+    help="DuckDB database file path.",
 )
-@cl.option("--ip", type=IP_ADDRESS, default=None, help="MonetDB host IP.")
-@cl.option("--port", default=None, help="MonetDB port.")
-@cl.option("--username", default=None, help="MonetDB admin username.")
-@cl.option("--password", default=None, help="MonetDB admin password.")
-@cl.option("--db-name", "db_name", default=None, help="MonetDB farm name.")
-@cl.option("--sqlite", "sqlite_db_path", default=None, help="SQLite DB file path.")
 @cl.pass_context
-def cli(
-    ctx: cl.Context,
-    monetdb_opt: Optional[bool],
-    ip: Optional[str],
-    port: Optional[str],
-    username: Optional[str],
-    password: Optional[str],
-    db_name: Optional[str],
-    sqlite_db_path: Optional[str],
-):
+def cli(ctx: cl.Context, duckdb_path: str | None):
     """
-    Root command: resolves configuration and stores DB handles in ``ctx.obj``.
+    Root command: resolves configuration and stores the DuckDB handle in ``ctx.obj``.
     """
 
     cfg = credentials_from_config()
-
-    monetdb_enabled: bool = (
-        monetdb_opt
-        if monetdb_opt is not None
-        else bool(cfg.get("MONETDB_ENABLED", False))
-    )
-
-    ip = _require("ip", ip, "DB_IP", cfg, required=monetdb_enabled)
-    port = _require("port", port, "DB_PORT", cfg, required=monetdb_enabled)
-    username = _require(
-        "username", username, "MONETDB_ADMIN_USERNAME", cfg, required=monetdb_enabled
-    )
-    password = _require(
-        "password", password, "MONETDB_LOCAL_PASSWORD", cfg, required=monetdb_enabled
-    )
-    db_name = _require("db_name", db_name, "DB_NAME", cfg, required=monetdb_enabled)
-    sqlite_db_path = _require(
-        "sqlite_db_path", sqlite_db_path, "SQLITE_DB_PATH", cfg, required=True
-    )
+    duckdb_path = _require("duckdb_path", duckdb_path, "DUCKDB_PATH", cfg, required=True)
 
     ctx.ensure_object(dict)
-    ctx.obj["sqlite_db"] = _open_sqlite(sqlite_db_path)
-    ctx.obj["monetdb"] = _open_monetdb(
-        monetdb_enabled,
-        {
-            "monetdb": monetdb_enabled,
-            "ip": ip,
-            "port": port,
-            "dbfarm": db_name,
-            "username": username,
-            "password": password,
-        },
-    )
+    ctx.obj["duckdb"] = _open_duckdb(duckdb_path)
 
 
 @cli.command()
 @handle_errors
-@with_dbs
-def init(sqlite_db: SQLiteDB, **_):
-    InitDB(db=sqlite_db).execute()
+@with_db
+def init(duckdb: DuckDB, **_):
+    InitDB(db=duckdb).execute()
     LOGGER.info("Database initialized")
-
-
-COPY_OPT = cl.option(
-    "--copy/--no-copy",
-    "copy_from_file",
-    default=None,
-    help="Use MonetDB COPY FROM FILE (MonetDB only).",
-)
 
 
 @cli.command()
@@ -225,18 +132,11 @@ def validate_folder(folder: Path):
 
 @cli.command("load-folder")
 @cl.argument("folder", type=cl.Path(exists=True, file_okay=False, path_type=Path))
-@COPY_OPT
 @handle_errors
-@with_dbs
-def load_folder(
-    folder: Path,
-    copy_from_file: Optional[bool],
-    sqlite_db: SQLiteDB,
-    monetdb: Optional[MonetDB],
-):
+@with_db
+def load_folder(folder: Path, duckdb: DuckDB):
 
-    copy_final = resolve_copy_flag(copy_from_file, monetdb)
-    Cleanup(sqlite_db, monetdb).execute()
+    Cleanup(duckdb).execute()
 
     for meta_path in folder.rglob("CDEsMetadata.json"):
         subdir = meta_path.parent
@@ -246,14 +146,10 @@ def load_folder(
         code, ver = meta["code"], meta["version"]
 
         ValidateDataModel().execute(meta)
-        AddDataModel(sqlite_db=sqlite_db, monetdb=monetdb).execute(meta)
+        AddDataModel(duckdb=duckdb).execute(meta)
         for csv in subdir.glob("*.csv"):
-            ValidateDataset(sqlite_db=sqlite_db, monetdb=monetdb).execute(
-                csv, copy_final, code, ver
-            )
-            ImportCSV(sqlite_db=sqlite_db, monetdb=monetdb).execute(
-                csv, copy_final, code, ver
-            )
+            ValidateDataset(duckdb=duckdb).execute(csv, code, ver)
+            ImportCSV(duckdb=duckdb).execute(csv, code, ver)
 
     LOGGER.info("Folder import finished successfully.")
 
@@ -261,15 +157,14 @@ def load_folder(
 @cli.command("add-data-model")
 @cl.argument("metadata", type=cl.Path(exists=True, dir_okay=False, path_type=Path))
 @handle_errors
-@with_dbs
+@with_db
 def add_data_model(
     metadata: Path,
-    sqlite_db: SQLiteDB,
-    monetdb: Optional[MonetDB],
+    duckdb: DuckDB,
 ):
     data_model_meta = JsonFileReader(metadata).read()
     ValidateDataModel().execute(data_model_meta)
-    AddDataModel(sqlite_db=sqlite_db, monetdb=monetdb).execute(data_model_meta)
+    AddDataModel(duckdb=duckdb).execute(data_model_meta)
 
     LOGGER.info(
         "Data-model %s:%s registered.",
@@ -282,21 +177,15 @@ def add_data_model(
 @cl.argument("csv", type=cl.Path(exists=True, dir_okay=False, path_type=Path))
 @cl.option("-d", "--data-model", "data_model", required=True)
 @cl.option("-v", "--version", required=True)
-@COPY_OPT
 @handle_errors
-@with_dbs
+@with_db
 def validate_dataset(
     csv: Path,
     data_model: str,
     version: str,
-    copy_from_file: Optional[bool],
-    sqlite_db: SQLiteDB,
-    monetdb: Optional[MonetDB],
+    duckdb: DuckDB,
 ):
-    copy_final = resolve_copy_flag(copy_from_file, monetdb)
-    ValidateDataset(sqlite_db=sqlite_db, monetdb=monetdb).execute(
-        csv, copy_final, data_model, version
-    )
+    ValidateDataset(duckdb=duckdb).execute(csv, data_model, version)
     LOGGER.info("Dataset %s validated against %s:%s", csv.name, data_model, version)
 
 
@@ -304,25 +193,16 @@ def validate_dataset(
 @cl.argument("csv", type=cl.Path(exists=True, dir_okay=False, path_type=Path))
 @cl.option("-d", "--data-model", "data_model", required=True)
 @cl.option("-v", "--version", required=True)
-@COPY_OPT
 @handle_errors
-@with_dbs
+@with_db
 def add_dataset(
     csv: Path,
     data_model: str,
     version: str,
-    copy_from_file: Optional[bool],
-    sqlite_db: SQLiteDB,
-    monetdb: Optional[MonetDB],
+    duckdb: DuckDB,
 ):
-    copy_final = resolve_copy_flag(copy_from_file, monetdb)
-
-    ValidateDataset(sqlite_db=sqlite_db, monetdb=monetdb).execute(
-        csv, copy_final, data_model, version
-    )
-    ImportCSV(sqlite_db=sqlite_db, monetdb=monetdb).execute(
-        csv, copy_final, data_model, version
-    )
+    ValidateDataset(duckdb=duckdb).execute(csv, data_model, version)
+    ImportCSV(duckdb=duckdb).execute(csv, data_model, version)
 
     LOGGER.info("Dataset %s registered under %s:%s", csv.name, data_model, version)
 
@@ -334,15 +214,14 @@ def add_dataset(
     "-f", "--force", is_flag=True, help="Also drop datasets based on this model."
 )
 @handle_errors
-@with_dbs
+@with_db
 def delete_data_model(
     name: str,
     version: str,
     force: bool,
-    sqlite_db: SQLiteDB,
-    monetdb: Optional[MonetDB],
+    duckdb: DuckDB,
 ):
-    DeleteDataModel(sqlite_db=sqlite_db, monetdb=monetdb).execute(name, version, force)
+    DeleteDataModel(duckdb=duckdb).execute(name, version, force)
     LOGGER.info("Data-model %s:%s deleted.", name, version)
 
 
@@ -351,17 +230,14 @@ def delete_data_model(
 @cl.option("-d", "--data-model", "data_model", required=True)
 @cl.option("-v", "--version", required=True)
 @handle_errors
-@with_dbs
+@with_db
 def delete_dataset(
     dataset: str,
     data_model: str,
     version: str,
-    sqlite_db: SQLiteDB,
-    monetdb: Optional[MonetDB],
+    duckdb: DuckDB,
 ):
-    DeleteDataset(sqlite_db=sqlite_db, monetdb=monetdb).execute(
-        dataset, data_model, version
-    )
+    DeleteDataset(duckdb=duckdb).execute(dataset, data_model, version)
     LOGGER.info("Dataset %s deleted from %s:%s.", dataset, data_model, version)
 
 
@@ -369,14 +245,14 @@ def delete_dataset(
 @cl.argument("name")
 @cl.option("-v", "--version", required=True)
 @handle_errors
-@with_dbs
+@with_db
 def disable_data_model(
     name: str,
     version: str,
-    sqlite_db: SQLiteDB,
+    duckdb: DuckDB,
     **_,
 ):
-    DisableDataModel(db=sqlite_db).execute(name, version)
+    DisableDataModel(db=duckdb).execute(name, version)
     LOGGER.info("Data-model %s:%s disabled.", name, version)
 
 
@@ -385,15 +261,15 @@ def disable_data_model(
 @cl.option("-d", "--data-model", "data_model", required=True)
 @cl.option("-v", "--version", required=True)
 @handle_errors
-@with_dbs
+@with_db
 def disable_dataset(
     dataset: str,
     data_model: str,
     version: str,
-    sqlite_db: SQLiteDB,
+    duckdb: DuckDB,
     **_,
 ):
-    DisableDataset(db=sqlite_db).execute(dataset, data_model, version)
+    DisableDataset(db=duckdb).execute(dataset, data_model, version)
     LOGGER.info("Dataset %s disabled in %s:%s.", dataset, data_model, version)
 
 
@@ -401,14 +277,14 @@ def disable_dataset(
 @cl.argument("name")
 @cl.option("-v", "--version", required=True)
 @handle_errors
-@with_dbs
+@with_db
 def enable_data_model(
     name: str,
     version: str,
-    sqlite_db: SQLiteDB,
+    duckdb: DuckDB,
     **_,
 ):
-    EnableDataModel(db=sqlite_db).execute(name, version)
+    EnableDataModel(db=duckdb).execute(name, version)
     LOGGER.info("Data-model %s:%s enabled.", name, version)
 
 
@@ -417,15 +293,15 @@ def enable_data_model(
 @cl.option("-d", "--data-model", "data_model", required=True)
 @cl.option("-v", "--version", required=True)
 @handle_errors
-@with_dbs
+@with_db
 def enable_dataset(
     dataset: str,
     data_model: str,
     version: str,
-    sqlite_db: SQLiteDB,
+    duckdb: DuckDB,
     **_,
 ):
-    EnableDataset(db=sqlite_db).execute(dataset, data_model, version)
+    EnableDataset(db=duckdb).execute(dataset, data_model, version)
     LOGGER.info("Dataset %s enabled in %s:%s.", dataset, data_model, version)
 
 
@@ -455,18 +331,18 @@ def _parse_tag(tag: str, remove: bool, force: bool, target_name: str, version: s
 @cl.option("-r", "--remove", is_flag=True, help="Remove tag / property instead.")
 @cl.option("-f", "--force", is_flag=True, help="Overwrite existing property.")
 @handle_errors
-@with_dbs
+@with_db
 def tag_data_model(
     name: str,
     version: str,
     tag: str,
     remove: bool,
     force: bool,
-    sqlite_db: SQLiteDB,
+    duckdb: DuckDB,
     **_,
 ):
     action = _parse_tag(tag, remove, force, target_name=name, version=version)
-    action(sqlite_db)
+    action(duckdb)
     LOGGER.info("Tag operation completed for data-model %s:%s.", name, version)
 
 
@@ -478,7 +354,7 @@ def tag_data_model(
 @cl.option("-r", "--remove", is_flag=True, help="Remove tag / property instead.")
 @cl.option("-f", "--force", is_flag=True, help="Overwrite existing property.")
 @handle_errors
-@with_dbs
+@with_db
 def tag_dataset(
     dataset: str,
     data_model: str,
@@ -486,7 +362,7 @@ def tag_dataset(
     tag: str,
     remove: bool,
     force: bool,
-    sqlite_db: SQLiteDB,
+    duckdb: DuckDB,
     **_,
 ):
     def _dataset_action(db):
@@ -506,7 +382,7 @@ def tag_dataset(
             else:
                 TagDataset(db=db).execute(dataset, data_model, version, tag)
 
-    _dataset_action(sqlite_db)
+    _dataset_action(duckdb)
     LOGGER.info(
         "Tag operation completed for dataset %s (%s:%s).", dataset, data_model, version
     )
@@ -514,16 +390,16 @@ def tag_dataset(
 
 @cli.command("list-data-models")
 @handle_errors
-@with_dbs
-def list_data_models(sqlite_db: SQLiteDB, **_):
-    ListDataModels(db=sqlite_db).execute()
+@with_db
+def list_data_models(duckdb: DuckDB, **_):
+    ListDataModels(db=duckdb).execute()
 
 
 @cli.command("list-datasets")
 @handle_errors
-@with_dbs
-def list_datasets(sqlite_db: SQLiteDB, **_):
-    ListDatasets(sqlite_db=sqlite_db).execute()
+@with_db
+def list_datasets(duckdb: DuckDB, **_):
+    ListDatasets(db=duckdb).execute()
 
 
 entry = cli

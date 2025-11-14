@@ -1,5 +1,4 @@
 from typing import List, Any, Dict
-from enum import Enum
 
 import sqlalchemy as sql
 from sqlalchemy import MetaData, ForeignKey, inspect, text, select, func
@@ -21,11 +20,6 @@ class Status:
     DISABLED = "DISABLED"
 
 
-class DBType(Enum):
-    monetdb = "monetdb"
-    sqlite = "sqlite"
-
-
 class SQLTYPES:
     INTEGER = sql.Integer
     STRING = sql.String(255)
@@ -35,7 +29,7 @@ class SQLTYPES:
 
 class DataModel(Base):
     __tablename__ = "data_models"
-    data_model_id = sql.Column(sql.Integer, primary_key=True, autoincrement=True)
+    data_model_id = sql.Column(sql.Integer, primary_key=True, autoincrement=False)
     code = sql.Column(sql.String, nullable=False)
     version = sql.Column(sql.String, nullable=False)
     label = sql.Column(sql.String, nullable=False)
@@ -45,7 +39,7 @@ class DataModel(Base):
 
 class Dataset(Base):
     __tablename__ = "datasets"
-    dataset_id = sql.Column(sql.Integer, primary_key=True, autoincrement=True)
+    dataset_id = sql.Column(sql.Integer, primary_key=True, autoincrement=False)
     data_model_id = sql.Column(
         sql.Integer,
         ForeignKey("data_models.data_model_id"),
@@ -58,18 +52,18 @@ class Dataset(Base):
     properties = sql.Column(sql.JSON, nullable=True)
 
 
-class SQLiteDB:
-    """Class representing a SQLite database interface."""
+class DuckDB:
+    """Single DuckDB backend used for both metadata and primary data storage."""
 
     def __init__(self, url: str, echo=False) -> None:
-        self._executor = sql.create_engine(url, echo=echo)
+        self._executor = sql.create_engine(url, echo=echo, future=True)
         self.Session = sessionmaker(bind=self._executor, future=True)
 
     @classmethod
-    def from_config(cls, dbconfig: Dict[str, Any]) -> "SQLiteDB":
+    def from_config(cls, dbconfig: Dict[str, Any]) -> "DuckDB":
         db_path = dbconfig["db_path"]
-        url = f"sqlite:///{db_path}"
-        return SQLiteDB(url)
+        url = f"duckdb:///{db_path}"
+        return DuckDB(url)
 
     def execute(self, query: str, *args, **kwargs) -> List[Any]:
         """Execute a statement without returning rows."""
@@ -233,21 +227,23 @@ class SQLiteDB:
             session.close()
         return [dict(data_model_id=row[0], count=row[1]) for row in rows]
 
-    def get_row_count(self, table_name: str) -> int:
+    def get_row_count(self, table: sql.Table) -> int:
         session = self.Session()
         try:
-            count = session.execute(
-                select(func.count()).select_from(text(table_name))
-            ).scalar_one()
+            count = session.execute(select(func.count()).select_from(table)).scalar_one()
         finally:
             session.close()
         return count
 
-    def drop_table(self, table_name: str) -> None:
+    def drop_table(self, table: sql.Table | str) -> None:
         session = self.Session()
         try:
-            table = sql.Table(table_name, metadata, autoload_with=self._executor)
-            table.drop(bind=self._executor)
+            if isinstance(table, sql.Table):
+                table.drop(bind=self._executor, checkfirst=False)
+            else:
+                meta = sql.MetaData()
+                tbl = sql.Table(table, meta, autoload_with=self._executor)
+                tbl.drop(bind=self._executor, checkfirst=False)
             session.commit()
         finally:
             session.close()
@@ -263,6 +259,15 @@ class SQLiteDB:
             session.commit()
         finally:
             session.close()
+
+    def get_column_distinct(self, column: str, table: sql.Table) -> List[Any]:
+        session = self.Session()
+        try:
+            stmt = select(table.c[column]).distinct()
+            rows = session.execute(stmt).all()
+        finally:
+            session.close()
+        return [row[0] for row in rows]
 
     def get_dataset_properties(self, dataset_id: int) -> Any:
         session = self.Session()
@@ -389,3 +394,29 @@ class SQLiteDB:
     def get_all_tables(self) -> List[str]:
         inspector = inspect(self._executor)
         return inspector.get_table_names()
+
+    def get_table_column_names(
+        self, table_name: str, schema_name: str | None = None
+    ) -> List[str]:
+        session = self.Session()
+        try:
+            stmt = text(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = :table_name
+                {schema_filter}
+                ORDER BY ordinal_position
+                """.format(
+                    schema_filter=(
+                        "AND table_schema = :schema_name" if schema_name else ""
+                    )
+                )
+            )
+            params = {"table_name": table_name}
+            if schema_name:
+                params["schema_name"] = schema_name
+            rows = session.execute(stmt, params).all()
+        finally:
+            session.close()
+        return [row[0] for row in rows]

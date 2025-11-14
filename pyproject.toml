@@ -7,8 +7,8 @@ authors = ["Your Name <you@example.com>"]
 [tool.poetry.dependencies]
 python            = "~3.10"
 SQLAlchemy        = "~2.0"
-sqlalchemy_monetdb = "~2.0"
-pymonetdb         = "~1.8"
+duckdb            = "~1.1"
+duckdb-engine     = "~0.11"
 pandas            = "~2.3"
 pandera           = "~0.25"
 click             = "~8.1"
@@ -34,7 +34,7 @@ mipdb = "mipdb.commands:entry"
 
 [tool.pytest.ini_options]
 markers = [
-    "database: these tests depend on an external dockerized MonetDB service running (deselect with '-m \"not database\"')",
+    "database: integration tests that touch the DuckDB file (deselect with '-m \"not database\"')",
 ]
 filterwarnings = ["ignore::DeprecationWarning"]
 

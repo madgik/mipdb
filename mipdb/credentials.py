@@ -12,14 +12,5 @@ def credentials_from_config() -> Dict[str, Any]:
         return toml.load(os.getenv("CONFIG_PATH", CONFIG_PATH))
     except FileNotFoundError:
         return {
-            "DB_IP": "",
-            "DB_PORT": "",
-            "MONETDB_ENABLED": False,
-            "MONETDB_ADMIN_USERNAME": "",
-            "MONETDB_LOCAL_USERNAME": "",
-            "MONETDB_LOCAL_PASSWORD": "",
-            "MONETDB_PUBLIC_USERNAME": "",
-            "MONETDB_PUBLIC_PASSWORD": "",
-            "DB_NAME": "",
-            "SQLITE_DB_PATH": "",
+            "DUCKDB_PATH": "",
         }

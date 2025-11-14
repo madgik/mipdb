@@ -1,4 +1,3 @@
-import warnings
 from abc import ABC, abstractmethod
 
 import sqlalchemy as sql
@@ -9,10 +8,9 @@ from typing import List
 
 from mipdb.dataelements import CommonDataElement
 from mipdb.exceptions import DataBaseError
-from mipdb.sqlite.sqlite import DataModel, Dataset
+from mipdb.duckdb.database import DataModel, Dataset
 
 METADATA_TABLE = "variables_metadata"
-PRIMARYDATA_TABLE = "primary_data"
 
 Base = declarative_base()
 
@@ -69,10 +67,10 @@ class Table(ABC):
         db.delete_from(self._table, where_conditions={})
 
     def get_row_count(self, db):
-        return db.get_row_count(self.table.fullname)
+        return db.get_row_count(self.table)
 
     def get_column_distinct(self, column, db):
-        return db.get_column_distinct(column, self.table.fullname)
+        return db.get_column_distinct(column, self.table)
 
     def drop(self, db):
         db.drop_table(self._table)
@@ -86,8 +84,10 @@ class DataModelTable(Table):
         return db.get_values(table=self._table, columns=columns)
 
     def get_data_model(self, data_model_id, db, columns: list = None):
-        return db.get_data_models_values(
-            columns=columns, where_conditions={"data_model_id": data_model_id}
+        return db.get_values(
+            table=self._table,
+            columns=columns,
+            where_conditions={"data_model_id": data_model_id},
         )
 
     def get_dataset_count_by_data_model_id(self, db):
